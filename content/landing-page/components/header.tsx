@@ -56,10 +56,10 @@ export function Header() {
             Providers
           </Link>
           <Link
-            href="/playground"
-            className="transition-colors hover:text-foreground text-muted-foreground font-medium"
+            href="#"
+            className="transition-colors hover:text-foreground text-muted-foreground font-medium cursor-not-allowed"
           >
-            Playground
+            Playground (Coming Soon)
           </Link>
         </nav>
 
@@ -67,7 +67,8 @@ export function Header() {
           <Button
             variant="ghost"
             size="sm"
-            className="gap-2 text-muted-foreground hover:text-foreground"
+            className="gap-2 text-muted-foreground hover:text-foreground cursor-not-allowed"
+            disabled
           >
             <Search className="h-4 w-4" />
             <span className="text-sm">Search...</span>
@@ -78,12 +79,13 @@ export function Header() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-sm text-muted-foreground hover:text-foreground"
+            className="text-sm text-muted-foreground hover:text-foreground cursor-not-allowed"
+            disabled
           >
             Feedback
           </Button>
           <Button variant="ghost" size="icon" asChild>
-            <Link href="https://github.com" target="_blank">
+            <Link href="https://github.com/warpy-ai/auth-sdk" target="_blank">
               <Github className="h-5 w-5" />
               <span className="sr-only">GitHub</span>
             </Link>

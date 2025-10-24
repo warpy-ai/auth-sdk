@@ -1,6 +1,6 @@
-import { Button } from "@/components/ui/button"
-import { Copy } from "lucide-react"
-import Link from "next/link"
+import { Button } from "@/components/ui/button";
+import { Copy } from "lucide-react";
+import Link from "next/link";
 
 export function Hero() {
   return (
@@ -12,11 +12,15 @@ export function Hero() {
           The Authentication Toolkit for TypeScript
         </h1>
         <p className="max-w-[750px] text-lg text-muted-foreground/80 sm:text-xl text-balance leading-relaxed">
-          From the creators of modern web apps, @warpy-auth-sdk/core is a free open-source library that gives you the tools
-          you need to build secure authentication with AI agent integration.
+          @warpy-auth-sdk/core is a free open-source library that gives you the
+          tools you need to build secure authentication with AI agent
+          integration.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 mt-6">
-          <Button size="lg" className="bg-foreground text-background hover:bg-foreground/90">
+          <Button
+            size="lg"
+            className="bg-foreground text-background hover:bg-foreground/90"
+          >
             <Link href="/docs">Get Started</Link>
           </Button>
           <Button
@@ -27,14 +31,22 @@ export function Hero() {
             <span>$ npm i @warpy-auth-sdk/core</span>
             <Copy className="h-4 w-4" />
           </Button>
-          <Button size="lg" variant="outline" className="border-border/50 hover:bg-accent/50 bg-transparent" asChild>
-            <Link href="/playground">Visit Playground</Link>
+          <Button
+            size="lg"
+            variant="outline"
+            className="border-border/50 hover:bg-accent/50 bg-transparent cursor-not-allowed"
+            disabled
+            asChild
+          >
+            <Link href="">Visit Playground (Coming Soon)</Link>
           </Button>
         </div>
       </div>
 
       <div className="mt-16 text-center">
-        <p className="text-sm text-muted-foreground/60 mb-6">Trusted by builders at</p>
+        <p className="text-sm text-muted-foreground/60 mb-6">
+          Trusted by builders at
+        </p>
         <div className="flex flex-wrap items-center justify-center gap-12 opacity-40">
           <div className="text-base font-medium tracking-wide">VERCEL</div>
           <div className="text-base font-medium tracking-wide">NEXT.JS</div>
@@ -44,5 +56,5 @@ export function Hero() {
         </div>
       </div>
     </section>
-  )
+  );
 }
