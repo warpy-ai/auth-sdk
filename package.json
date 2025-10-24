@@ -1,5 +1,5 @@
 {
-    "name": "@auth-sdk/core",
+    "name": "auth-sdk-core",
     "version": "0.0.0-dev-01",
     "description": "auth-sdk",
     "main": "./dist/index.js",
@@ -79,5 +79,8 @@
         "dist",
         "typings"
     ],
+    "publishConfig": {
+        "access": "public"
+    },
     "typings": "./typings/index.d.ts"
 }
