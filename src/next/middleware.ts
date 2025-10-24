@@ -11,7 +11,10 @@ export function authMiddleware(
   configOrOptions?: AuthConfig | AuthMiddlewareOptions,
   maybeOptions: AuthMiddlewareOptions = {}
 ) {
-  const hasConfig = !!configOrOptions && (configOrOptions as any).provider;
+  const hasConfig =
+    !!configOrOptions &&
+    "provider" in configOrOptions &&
+    configOrOptions.provider !== undefined;
   const options: AuthMiddlewareOptions = hasConfig
     ? maybeOptions || {}
     : (configOrOptions as AuthMiddlewareOptions) || {};
@@ -21,6 +24,7 @@ export function authMiddleware(
 
   const handler = createNextAuthHandler(config, options);
 
+  // eslint-disable-next-line require-await
   return async function middleware(request: Request): Promise<Response> {
     const url = new URL(request.url);
     const pathname = url.pathname;
@@ -44,7 +48,12 @@ export function authMiddleware(
     // For now we do not force redirects here; the user can guard pages client-side or
     // we can expand with verify via cookies/JWT and redirect when missing.
     // Next.js middleware should return NextResponse.next(); avoid importing to keep SDK light
-    const NextResponse = (globalThis as any).NextResponse;
+    interface GlobalWithNextResponse {
+      NextResponse?: {
+        next: () => Response;
+      };
+    }
+    const NextResponse = (globalThis as GlobalWithNextResponse).NextResponse;
     if (NextResponse && typeof NextResponse.next === "function") {
       return NextResponse.next();
     }
@@ -72,9 +81,8 @@ function resolveConfigFromEnv(): AuthConfig {
   if (clientId && clientSecret && redirectUri) {
     return {
       secret,
-      // cast to AuthConfig provider type
-      provider: google({ clientId, clientSecret, redirectUri }) as any,
-    } as AuthConfig;
+      provider: google({ clientId, clientSecret, redirectUri }),
+    };
   }
   throw new Error(
     "No provider configured. Set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REDIRECT_URI or pass an AuthConfig to authMiddleware()."

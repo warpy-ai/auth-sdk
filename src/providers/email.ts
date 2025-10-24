@@ -1,6 +1,6 @@
-import * as nodemailer from 'nodemailer';
-import type { EmailProviderConfig } from './types';
-import { createMagicToken, verifyMagicToken } from '../utils/tokens';
+import * as nodemailer from "nodemailer";
+import type { EmailProviderConfig } from "./types";
+import { createMagicToken, verifyMagicToken } from "../utils/tokens";
 
 export interface EmailProviderOptions {
   server: string; // SMTP server URL (e.g., smtp.gmail.com:587)
@@ -14,14 +14,14 @@ export interface EmailProviderOptions {
 export function email(options: EmailProviderOptions): EmailProviderConfig {
   // Create nodemailer transporter
   const transporter = nodemailer.createTransport({
-    host: options.server.split(':')[0],
-    port: parseInt(options.server.split(':')[1] || '587'),
+    host: options.server.split(":")[0],
+    port: parseInt(options.server.split(":")[1] || "587"),
     secure: false, // Use TLS
     auth: options.auth,
   });
 
   return {
-    type: 'email',
+    type: "email",
     server: options.server,
     from: options.from,
 
@@ -34,7 +34,7 @@ export function email(options: EmailProviderOptions): EmailProviderConfig {
       await transporter.sendMail({
         from: options.from,
         to: email,
-        subject: 'Sign in to your account',
+        subject: "Sign in to your account",
         html: `
           <div>
             <h2>Sign in to your account</h2>
@@ -50,7 +50,7 @@ export function email(options: EmailProviderOptions): EmailProviderConfig {
       });
     },
 
-    async verify(token: string): Promise<{ email: string; userId?: string } | null> {
+    verify(token: string): Promise<{ email: string; userId?: string } | null> {
       return verifyMagicToken(token);
     },
   };

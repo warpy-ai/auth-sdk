@@ -1,5 +1,5 @@
-import { OAuthProvider } from '../utils/oauth';
-import type { OAuthProviderConfig, UserProfile } from './types';
+import { OAuthProvider } from "../utils/oauth";
+import type { OAuthProviderConfig, UserProfile } from "./types";
 
 export interface GoogleProviderOptions {
   clientId: string;
@@ -12,24 +12,24 @@ export function google(options: GoogleProviderOptions): OAuthProviderConfig {
   const oauthProvider = new OAuthProvider({
     clientId: options.clientId,
     clientSecret: options.clientSecret,
-    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenUrl: 'https://oauth2.googleapis.com/token',
-    userInfoUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    userInfoUrl: "https://www.googleapis.com/oauth2/v3/userinfo",
     redirectUri: options.redirectUri,
-    scope: options.scope || ['openid', 'email', 'profile'],
+    scope: options.scope || ["openid", "email", "profile"],
   });
 
   return {
-    type: 'oauth',
+    type: "oauth",
     clientId: options.clientId,
     clientSecret: options.clientSecret,
-    authorizeUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-    tokenUrl: 'https://oauth2.googleapis.com/token',
-    userInfoUrl: 'https://www.googleapis.com/oauth2/v3/userinfo',
+    authorizeUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+    tokenUrl: "https://oauth2.googleapis.com/token",
+    userInfoUrl: "https://www.googleapis.com/oauth2/v3/userinfo",
     redirectUri: options.redirectUri,
-    scope: options.scope || ['openid', 'email', 'profile'],
+    scope: options.scope || ["openid", "email", "profile"],
 
-    async getUser(accessToken: string): Promise<UserProfile> {
+    getUser(accessToken: string): Promise<UserProfile> {
       return oauthProvider.getUserInfo(accessToken);
     },
   };

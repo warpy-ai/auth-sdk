@@ -7,13 +7,21 @@ import {
   clearSessionCookie,
 } from "../core";
 
+// NextRequest interface for Next.js specific features
+interface NextRequest extends Request {
+  nextUrl?: {
+    pathname: string;
+  };
+}
+
 function getPathname(request: Request): string {
   try {
-    // @ts-ignore - NextRequest has nextUrl
-    const nextUrl = (request as any).nextUrl;
+    const nextUrl = (request as NextRequest).nextUrl;
     if (nextUrl && typeof nextUrl.pathname === "string")
       return nextUrl.pathname;
-  } catch {}
+  } catch (_error) {
+    // Fallback to URL parsing
+  }
   return new URL(request.url).pathname;
 }
 
@@ -105,7 +113,7 @@ export function createNextAuthHandler(
       }
 
       return Response.json({ error: "Not Found" }, { status: 404 });
-    } catch (error) {
+    } catch (_error) {
       return Response.json({ error: "Internal Server Error" }, { status: 500 });
     }
   };

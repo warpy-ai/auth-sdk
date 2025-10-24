@@ -1,5 +1,5 @@
 export interface OAuthProviderConfig {
-  type: 'oauth';
+  type: "oauth";
   clientId: string;
   clientSecret: string;
   authorizeUrl: string;
@@ -11,7 +11,7 @@ export interface OAuthProviderConfig {
 }
 
 export interface EmailProviderConfig {
-  type: 'email';
+  type: "email";
   server: string;
   from: string;
   sendMagicLink: (email: string, url: string) => Promise<void>;

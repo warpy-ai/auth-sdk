@@ -30,8 +30,8 @@ export class OAuthProvider {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
-      response_type: 'code',
-      scope: this.config.scope?.join(' ') || 'openid email profile',
+      response_type: "code",
+      scope: this.config.scope?.join(" ") || "openid email profile",
       state,
     });
 
@@ -40,15 +40,15 @@ export class OAuthProvider {
 
   async exchangeCodeForToken(code: string): Promise<OAuthTokenResponse> {
     const response = await fetch(this.config.tokenUrl, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
+        "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams({
         client_id: this.config.clientId,
         client_secret: this.config.clientSecret,
         code,
-        grant_type: 'authorization_code',
+        grant_type: "authorization_code",
         redirect_uri: this.config.redirectUri,
       }),
     });

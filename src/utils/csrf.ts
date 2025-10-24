@@ -1,10 +1,10 @@
-import crypto from 'crypto';
+import crypto from "crypto";
 
 // Store CSRF tokens (in-memory for now, could use Redis/DB)
 const csrfTokens = new Map<string, { token: string; expires: number }>();
 
 export function generateCSRFToken(sessionId?: string): string {
-  const token = crypto.randomBytes(32).toString('hex');
+  const token = crypto.randomBytes(32).toString("hex");
   const id = sessionId || token;
 
   // Token expires in 1 hour

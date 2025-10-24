@@ -13,7 +13,6 @@ import type {
   EmailProviderConfig,
 } from "./providers/types";
 import type { Adapter } from "./adapters/types";
-import { createMCPTools } from "./mcp/mcp";
 
 export interface AuthConfig {
   provider: Provider;
@@ -325,7 +324,7 @@ export async function getSession(
     };
 
     return session;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
