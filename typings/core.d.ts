@@ -1,6 +1,6 @@
-import { type JWTPayload } from './utils/jwt';
-import type { Provider } from './providers/types';
-import type { Adapter } from './adapters/types';
+import { type JWTPayload } from "./utils/jwt";
+import type { Provider } from "./providers/types";
+import type { Adapter } from "./adapters/types";
 export interface AuthConfig {
     provider: Provider;
     secret: string;
@@ -10,6 +10,24 @@ export interface AuthConfig {
         scopes?: string[];
     };
     callbacks?: {
+        user?: (user: {
+            id?: string;
+            email: string;
+            name?: string;
+            picture?: string;
+        }, context?: {
+            provider?: string;
+        }) => Promise<{
+            id: string;
+            email: string;
+            name?: string;
+            picture?: string;
+        }> | {
+            id: string;
+            email: string;
+            name?: string;
+            picture?: string;
+        };
         session?: (session: Session) => Session | Promise<Session>;
         jwt?: (token: JWTPayload) => JWTPayload | Promise<JWTPayload>;
     };
@@ -23,7 +41,7 @@ export interface Session {
     };
     expires: Date;
     token?: string;
-    type?: 'standard' | 'mcp-agent';
+    type?: "standard" | "mcp-agent";
     scopes?: string[];
     agentId?: string;
 }
@@ -44,7 +62,7 @@ export declare function signOut(request: Request, config: AuthConfig): Promise<v
 export declare function createSessionCookie(session: Session): string;
 export declare function clearSessionCookie(): string;
 export declare function verifyAgentToken(request: Request, secret: string): Promise<Session | null>;
-export { google } from './providers/google';
-export { email } from './providers/email';
-export type { Adapter } from './adapters/types';
-export { createMCPTools } from './mcp/mcp';
+export { google } from "./providers/google";
+export { email } from "./providers/email";
+export type { Adapter } from "./adapters/types";
+export { createMCPTools } from "./mcp/mcp";

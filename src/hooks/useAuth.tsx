@@ -63,7 +63,7 @@ export function AuthProvider({
     async (email: string) => {
       try {
         // Call API to initiate sign-in
-        const response = await fetch("/api/auth/signin", {
+        const response = await fetch("/api/auth/signin/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),

@@ -21,6 +21,16 @@ export interface AuthConfig {
   adapter?: Adapter;
   mcp?: { enabled: boolean; scopes?: string[] };
   callbacks?: {
+    /**
+     * Resolve and/or upsert the application user given an OAuth profile or verified email.
+     * Return the user object to embed in the session.
+     */
+    user?: (
+      user: { id?: string; email: string; name?: string; picture?: string },
+      context?: { provider?: string }
+    ) =>
+      | Promise<{ id: string; email: string; name?: string; picture?: string }>
+      | { id: string; email: string; name?: string; picture?: string };
     session?: (session: Session) => Session | Promise<Session>;
     jwt?: (token: JWTPayload) => JWTPayload | Promise<JWTPayload>;
   };
@@ -128,7 +138,22 @@ async function handleOAuthAuthentication(
   }
 
   // Validate CSRF state
-  if (!state || !validateCSRFToken("oauth", state)) {
+  if (!state) {
+    return { error: "Invalid CSRF token" };
+  }
+  // Accept either in-memory token or cookie-based fallback
+  const cookieHeader = request.headers.get("cookie") || "";
+  const cookieMatch =
+    cookieHeader
+      .split(";")
+      .map((c) => c.trim())
+      .find((c) => c.startsWith("auth_oauth_state=")) || "";
+  const cookieState = cookieMatch
+    ? decodeURIComponent(cookieMatch.split("=")[1] || "")
+    : "";
+  const hasMemory = validateCSRFToken("oauth", state);
+  const hasCookie = cookieState && cookieState === state;
+  if (!hasMemory && !hasCookie) {
     return { error: "Invalid CSRF token" };
   }
 
@@ -137,9 +162,21 @@ async function handleOAuthAuthentication(
   const tokenResponse = await oauthProvider.exchangeCodeForToken(code);
   const userProfile = await provider.getUser(tokenResponse.access_token);
 
-  // Create or get user from adapter
-  let user = userProfile;
-  if (config.adapter) {
+  // Resolve user: callbacks.user -> adapter -> raw profile
+  let user:
+    | { id: string; email: string; name?: string; picture?: string }
+    | any = userProfile;
+  if (config.callbacks?.user) {
+    user = await config.callbacks.user(
+      {
+        id: userProfile.id,
+        email: userProfile.email,
+        name: userProfile.name,
+        picture: userProfile.picture,
+      },
+      { provider: "oauth" }
+    );
+  } else if (config.adapter) {
     const existingUser = await config.adapter.getUserByEmail(userProfile.email);
     if (existingUser) {
       user = existingUser;
@@ -153,17 +190,18 @@ async function handleOAuthAuthentication(
   }
 
   // Create session
-  const sessionToken = signJWT(
-    {
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      type: "standard",
-    },
-    config.secret
-  );
+  let jwtPayload: JWTPayload = {
+    userId: user.id,
+    email: user.email,
+    name: user.name,
+    type: "standard",
+  } as JWTPayload;
+  if (config.callbacks?.jwt) {
+    jwtPayload = await config.callbacks.jwt(jwtPayload);
+  }
+  const sessionToken = signJWT(jwtPayload, config.secret);
 
-  const session: Session = {
+  let session: Session = {
     user: {
       id: user.id,
       email: user.email,
@@ -174,6 +212,9 @@ async function handleOAuthAuthentication(
     token: sessionToken,
     type: "standard",
   };
+  if (config.callbacks?.session) {
+    session = await config.callbacks.session(session);
+  }
 
   // Store in adapter if available
   if (config.adapter) {
@@ -202,9 +243,14 @@ async function handleEmailAuthentication(
       return { error: "Invalid or expired magic link" };
     }
 
-    // Get or create user
-    let user;
-    if (config.adapter) {
+    // Resolve user
+    let user: { id: string; email: string; name?: string } | any;
+    if (config.callbacks?.user) {
+      user = await config.callbacks.user(
+        { id: verified.userId, email: verified.email },
+        { provider: "email" }
+      );
+    } else if (config.adapter) {
       user = await config.adapter.getUserByEmail(verified.email);
       if (!user) {
         user = await config.adapter.createUser({ email: verified.email });
@@ -214,22 +260,26 @@ async function handleEmailAuthentication(
     }
 
     // Create session
-    const sessionToken = signJWT(
-      {
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-        type: "standard",
-      },
-      config.secret
-    );
+    let jwtPayload: JWTPayload = {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      type: "standard",
+    } as JWTPayload;
+    if (config.callbacks?.jwt) {
+      jwtPayload = await config.callbacks.jwt(jwtPayload);
+    }
+    const sessionToken = signJWT(jwtPayload, config.secret);
 
-    const session: Session = {
+    let session: Session = {
       user: { id: user.id, email: user.email, name: user.name },
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       token: sessionToken,
       type: "standard",
     };
+    if (config.callbacks?.session) {
+      session = await config.callbacks.session(session);
+    }
 
     return { session };
   }
