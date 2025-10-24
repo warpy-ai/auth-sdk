@@ -32,7 +32,9 @@
   "exclude": [
     "node_modules",
     "./examples/**/*.tsx",
-    "./examples/**/*.ts"
+    "./examples/**/*.ts",
+    "./content/**/*.tsx",
+    "./content/**/*.ts"
   ],
   "include": [
     "./src/**/*.tsx",
