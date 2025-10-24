@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "auth-sdk/hooks";
+import { useAuth } from "@auth-sdk/core/hooks";
 
 export default function Home() {
   const { session, loading } = useAuth();
@@ -27,7 +27,8 @@ export default function Home() {
             <span className="font-medium text-zinc-950 dark:text-zinc-50">
               auth-sdk
             </span>{" "}
-            authentication. Sign in with Google or email magic link to access protected routes.
+            authentication. Sign in with Google or email magic link to access
+            protected routes.
           </p>
 
           {loading ? (

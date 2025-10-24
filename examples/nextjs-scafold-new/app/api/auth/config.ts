@@ -1,4 +1,4 @@
-import { google, email } from "auth-sdk";
+import { google, email } from "@auth-sdk/core";
 
 // Google OAuth - provider handles all OAuth URLs internally
 export const googleAuthConfig = {

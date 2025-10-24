@@ -1,6 +1,6 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { authenticate } from 'auth-sdk';
-import { googleAuthConfig } from '../../config';
+import { NextRequest, NextResponse } from "next/server";
+import { authenticate } from "@auth-sdk/core";
+import { googleAuthConfig } from "../../config";
 
 export async function GET(request: NextRequest) {
   try {
@@ -14,11 +14,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
-    return NextResponse.json({ error: 'Unknown error' }, { status: 500 });
+    return NextResponse.json({ error: "Unknown error" }, { status: 500 });
   } catch (error) {
-    console.error('Google signin error:', error);
+    console.error("Google signin error:", error);
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { signOut, clearSessionCookie } from "auth-sdk";
+import { signOut, clearSessionCookie } from "@auth-sdk/core";
 
 export async function POST(request: NextRequest) {
   try {
-    await signOut(request, { secret: process.env.AUTH_SECRET! } as any);
+    await signOut(request as any, { secret: process.env.AUTH_SECRET! } as any);
 
     const response = NextResponse.json({ success: true });
     response.headers.set("Set-Cookie", clearSessionCookie());

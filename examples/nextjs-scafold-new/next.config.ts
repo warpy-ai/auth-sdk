@@ -4,7 +4,7 @@ const nextConfig: NextConfig = {
   experimental: {
     externalDir: true,
   },
-  transpilePackages: ["auth-sdk"],
+  transpilePackages: ["@auth-sdk/core"],
   turbopack: {
     root: __dirname,
   },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "auth-sdk";
+import { getSession } from "@auth-sdk/core";
 
 export async function GET(request: NextRequest) {
   try {
