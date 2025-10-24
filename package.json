@@ -1,0 +1,43 @@
+{
+    "name": "auth-sdk",
+    "version": "0.0.0-dev-01",
+    "description": "auth-sdk",
+    "main": "./dist/index.js",
+    "scripts": {
+        "start": "node .",
+        "build": "tsc",
+        "dev": "ts-node-dev --respawn --no-deps --rs --cls ./src/index.ts",
+        "eslint": "eslint src/**/*.ts"
+    },
+    "keywords": [
+        "auth-sdk",
+        "typescript",
+        "node",
+        "nodejs"
+    ],
+    "author": {
+        "email": "jucas.oliveira@gmail.com",
+        "name": "Lucas Oliveira"
+    },
+    "license": "ISC",
+    "devDependencies": {
+        "@types/node": "^24.9.1",
+        "@typescript-eslint/eslint-plugin": "8.46.2",
+        "@typescript-eslint/parser": "8.46.2",
+        "eslint": "9.38.0",
+        "eslint-plugin-prettier": "5.5.4",
+        "ts-node": "10.9.2",
+        "ts-node-dev": "2.0.0",
+        "typescript": "^5.9.3"
+    },
+    "dependencies": {
+        "esbuild": "^0.25.11",
+        "vitest": "^4.0.2",
+        "winston": "3.18.3"
+    },
+    "files": [
+        "dist",
+        "typings"
+    ],
+    "typings": "types/index.d.ts"
+}

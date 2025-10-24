@@ -1,0 +1,4 @@
+Documentation:
+{full docs here}
+---
+Based on the above, answer: {question}
