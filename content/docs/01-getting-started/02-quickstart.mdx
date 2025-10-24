@@ -4,15 +4,15 @@ import { Callout } from '@/components/docs/callout';
 import { Example } from '@/components/docs/example';
 
 export const metadata = {
-  title: 'Quickstart - @auth-sdk/core',
-  description: 'Get up and running with @auth-sdk/core in 5 minutes.',
+  title: 'Quickstart - @warpy-auth-sdk/core',
+  description: 'Get up and running with @warpy-auth-sdk/core in 5 minutes.',
 };
 
 export default function Quickstart() {
   return (
     <DocsLayout
       title="Quickstart"
-      description="Get up and running with @auth-sdk/core in 5 minutes."
+      description="Get up and running with @warpy-auth-sdk/core in 5 minutes."
       prevPage={{ title: 'Installation', href: '/docs/getting-started/installation' }}
       nextPage={{ title: 'Environment Setup', href: '/docs/getting-started/environment-setup' }}
     >
@@ -33,9 +33,9 @@ export default function Quickstart() {
 cd my-auth-app`}
         </CodeBlock>
 
-        <h2>2. Install @auth-sdk/core</h2>
+        <h2>2. Install @warpy-auth-sdk/core</h2>
         <CodeBlock language="bash">
-{`npm install @auth-sdk/core`}
+{`npm install @warpy-auth-sdk/core`}
         </CodeBlock>
 
         <h2>3. Set Up Environment Variables</h2>
@@ -68,8 +68,8 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
           description="This file handles all authentication routes automatically"
           code={`import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { authMiddleware } from "@auth-sdk/core/next";
-import { google } from "@auth-sdk/core";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
 
 const handler = authMiddleware(
   {
@@ -123,7 +123,7 @@ export const config = {
         <Example
           title="app/layout.tsx"
           description="Add the AuthProvider to your root layout"
-          code={`import { AuthProvider } from "@auth-sdk/core/hooks";
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
 import "./globals.css";
 
 export default function RootLayout({
@@ -153,7 +153,7 @@ export default function RootLayout({
           description="A simple login page with Google OAuth"
           code={`'use client';
 
-import { useAuth } from "@auth-sdk/core/hooks";
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
 
 export default function LoginPage() {
   const { session, loading } = useAuth();
@@ -193,7 +193,7 @@ export default function LoginPage() {
           description="A protected dashboard page"
           code={`'use client';
 
-import { useAuth } from "@auth-sdk/core/hooks";
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
 
 export default function DashboardPage() {
   const { session, loading, signOut } = useAuth();
@@ -241,7 +241,7 @@ export default function DashboardPage() {
         </p>
 
         <Callout type="success" title="Congratulations!">
-          You've successfully set up authentication with @auth-sdk/core. 
+          You've successfully set up authentication with @warpy-auth-sdk/core. 
           The proxy automatically handles all the OAuth flow complexity.
         </Callout>
 

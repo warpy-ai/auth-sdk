@@ -4,21 +4,21 @@ import { Callout } from '@/components/docs/callout';
 import { TypeSignature } from '@/components/docs/type-signature';
 
 export const metadata = {
-  title: 'Providers Overview - @auth-sdk/core',
-  description: 'Understanding the provider architecture in @auth-sdk/core.',
+  title: 'Providers Overview - @warpy-auth-sdk/core',
+  description: 'Understanding the provider architecture in @warpy-auth-sdk/core.',
 };
 
 export default function ProvidersOverview() {
   return (
     <DocsLayout
       title="Providers Overview"
-      description="Understanding the provider architecture in @auth-sdk/core."
+      description="Understanding the provider architecture in @warpy-auth-sdk/core."
       nextPage={{ title: 'Google OAuth', href: '/docs/providers/google-oauth' }}
     >
       <div>
         <h2>What are Providers?</h2>
         <p>
-          Providers in @auth-sdk/core are factory functions that return configuration objects 
+          Providers in @warpy-auth-sdk/core are factory functions that return configuration objects 
           for different authentication methods. They abstract the complexity of OAuth flows, 
           email magic links, and other authentication mechanisms into simple, reusable functions.
         </p>
@@ -37,7 +37,7 @@ export default function ProvidersOverview() {
 
         <h2>Built-in Providers</h2>
         <p>
-          @auth-sdk/core comes with several built-in providers:
+          @warpy-auth-sdk/core comes with several built-in providers:
         </p>
 
         <h3>OAuth Providers</h3>
@@ -108,7 +108,7 @@ export default function ProvidersOverview() {
         </p>
 
         <CodeBlock language="typescript">
-{`import { google, email } from '@auth-sdk/core';
+{`import { google, email } from '@warpy-auth-sdk/core';
 
 // Google OAuth provider
 const googleProvider = google({
@@ -153,7 +153,7 @@ const authConfig = {
         </p>
 
         <CodeBlock language="typescript">
-{`import { OAuthProvider } from '@auth-sdk/core';
+{`import { OAuthProvider } from '@warpy-auth-sdk/core';
 
 function customOAuth(options: {
   clientId: string;

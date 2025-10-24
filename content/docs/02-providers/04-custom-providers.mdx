@@ -5,21 +5,21 @@ import { Example } from '@/components/docs/example';
 import { TypeSignature } from '@/components/docs/type-signature';
 
 export const metadata = {
-  title: 'Custom Providers - @auth-sdk/core',
-  description: 'Building custom authentication providers for @auth-sdk/core.',
+  title: 'Custom Providers - @warpy-auth-sdk/core',
+  description: 'Building custom authentication providers for @warpy-auth-sdk/core.',
 };
 
 export default function CustomProviders() {
   return (
     <DocsLayout
       title="Custom Providers"
-      description="Building custom authentication providers for @auth-sdk/core."
+      description="Building custom authentication providers for @warpy-auth-sdk/core."
       prevPage={{ title: 'Email Magic Links', href: '/docs/providers/email-magic-links' }}
     >
       <div>
         <h2>Why Create Custom Providers?</h2>
         <p>
-          While @auth-sdk/core comes with built-in providers for popular services, you might need 
+          While @warpy-auth-sdk/core comes with built-in providers for popular services, you might need 
           custom providers for:
         </p>
 
@@ -33,7 +33,7 @@ export default function CustomProviders() {
 
         <h2>Provider Types</h2>
         <p>
-          @auth-sdk/core supports three types of custom providers:
+          @warpy-auth-sdk/core supports three types of custom providers:
         </p>
 
         <h3>OAuth Providers</h3>
@@ -96,7 +96,7 @@ export default function CustomProviders() {
         <Example
           title="Custom OAuth Provider"
           description="Example OAuth provider for a custom service"
-          code={`import { OAuthProvider } from '@auth-sdk/core';
+          code={`import { OAuthProvider } from '@warpy-auth-sdk/core';
 
 interface CustomOAuthOptions {
   clientId: string;
@@ -132,7 +132,7 @@ export function customOAuth(options: CustomOAuthOptions): OAuthProvider {
 
         const userData = await response.json();
         
-        // Transform the response to match @auth-sdk/core user format
+        // Transform the response to match @warpy-auth-sdk/core user format
         return {
           id: userData.id || userData.sub,
           email: userData.email,
@@ -156,7 +156,7 @@ export function customOAuth(options: CustomOAuthOptions): OAuthProvider {
         <Example
           title="Using Custom OAuth Provider"
           description="Configuration with custom OAuth provider"
-          code={`import { authMiddleware } from '@auth-sdk/core/next';
+          code={`import { authMiddleware } from '@warpy-auth-sdk/core/next';
 import { customOAuth } from './providers/custom-oauth';
 
 const customProvider = customOAuth({
@@ -201,7 +201,7 @@ const handler = authMiddleware(
         <Example
           title="Custom Email Provider"
           description="Example email provider with custom logic"
-          code={`import { EmailProvider } from '@auth-sdk/core';
+          code={`import { EmailProvider } from '@warpy-auth-sdk/core';
 import nodemailer from 'nodemailer';
 
 interface CustomEmailOptions {
@@ -279,7 +279,7 @@ export function customEmail(options: CustomEmailOptions): EmailProvider {
         <Example
           title="Custom Authentication Provider"
           description="Example of a completely custom provider"
-          code={`import { CustomProvider } from '@auth-sdk/core';
+          code={`import { CustomProvider } from '@warpy-auth-sdk/core';
 
 interface CustomAuthOptions {
   apiKey: string;
@@ -517,7 +517,7 @@ export function createConfigurableProvider(config: ProviderConfig) {
         </CodeBlock>
 
         <Callout type="success" title="Custom Providers Complete">
-          You've learned how to create custom providers for @auth-sdk/core. 
+          You've learned how to create custom providers for @warpy-auth-sdk/core. 
           You can now integrate any authentication system with the SDK.
         </Callout>
 

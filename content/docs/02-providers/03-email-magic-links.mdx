@@ -4,7 +4,7 @@ import { Callout } from '@/components/docs/callout';
 import { Example } from '@/components/docs/example';
 
 export const metadata = {
-  title: 'Email Magic Links - @auth-sdk/core',
+  title: 'Email Magic Links - @warpy-auth-sdk/core',
   description: 'Passwordless authentication with email magic links.',
 };
 
@@ -42,7 +42,7 @@ export default function EmailMagicLinks() {
         <Example
           title="Basic Email Provider Configuration"
           description="Minimal setup for email magic links"
-          code={`import { email } from '@auth-sdk/core';
+          code={`import { email } from '@warpy-auth-sdk/core';
 
 const emailProvider = email({
   server: 'smtp.gmail.com:587',
@@ -218,7 +218,7 @@ export default function MagicLinkSignIn() {
         <Example
           title="app/api/auth/signin/email/route.ts"
           description="API endpoint for sending magic links"
-          code={`import { authenticate, email } from '@auth-sdk/core';
+          code={`import { authenticate, email } from '@warpy-auth-sdk/core';
 import { NextRequest } from 'next/server';
 
 const emailProvider = email({
@@ -279,7 +279,7 @@ export async function POST(request: NextRequest) {
         <Example
           title="Email Template Configuration"
           description="Custom email template for magic links"
-          code={`import { email } from '@auth-sdk/core';
+          code={`import { email } from '@warpy-auth-sdk/core';
 
 const emailProvider = email({
   server: \`\${process.env.SMTP_HOST}:\${process.env.SMTP_PORT}\`,

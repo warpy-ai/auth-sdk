@@ -4,21 +4,21 @@ import { Callout } from '@/components/docs/callout';
 import { Example } from '@/components/docs/example';
 
 export const metadata = {
-  title: 'Next.js App Router Example - @auth-sdk/core',
-  description: 'Complete Next.js App Router example with @auth-sdk/core.',
+  title: 'Next.js App Router Example - @warpy-auth-sdk/core',
+  description: 'Complete Next.js App Router example with @warpy-auth-sdk/core.',
 };
 
 export default function NextJSAppRouterExample() {
   return (
     <DocsLayout
       title="Next.js App Router Example"
-      description="Complete Next.js App Router example with @auth-sdk/core."
+      description="Complete Next.js App Router example with @warpy-auth-sdk/core."
       nextPage={{ title: 'Google OAuth Flow', href: '/docs/examples/google-oauth-flow' }}
     >
       <div>
         <h2>Complete Next.js App Router Example</h2>
         <p>
-          This example demonstrates a complete Next.js 16 application with @auth-sdk/core, 
+          This example demonstrates a complete Next.js 16 application with @warpy-auth-sdk/core, 
           including Google OAuth, email magic links, and protected routes.
         </p>
 
@@ -76,8 +76,8 @@ SMTP_FROM=noreply@yourdomain.com`}
           description="Main authentication proxy configuration"
           code={`import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { authMiddleware } from "@auth-sdk/core/next";
-import { google, email } from "@auth-sdk/core";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google, email } from "@warpy-auth-sdk/core";
 
 const handler = authMiddleware(
   {
@@ -130,7 +130,7 @@ export const config = {
         <Example
           title="app/layout.tsx"
           description="Root layout with authentication provider"
-          code={`import { AuthProvider } from "@auth-sdk/core/hooks";
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
 import "./globals.css";
 
 export const metadata = {
@@ -165,7 +165,7 @@ export default function RootLayout({
           description="Home page with authentication status"
           code={`'use client';
 
-import { useAuth } from "@auth-sdk/core/hooks";
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
 import Link from "next/link";
 
 export default function HomePage() {
@@ -243,7 +243,7 @@ export default function HomePage() {
           description="Login page with Google OAuth and email options"
           code={`'use client';
 
-import { useAuth } from "@auth-sdk/core/hooks";
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -365,7 +365,7 @@ export default function LoginPage() {
           description="Protected dashboard page"
           code={`'use client';
 
-import { useAuth } from "@auth-sdk/core/hooks";
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -466,7 +466,7 @@ export default function DashboardPage() {
         <Example
           title="app/api/auth/signin/email/route.ts"
           description="Email magic link API endpoint"
-          code={`import { authenticate, email } from '@auth-sdk/core';
+          code={`import { authenticate, email } from '@warpy-auth-sdk/core';
 import { NextRequest } from 'next/server';
 
 const emailProvider = email({
@@ -533,7 +533,7 @@ export async function POST(request: NextRequest) {
         </ol>
 
         <Callout type="success" title="Example Complete">
-          You now have a complete Next.js application with authentication using @auth-sdk/core. 
+          You now have a complete Next.js application with authentication using @warpy-auth-sdk/core. 
           Users can sign in with Google OAuth or email magic links.
         </Callout>
 

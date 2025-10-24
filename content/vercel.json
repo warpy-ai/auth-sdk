@@ -1,0 +1,6 @@
+{
+  "buildCommand": "cd landing-page && npm install && npm run build",
+  "outputDirectory": "landing-page/.next",
+  "installCommand": "cd landing-page && npm install",
+  "framework": null
+}

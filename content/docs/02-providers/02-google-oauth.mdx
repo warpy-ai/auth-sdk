@@ -5,7 +5,7 @@ import { Example } from '@/components/docs/example';
 import { ApiMethod } from '@/components/docs/api-method';
 
 export const metadata = {
-  title: 'Google OAuth - @auth-sdk/core',
+  title: 'Google OAuth - @warpy-auth-sdk/core',
   description: 'Complete setup guide for Google OAuth authentication.',
 };
 
@@ -21,7 +21,7 @@ export default function GoogleOAuth() {
         <h2>Google OAuth Setup</h2>
         <p>
           Google OAuth is the most popular authentication method for web applications. 
-          This guide walks you through setting up Google OAuth with @auth-sdk/core.
+          This guide walks you through setting up Google OAuth with @warpy-auth-sdk/core.
         </p>
 
         <h2>Google Cloud Console Setup</h2>
@@ -95,7 +95,7 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
         <Example
           title="Basic Google OAuth Setup"
           description="Minimal configuration for Google OAuth"
-          code={`import { google } from '@auth-sdk/core';
+          code={`import { google } from '@warpy-auth-sdk/core';
 
 const googleProvider = google({
   clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -112,7 +112,7 @@ const googleProvider = google({
         <Example
           title="Advanced Google OAuth Configuration"
           description="Full configuration with custom scopes and options"
-          code={`import { google } from '@auth-sdk/core';
+          code={`import { google } from '@warpy-auth-sdk/core';
 
 const googleProvider = google({
   clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -181,8 +181,8 @@ const googleProvider = google({
         <Example
           title="Complete Google OAuth Setup"
           description="Full implementation with error handling"
-          code={`import { authMiddleware } from '@auth-sdk/core/next';
-import { google } from '@auth-sdk/core';
+          code={`import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
 
 const handler = authMiddleware(
   {
@@ -278,7 +278,7 @@ export function proxy(request: NextRequest) {
         </ol>
 
         <Callout type="success" title="Google OAuth Complete">
-          You've successfully set up Google OAuth with @auth-sdk/core. 
+          You've successfully set up Google OAuth with @warpy-auth-sdk/core. 
           Users can now sign in with their Google accounts.
         </Callout>
 

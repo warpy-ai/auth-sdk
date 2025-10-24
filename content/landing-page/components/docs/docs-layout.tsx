@@ -176,7 +176,7 @@ export function DocsLayout({
             </div>
 
             {/* Content */}
-            <div className="prose prose-slate dark:prose-invert max-w-none">
+            <div className="prose max-w-none">
               {children}
             </div>
 

@@ -4,21 +4,21 @@ import { Callout } from '@/components/docs/callout';
 import { ApiMethod } from '@/components/docs/api-method';
 
 export const metadata = {
-  title: 'Core Functions - @auth-sdk/core',
-  description: 'Core authentication functions in @auth-sdk/core.',
+  title: 'Core Functions - @warpy-auth-sdk/core',
+  description: 'Core authentication functions in @warpy-auth-sdk/core.',
 };
 
 export default function CoreFunctions() {
   return (
     <DocsLayout
       title="Core Functions"
-      description="Core authentication functions in @auth-sdk/core."
+      description="Core authentication functions in @warpy-auth-sdk/core."
       nextPage={{ title: 'Provider API', href: '/docs/api/provider-api' }}
     >
       <div>
         <h2>Core Authentication Functions</h2>
         <p>
-          @auth-sdk/core provides several core functions for authentication. 
+          @warpy-auth-sdk/core provides several core functions for authentication. 
           These are the main functions you'll use in your application.
         </p>
 
@@ -47,7 +47,7 @@ export default function CoreFunctions() {
             },
           ]}
           returns="Promise<AuthenticateResult>"
-          example={`import { authenticate, google } from '@auth-sdk/core';
+          example={`import { authenticate, google } from '@warpy-auth-sdk/core';
 
 // OAuth authentication
 const result = await authenticate(
@@ -90,7 +90,7 @@ if (result.session) {
             },
           ]}
           returns="Promise<Session | null>"
-          example={`import { getSession } from '@auth-sdk/core';
+          example={`import { getSession } from '@warpy-auth-sdk/core';
 
 export async function GET(request: Request) {
   const session = await getSession(request, process.env.AUTH_SECRET!);
@@ -122,7 +122,7 @@ export async function GET(request: Request) {
             },
           ]}
           returns="Promise<void>"
-          example={`import { signOut } from '@auth-sdk/core';
+          example={`import { signOut } from '@warpy-auth-sdk/core';
 
 export async function POST(request: Request) {
   await signOut(request, {
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
             },
           ]}
           returns="Promise<Session | null>"
-          example={`import { verifyAgentToken } from '@auth-sdk/core';
+          example={`import { verifyAgentToken } from '@warpy-auth-sdk/core';
 
 export async function GET(request: Request) {
   const session = await verifyAgentToken(request, process.env.AUTH_SECRET!);
@@ -168,7 +168,7 @@ export async function GET(request: Request) {
 
         <h2>Type Definitions</h2>
         <p>
-          Core types used throughout @auth-sdk/core:
+          Core types used throughout @warpy-auth-sdk/core:
         </p>
 
         <CodeBlock language="typescript">

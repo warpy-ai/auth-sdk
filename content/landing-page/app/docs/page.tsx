@@ -16,7 +16,7 @@ const docSections = [
     icon: Rocket,
     title: "Getting Started",
     description:
-      "Install @auth-sdk/core and set up your first authentication flow in minutes.",
+      "Install @warpy-auth-sdk/core and set up your first authentication flow in minutes.",
     href: "/docs/getting-started/installation",
   },
   {
@@ -54,7 +54,7 @@ export default function DocsPage() {
             </h1>
             <p className="text-xl text-muted-foreground">
               Everything you need to build secure authentication with
-              @auth-sdk/core
+              @warpy-auth-sdk/core
             </p>
           </div>
 
@@ -86,7 +86,7 @@ export default function DocsPage() {
             <CardHeader>
               <CardTitle>Quick Start</CardTitle>
               <CardDescription>
-                Install and configure @auth-sdk/core in your project
+                Install and configure @warpy-auth-sdk/core in your project
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -94,7 +94,7 @@ export default function DocsPage() {
                 <h3 className="font-semibold mb-2">1. Install the package</h3>
                 <pre className="overflow-x-auto rounded-lg bg-secondary/50 p-4">
                   <code className="text-sm font-mono">
-                    npm install @auth-sdk/core
+                    npm install @warpy-auth-sdk/core
                   </code>
                 </pre>
               </div>
@@ -117,8 +117,8 @@ GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
                 </h3>
                 <pre className="overflow-x-auto rounded-lg bg-secondary/50 p-4">
                   <code className="text-sm font-mono">
-                    {`import { authMiddleware } from "@auth-sdk/core/next";
-import { google } from "@auth-sdk/core";
+                    {`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
 
 export const handler = authMiddleware({
   secret: process.env.AUTH_SECRET!,

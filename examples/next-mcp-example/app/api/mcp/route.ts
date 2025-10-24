@@ -1,4 +1,4 @@
-import { createMCPTools } from "@auth-sdk/core";
+import { createMCPTools } from "@warpy-auth-sdk/core";
 
 export async function POST(request: Request) {
   const secret = process.env.AUTH_SECRET!;

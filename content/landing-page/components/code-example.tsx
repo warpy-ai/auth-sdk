@@ -6,8 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 const examples = {
   setup: `// proxy.ts
-import { authMiddleware } from "@auth-sdk/core/next";
-import { google } from "@auth-sdk/core";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
 
 const handler = authMiddleware({
   secret: process.env.AUTH_SECRET!,
@@ -30,7 +30,7 @@ export function proxy(request: NextRequest) {
   return NextResponse.next();
 }`,
   react: `// App.tsx
-import { AuthProvider, useAuth } from "@auth-sdk/core/hooks";
+import { AuthProvider, useAuth } from "@warpy-auth-sdk/core/hooks";
 
 function App() {
   return (
@@ -59,7 +59,7 @@ function Dashboard() {
   );
 }`,
   mcp: `// MCP Agent Integration
-import { createMCPTools } from "@auth-sdk/core/mcp";
+import { createMCPTools } from "@warpy-auth-sdk/core/mcp";
 
 const mcpTools = createMCPTools({ 
   secret: process.env.AUTH_SECRET 

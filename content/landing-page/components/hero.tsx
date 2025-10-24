@@ -12,7 +12,7 @@ export function Hero() {
           The Authentication Toolkit for TypeScript
         </h1>
         <p className="max-w-[750px] text-lg text-muted-foreground/80 sm:text-xl text-balance leading-relaxed">
-          From the creators of modern web apps, @auth-sdk/core is a free open-source library that gives you the tools
+          From the creators of modern web apps, @warpy-auth-sdk/core is a free open-source library that gives you the tools
           you need to build secure authentication with AI agent integration.
         </p>
         <div className="flex flex-col sm:flex-row gap-3 mt-6">
@@ -24,7 +24,7 @@ export function Hero() {
             variant="outline"
             className="gap-2 font-mono text-sm border-border/50 hover:bg-accent/50 bg-transparent"
           >
-            <span>$ npm i @auth-sdk/core</span>
+            <span>$ npm i @warpy-auth-sdk/core</span>
             <Copy className="h-4 w-4" />
           </Button>
           <Button size="lg" variant="outline" className="border-border/50 hover:bg-accent/50 bg-transparent" asChild>

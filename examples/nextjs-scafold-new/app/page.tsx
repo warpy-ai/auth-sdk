@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useAuth } from "@auth-sdk/core/hooks";
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
 
 export default function Home() {
   const { session, loading } = useAuth();

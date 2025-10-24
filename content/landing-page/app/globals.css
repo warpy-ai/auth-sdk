@@ -121,3 +121,114 @@
     linear-gradient(to bottom, oklch(0.15 0 0) 1px, transparent 1px);
   background-size: 80px 80px;
 }
+
+/* Enhanced prose styles for MDX documentation */
+.prose {
+  @apply text-foreground;
+}
+
+.prose h1 {
+  @apply text-4xl font-bold tracking-tight mb-6 mt-10 first:mt-0;
+  color: oklch(0.985 0 0);
+}
+
+.prose h2 {
+  @apply text-3xl font-bold tracking-tight mb-4 mt-10 pb-2 border-b border-border/50;
+  color: oklch(0.985 0 0);
+}
+
+.prose h3 {
+  @apply text-2xl font-semibold tracking-tight mb-3 mt-8;
+  color: oklch(0.95 0 0);
+}
+
+.prose h4 {
+  @apply text-xl font-semibold tracking-tight mb-2 mt-6;
+  color: oklch(0.95 0 0);
+}
+
+.prose p {
+  @apply text-base leading-7 mb-6 text-muted-foreground;
+}
+
+.prose ul,
+.prose ol {
+  @apply my-6 ml-6 space-y-2;
+}
+
+.prose ul {
+  @apply list-disc;
+}
+
+.prose ol {
+  @apply list-decimal;
+}
+
+.prose li {
+  @apply text-base leading-7 text-muted-foreground;
+}
+
+.prose li > p {
+  @apply my-2;
+}
+
+.prose strong {
+  @apply font-semibold text-foreground;
+}
+
+.prose code {
+  @apply px-1.5 py-0.5 rounded-md bg-muted font-mono text-sm;
+  color: oklch(0.9 0 0);
+}
+
+.prose pre {
+  @apply my-6 overflow-x-auto rounded-lg border border-border;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.prose a {
+  @apply text-primary underline underline-offset-4 hover:text-primary/80 transition-colors;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-primary/50 pl-4 italic my-6 text-muted-foreground;
+}
+
+.prose table {
+  @apply w-full my-6 border-collapse;
+}
+
+.prose thead {
+  @apply border-b border-border;
+}
+
+.prose th {
+  @apply px-4 py-2 text-left font-semibold text-foreground;
+}
+
+.prose td {
+  @apply px-4 py-2 border-b border-border text-muted-foreground;
+}
+
+.prose hr {
+  @apply my-8 border-border;
+}
+
+/* Inline code within headings should inherit heading color */
+.prose h1 code,
+.prose h2 code,
+.prose h3 code,
+.prose h4 code {
+  @apply text-[inherit];
+}
+
+/* Tighter spacing for nested lists */
+.prose ul ul,
+.prose ul ol,
+.prose ol ul,
+.prose ol ol {
+  @apply my-3;
+}

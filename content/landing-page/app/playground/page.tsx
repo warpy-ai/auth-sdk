@@ -9,8 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Play, Copy, Check } from "lucide-react"
 
 const playgroundExamples = {
-  oauth: `import { authenticate } from "@auth-sdk/core";
-import { google } from "@auth-sdk/core";
+  oauth: `import { authenticate } from "@warpy-auth-sdk/core";
+import { google } from "@warpy-auth-sdk/core";
 
 const provider = google({
   clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -26,8 +26,8 @@ const result = await authenticate({
 });
 
 console.log(result.user);`,
-  email: `import { authenticate } from "@auth-sdk/core";
-import { email } from "@auth-sdk/core";
+  email: `import { authenticate } from "@warpy-auth-sdk/core";
+import { email } from "@warpy-auth-sdk/core";
 
 const provider = email({
   from: "noreply@example.com",
@@ -47,7 +47,7 @@ await authenticate({
   secret: process.env.AUTH_SECRET!,
   email: "user@example.com",
 });`,
-  session: `import { getSession } from "@auth-sdk/core";
+  session: `import { getSession } from "@warpy-auth-sdk/core";
 
 // Get current session
 const session = await getSession({
@@ -80,7 +80,7 @@ export default function PlaygroundPage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-12">
             <h1 className="text-4xl font-bold tracking-tight mb-4">Playground</h1>
-            <p className="text-xl text-muted-foreground">Try out @auth-sdk/core with interactive examples</p>
+            <p className="text-xl text-muted-foreground">Try out @warpy-auth-sdk/core with interactive examples</p>
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">

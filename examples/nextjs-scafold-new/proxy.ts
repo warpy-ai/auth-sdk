@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { authMiddleware } from "@auth-sdk/core/next";
-import { google } from "@auth-sdk/core";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
 
 const handler = authMiddleware(
   {

@@ -1,19 +1,19 @@
 import { notFound } from "next/navigation";
 
-// Import all MDX files
-import Installation from "../../../../docs/01-getting-started/01-installation.mdx";
-import Quickstart from "../../../../docs/01-getting-started/02-quickstart.mdx";
-import EnvironmentSetup from "../../../../docs/01-getting-started/03-environment-setup.mdx";
-import FirstAuthFlow from "../../../../docs/01-getting-started/04-first-auth-flow.mdx";
+// Import all MDX files from the local docs directory (copied during build)
+import Installation from "@/docs/01-getting-started/01-installation.mdx";
+import Quickstart from "@/docs/01-getting-started/02-quickstart.mdx";
+import EnvironmentSetup from "@/docs/01-getting-started/03-environment-setup.mdx";
+import FirstAuthFlow from "@/docs/01-getting-started/04-first-auth-flow.mdx";
 
-import ProvidersOverview from "../../../../docs/02-providers/01-overview.mdx";
-import GoogleOAuth from "../../../../docs/02-providers/02-google-oauth.mdx";
-import EmailMagicLinks from "../../../../docs/02-providers/03-email-magic-links.mdx";
-import CustomProviders from "../../../../docs/02-providers/04-custom-providers.mdx";
+import ProvidersOverview from "@/docs/02-providers/01-overview.mdx";
+import GoogleOAuth from "@/docs/02-providers/02-google-oauth.mdx";
+import EmailMagicLinks from "@/docs/02-providers/03-email-magic-links.mdx";
+import CustomProviders from "@/docs/02-providers/04-custom-providers.mdx";
 
-import MCPIntroduction from "../../../../docs/04-mcp/01-introduction.mdx";
-import CoreFunctions from "../../../../docs/05-api-reference/01-core-functions.mdx";
-import NextJSAppRouter from "../../../../docs/06-examples/01-nextjs-app-router.mdx";
+import MCPIntroduction from "@/docs/04-mcp/01-introduction.mdx";
+import CoreFunctions from "@/docs/05-api-reference/01-core-functions.mdx";
+import NextJSAppRouter from "@/docs/06-examples/01-nextjs-app-router.mdx";
 
 // Route mapping
 const routes: Record<string, React.ComponentType> = {
@@ -135,53 +135,53 @@ export default async function DocsPage({ params }: PageProps) {
   const getPageMetadata = (slug: string) => {
     const metadata: Record<string, { title: string; description: string }> = {
       "getting-started/installation": {
-        title: "Installation - @auth-sdk/core",
+        title: "Installation - @warpy-auth-sdk/core",
         description:
-          "Install @auth-sdk/core and set up your first authentication flow in minutes.",
+          "Install @warpy-auth-sdk/core and set up your first authentication flow in minutes.",
       },
       "getting-started/quickstart": {
-        title: "Quickstart - @auth-sdk/core",
-        description: "Get up and running with @auth-sdk/core in 5 minutes.",
+        title: "Quickstart - @warpy-auth-sdk/core",
+        description: "Get up and running with @warpy-auth-sdk/core in 5 minutes.",
       },
       "getting-started/environment-setup": {
-        title: "Environment Setup - @auth-sdk/core",
-        description: "Configure environment variables for @auth-sdk/core.",
+        title: "Environment Setup - @warpy-auth-sdk/core",
+        description: "Configure environment variables for @warpy-auth-sdk/core.",
       },
       "getting-started/first-auth-flow": {
-        title: "First Auth Flow - @auth-sdk/core",
+        title: "First Auth Flow - @warpy-auth-sdk/core",
         description:
           "Complete walkthrough of implementing Google OAuth authentication.",
       },
       "providers/overview": {
-        title: "Providers Overview - @auth-sdk/core",
+        title: "Providers Overview - @warpy-auth-sdk/core",
         description:
-          "Understanding the provider architecture in @auth-sdk/core.",
+          "Understanding the provider architecture in @warpy-auth-sdk/core.",
       },
       "providers/google-oauth": {
-        title: "Google OAuth - @auth-sdk/core",
+        title: "Google OAuth - @warpy-auth-sdk/core",
         description: "Complete setup guide for Google OAuth authentication.",
       },
       "providers/email-magic-links": {
-        title: "Email Magic Links - @auth-sdk/core",
+        title: "Email Magic Links - @warpy-auth-sdk/core",
         description: "Passwordless authentication with email magic links.",
       },
       "providers/custom-providers": {
-        title: "Custom Providers - @auth-sdk/core",
+        title: "Custom Providers - @warpy-auth-sdk/core",
         description:
-          "Building custom authentication providers for @auth-sdk/core.",
+          "Building custom authentication providers for @warpy-auth-sdk/core.",
       },
       "mcp/introduction": {
-        title: "MCP Introduction - @auth-sdk/core",
+        title: "MCP Introduction - @warpy-auth-sdk/core",
         description:
           "Introduction to Model Context Protocol (MCP) for AI agent authentication.",
       },
       "api/core-functions": {
-        title: "Core Functions - @auth-sdk/core",
-        description: "Core authentication functions in @auth-sdk/core.",
+        title: "Core Functions - @warpy-auth-sdk/core",
+        description: "Core authentication functions in @warpy-auth-sdk/core.",
       },
       "examples/nextjs-app-router": {
-        title: "Next.js App Router Example - @auth-sdk/core",
-        description: "Complete Next.js App Router example with @auth-sdk/core.",
+        title: "Next.js App Router Example - @warpy-auth-sdk/core",
+        description: "Complete Next.js App Router example with @warpy-auth-sdk/core.",
       },
     };
     return metadata[slug] || { title: "Documentation", description: "" };

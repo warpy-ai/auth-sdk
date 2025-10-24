@@ -1,6 +1,6 @@
 # Next.js MCP Example
 
-This example demonstrates how to use the `@auth-sdk/core` package with Next.js 16, including:
+This example demonstrates how to use the `@warpy-auth-sdk/core` package with Next.js 16, including:
 
 - Next.js 16 Proxy-based authentication (Clerk-like ergonomics)
 - Google OAuth integration
@@ -10,11 +10,13 @@ This example demonstrates how to use the `@auth-sdk/core` package with Next.js 1
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    bun install
    ```
 
 2. Configure environment variables in `.env.local`:
+
    ```env
    AUTH_SECRET=your-secret-key-min-32-chars-long-replace-this-in-production
    GOOGLE_CLIENT_ID=your-google-client-id
@@ -23,6 +25,7 @@ This example demonstrates how to use the `@auth-sdk/core` package with Next.js 1
    ```
 
 3. Run the development server:
+
    ```bash
    bun dev
    ```
@@ -61,6 +64,7 @@ curl -X POST http://localhost:3000/api/mcp \
 ```
 
 Response:
+
 ```json
 {
   "token": "eyJhbGc...",
@@ -84,6 +88,7 @@ curl -X POST http://localhost:3000/api/mcp \
 ```
 
 Response:
+
 ```json
 {
   "userId": "user-123",
@@ -109,6 +114,7 @@ curl -X POST http://localhost:3000/api/mcp \
 ```
 
 Response:
+
 ```json
 {
   "success": true,
@@ -135,13 +141,13 @@ proxy.ts                  # Next.js 16 Proxy for auth routes
 ## Development Notes
 
 - The package is installed from the tarball (`../../auth-sdk-core-0.0.0-dev-01.tgz`) for local development
-- After making changes to `@auth-sdk/core`, rebuild and repack:
+- After making changes to `@warpy-auth-sdk/core`, rebuild and repack:
   ```bash
   cd ../../
   npm run build
   npm pack
   cd examples/next-mcp-example
-  bun remove @auth-sdk/core
+  bun remove @warpy-auth-sdk/core
   bun add ../../auth-sdk-core-0.0.0-dev-01.tgz
   ```
 

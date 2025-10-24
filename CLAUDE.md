@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an authentication SDK for Node.js and React applications, providing a flexible authentication system with support for multiple providers (OAuth, email magic links), database adapters, and **MCP (Model Context Protocol)** for AI agent-delegated authentication.
 
-Package name: `@auth-sdk/core` (subpath exports: `.`, `./hooks`, `./hooks/server`, `./next`).
+Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./hooks`, `./hooks/server`, `./next`).
 
 ## Development Commands
 
@@ -82,7 +82,7 @@ The SDK is built around a provider-based architecture with MCP integration:
        - `GET {basePath}/callback/{provider}` → finalize OAuth, set cookie, redirect
        - `POST {basePath}/signin/email` → send magic link (Node runtime recommended)
    - Zero-config via env: `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
-   - Import: `import { authMiddleware } from '@auth-sdk/core/next'`
+   - Import: `import { authMiddleware } from '@warpy-auth-sdk/core/next'`
 
 ### MCP (Model Context Protocol) Details
 
@@ -108,7 +108,7 @@ The auth-sdk implements **AI agent-delegated authentication** using MCP:
 **Example**:
 
 ```typescript
-import { createMCPTools } from "@auth-sdk/core";
+import { createMCPTools } from "@warpy-auth-sdk/core";
 import { generateText } from "ai";
 
 const mcpTools = createMCPTools({ secret: process.env.AUTH_SECRET });
@@ -173,8 +173,8 @@ Add a single `proxy.ts` at the app root:
 ```ts
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { authMiddleware } from "@auth-sdk/core/next";
-import { google } from "@auth-sdk/core";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
 
 const handler = authMiddleware(
   {
@@ -288,10 +288,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - Entry point: `dist/index.js`
 - Type definitions: `typings/index.d.ts`
 - Subpath exports:
-  - `@auth-sdk/core`
-  - `@auth-sdk/core/hooks`
-  - `@auth-sdk/core/hooks/server`
-  - `@auth-sdk/core/next`
+  - `@warpy-auth-sdk/core`
+  - `@warpy-auth-sdk/core/hooks`
+  - `@warpy-auth-sdk/core/hooks/server`
+  - `@warpy-auth-sdk/core/next`
 
 ## Key Dependencies
 

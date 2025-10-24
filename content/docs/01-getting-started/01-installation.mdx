@@ -3,42 +3,42 @@ import { CodeBlock } from '@/components/docs/code-block';
 import { Callout } from '@/components/docs/callout';
 
 export const metadata = {
-  title: 'Installation - @auth-sdk/core',
-  description: 'Install @auth-sdk/core and set up your first authentication flow in minutes.',
+  title: 'Installation - @warpy-auth-sdk/core',
+  description: 'Install @warpy-auth-sdk/core and set up your first authentication flow in minutes.',
 };
 
 export default function Installation() {
   return (
     <DocsLayout
       title="Installation"
-      description="Install @auth-sdk/core and set up your first authentication flow in minutes."
+      description="Install @warpy-auth-sdk/core and set up your first authentication flow in minutes."
       nextPage={{ title: 'Quickstart', href: '/docs/getting-started/quickstart' }}
     >
       <div>
         <h2>Install the Package</h2>
         <p>
-          Install @auth-sdk/core using your preferred package manager:
+          Install @warpy-auth-sdk/core using your preferred package manager:
         </p>
 
         <CodeBlock language="bash">
-{`npm install @auth-sdk/core`}
+{`npm install @warpy-auth-sdk/core`}
         </CodeBlock>
 
         <CodeBlock language="bash">
-{`yarn add @auth-sdk/core`}
+{`yarn add @warpy-auth-sdk/core`}
         </CodeBlock>
 
         <CodeBlock language="bash">
-{`pnpm add @auth-sdk/core`}
+{`pnpm add @warpy-auth-sdk/core`}
         </CodeBlock>
 
         <CodeBlock language="bash">
-{`bun add @auth-sdk/core`}
+{`bun add @warpy-auth-sdk/core`}
         </CodeBlock>
 
         <h2>Peer Dependencies</h2>
         <p>
-          @auth-sdk/core requires the following peer dependencies for full functionality:
+          @warpy-auth-sdk/core requires the following peer dependencies for full functionality:
         </p>
 
         <h3>Required Dependencies</h3>
@@ -60,29 +60,29 @@ export default function Installation() {
 
         <h2>Package Structure</h2>
         <p>
-          @auth-sdk/core uses subpath exports for optimal tree-shaking:
+          @warpy-auth-sdk/core uses subpath exports for optimal tree-shaking:
         </p>
 
         <CodeBlock language="typescript">
 {`// Core authentication functions
-import { authenticate, getSession, signOut } from '@auth-sdk/core';
+import { authenticate, getSession, signOut } from '@warpy-auth-sdk/core';
 
 // React hooks and components
-import { useAuth, AuthProvider } from '@auth-sdk/core/hooks';
+import { useAuth, AuthProvider } from '@warpy-auth-sdk/core/hooks';
 
 // Server-side session helpers
-import { getServerSession } from '@auth-sdk/core/hooks/server';
+import { getServerSession } from '@warpy-auth-sdk/core/hooks/server';
 
 // Next.js integration
-import { authMiddleware } from '@auth-sdk/core/next';
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
 
 // MCP tools for AI agents
-import { createMCPTools } from '@auth-sdk/core/mcp';`}
+import { createMCPTools } from '@warpy-auth-sdk/core/mcp';`}
         </CodeBlock>
 
         <h2>TypeScript Support</h2>
         <p>
-          @auth-sdk/core is built with TypeScript and includes comprehensive type definitions. 
+          @warpy-auth-sdk/core is built with TypeScript and includes comprehensive type definitions. 
           No additional type packages are required.
         </p>
 
@@ -94,12 +94,12 @@ import { createMCPTools } from '@auth-sdk/core/mcp';`}
   Adapter,
   MCPLoginPayload,
   AuthenticateResult,
-} from '@auth-sdk/core';`}
+} from '@warpy-auth-sdk/core';`}
         </CodeBlock>
 
         <h2>Environment Requirements</h2>
         <p>
-          @auth-sdk/core works with the following environments:
+          @warpy-auth-sdk/core works with the following environments:
         </p>
 
         <ul>

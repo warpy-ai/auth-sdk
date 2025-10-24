@@ -8,7 +8,7 @@ const geistSans = Geist({ subsets: ["latin"] });
 const geistMono = Geist_Mono({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "@auth-sdk/core - Modern Authentication SDK",
+  title: "@warpy-auth-sdk/core - Modern Authentication SDK",
   description:
     "A Modern Authentication SDK for Node.js and React with AI Agent Integration",
   generator: "v0.app",
