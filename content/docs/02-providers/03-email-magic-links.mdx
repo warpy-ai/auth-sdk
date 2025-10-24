@@ -1,0 +1,421 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Email Magic Links - @auth-sdk/core',
+  description: 'Passwordless authentication with email magic links.',
+};
+
+export default function EmailMagicLinks() {
+  return (
+    <DocsLayout
+      title="Email Magic Links"
+      description="Passwordless authentication with email magic links."
+      prevPage={{ title: 'Google OAuth', href: '/docs/providers/google-oauth' }}
+      nextPage={{ title: 'Custom Providers', href: '/docs/providers/custom-providers' }}
+    >
+      <div>
+        <h2>What are Magic Links?</h2>
+        <p>
+          Magic links are passwordless authentication links sent via email. Users click the link 
+          to automatically sign in without entering a password. This provides a seamless, 
+          secure authentication experience.
+        </p>
+
+        <h2>How Magic Links Work</h2>
+        <ol>
+          <li>User enters their email address</li>
+          <li>System generates a secure, time-limited token</li>
+          <li>Magic link is sent to the user's email</li>
+          <li>User clicks the link in their email</li>
+          <li>System validates the token and signs the user in</li>
+          <li>User is redirected to the application</li>
+        </ol>
+
+        <h2>Email Provider Setup</h2>
+        <p>
+          Configure the email provider for magic link authentication:
+        </p>
+
+        <Example
+          title="Basic Email Provider Configuration"
+          description="Minimal setup for email magic links"
+          code={`import { email } from '@auth-sdk/core';
+
+const emailProvider = email({
+  server: 'smtp.gmail.com:587',
+  from: 'noreply@yourdomain.com',
+  auth: {
+    user: process.env.SMTP_USER!,
+    pass: process.env.SMTP_PASS!,
+  },
+});`}
+        />
+
+        <h2>SMTP Configuration</h2>
+        <p>
+          Set up your SMTP server configuration:
+        </p>
+
+        <CodeBlock language="bash">
+{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@yourdomain.com`}
+        </CodeBlock>
+
+        <h2>Gmail Setup</h2>
+        <p>
+          For Gmail SMTP, you need to set up an App Password:
+        </p>
+
+        <ol>
+          <li>Enable 2-factor authentication on your Gmail account</li>
+          <li>Go to Google Account settings → Security</li>
+          <li>Under "2-Step Verification", click "App passwords"</li>
+          <li>Generate a password for "Mail"</li>
+          <li>Use this password as your <code>SMTP_PASS</code></li>
+        </ol>
+
+        <Callout type="warning" title="Gmail Security">
+          <ul>
+            <li>Never use your regular Gmail password</li>
+            <li>App passwords are more secure than regular passwords</li>
+            <li>You can revoke app passwords at any time</li>
+          </ul>
+        </Callout>
+
+        <h2>Alternative SMTP Providers</h2>
+        <p>
+          For production, consider using dedicated email services:
+        </p>
+
+        <h3>SendGrid</h3>
+        <CodeBlock language="bash">
+{`SMTP_HOST=smtp.sendgrid.net
+SMTP_PORT=587
+SMTP_USER=apikey
+SMTP_PASS=your-sendgrid-api-key`}
+        </CodeBlock>
+
+        <h3>Mailgun</h3>
+        <CodeBlock language="bash">
+{`SMTP_HOST=smtp.mailgun.org
+SMTP_PORT=587
+SMTP_USER=your-mailgun-username
+SMTP_PASS=your-mailgun-password`}
+        </CodeBlock>
+
+        <h3>AWS SES</h3>
+        <CodeBlock language="bash">
+{`SMTP_HOST=email-smtp.us-east-1.amazonaws.com
+SMTP_PORT=587
+SMTP_USER=your-ses-username
+SMTP_PASS=your-ses-password`}
+        </CodeBlock>
+
+        <h2>Magic Link Implementation</h2>
+        <p>
+          Here's how to implement magic link authentication:
+        </p>
+
+        <Example
+          title="Magic Link Sign-in Page"
+          description="Frontend form for email input"
+          code={`'use client';
+
+import { useState } from 'react';
+
+export default function MagicLinkSignIn() {
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/auth/signin/email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        setMessage('Check your email for the magic link!');
+      } else {
+        setMessage('Failed to send magic link. Please try again.');
+      }
+    } catch (error) {
+      setMessage('An error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+            Sign in with Magic Link
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Enter your email address and we'll send you a magic link
+          </p>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div>
+            <label htmlFor="email" className="sr-only">
+              Email address
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Email address"
+            />
+          </div>
+          <div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading ? 'Sending...' : 'Send Magic Link'}
+            </button>
+          </div>
+          {message && (
+            <div className={\`text-sm text-center \${message.includes('Check your email') ? 'text-green-600' : 'text-red-600'}\`}>
+              {message}
+            </div>
+          )}
+        </form>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Magic Link API Endpoint</h2>
+        <p>
+          Create an API endpoint to handle magic link requests:
+        </p>
+
+        <Example
+          title="app/api/auth/signin/email/route.ts"
+          description="API endpoint for sending magic links"
+          code={`import { authenticate, email } from '@auth-sdk/core';
+import { NextRequest } from 'next/server';
+
+const emailProvider = email({
+  server: \`\${process.env.SMTP_HOST}:\${process.env.SMTP_PORT}\`,
+  from: process.env.SMTP_FROM!,
+  auth: {
+    user: process.env.SMTP_USER!,
+    pass: process.env.SMTP_PASS!,
+  },
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email: userEmail } = await request.json();
+
+    if (!userEmail) {
+      return Response.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await authenticate(
+      {
+        secret: process.env.AUTH_SECRET!,
+        provider: emailProvider,
+      },
+      request,
+      { email: userEmail }
+    );
+
+    if (result.error) {
+      return Response.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    }
+
+    return Response.json({
+      success: true,
+      message: 'Magic link sent successfully'
+    });
+  } catch (error) {
+    console.error('Magic link error:', error);
+    return Response.json(
+      { error: 'Failed to send magic link' },
+      { status: 500 }
+    );
+  }
+}`}
+        />
+
+        <h2>Magic Link Email Template</h2>
+        <p>
+          Customize the magic link email template:
+        </p>
+
+        <Example
+          title="Email Template Configuration"
+          description="Custom email template for magic links"
+          code={`import { email } from '@auth-sdk/core';
+
+const emailProvider = email({
+  server: \`\${process.env.SMTP_HOST}:\${process.env.SMTP_PORT}\`,
+  from: process.env.SMTP_FROM!,
+  auth: {
+    user: process.env.SMTP_USER!,
+    pass: process.env.SMTP_PASS!,
+  },
+  // Custom email template
+  emailTemplate: {
+    subject: 'Your magic link for My App',
+    html: \`
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Welcome to My App!</h2>
+        <p>Click the link below to sign in:</p>
+        <a href="\${magicLink}"
+           style="display: inline-block; padding: 12px 24px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px;">
+          Sign In
+        </a>
+        <p>This link will expire in 15 minutes.</p>
+        <p>If you didn't request this, please ignore this email.</p>
+      </div>
+    \`,
+    text: \`
+      Welcome to My App!
+
+      Click the link below to sign in:
+      \${magicLink}
+
+      This link will expire in 15 minutes.
+      If you didn't request this, please ignore this email.
+    \`,
+  },
+});`}
+        />
+
+        <h2>Magic Link Security</h2>
+        <p>
+          Magic links include several security features:
+        </p>
+
+        <ul>
+          <li><strong>Time-limited:</strong> Links expire after 15 minutes by default</li>
+          <li><strong>Single-use:</strong> Each link can only be used once</li>
+          <li><strong>Cryptographically secure:</strong> Tokens are generated using secure random bytes</li>
+          <li><strong>Domain validation:</strong> Links are tied to your domain</li>
+        </ul>
+
+        <h2>Magic Link Configuration</h2>
+        <p>
+          Customize magic link behavior:
+        </p>
+
+        <CodeBlock language="typescript">
+{`const emailProvider = email({
+  server: \`\${process.env.SMTP_HOST}:\${process.env.SMTP_PORT}\`,
+  from: process.env.SMTP_FROM!,
+  auth: {
+    user: process.env.SMTP_USER!,
+    pass: process.env.SMTP_PASS!,
+  },
+  // Magic link configuration
+  magicLink: {
+    expiresIn: '15m',        // Link expiration time
+    maxAttempts: 3,          // Max attempts per email
+    rateLimit: '5m',         // Rate limit between attempts
+  },
+});`}
+        </CodeBlock>
+
+        <h2>Testing Magic Links</h2>
+        <p>
+          Test your magic link implementation:
+        </p>
+
+        <ol>
+          <li>Start your development server: <code>npm run dev</code></li>
+          <li>Visit your magic link sign-in page</li>
+          <li>Enter a valid email address</li>
+          <li>Check your email for the magic link</li>
+          <li>Click the link to complete authentication</li>
+          <li>Verify you're signed in and redirected correctly</li>
+        </ol>
+
+        <h2>Common Issues</h2>
+        <p>
+          Solutions to common magic link problems:
+        </p>
+
+        <h3>SMTP Authentication Failed</h3>
+        <p>
+          <strong>Error:</strong> "Authentication failed"<br/>
+          <strong>Solution:</strong> Check your SMTP credentials and ensure 2FA is enabled for Gmail.
+        </p>
+
+        <h3>Magic Link Not Received</h3>
+        <p>
+          <strong>Error:</strong> Email not delivered<br/>
+          <strong>Solution:</strong> Check spam folder, verify SMTP settings, and test with a different email provider.
+        </p>
+
+        <h3>Link Expired</h3>
+        <p>
+          <strong>Error:</strong> "Link has expired"<br/>
+          <strong>Solution:</strong> Request a new magic link or increase the expiration time.
+        </p>
+
+        <h2>Production Considerations</h2>
+        <p>
+          For production deployment:
+        </p>
+
+        <ul>
+          <li>Use a dedicated email service (SendGrid, Mailgun, etc.)</li>
+          <li>Set up proper DNS records (SPF, DKIM, DMARC)</li>
+          <li>Monitor email delivery rates</li>
+          <li>Implement rate limiting to prevent abuse</li>
+          <li>Set up email templates that match your brand</li>
+        </ul>
+
+        <Callout type="success" title="Magic Links Complete">
+          You've successfully implemented passwordless authentication with magic links. 
+          Users can now sign in without passwords using just their email.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you have magic links working, you can:
+        </p>
+
+        <ul>
+          <li>Add <a href="/docs/providers/custom-providers">Custom Providers</a> for other authentication methods</li>
+          <li>Implement <a href="/docs/guides/database-adapters">Database Adapters</a> for session persistence</li>
+          <li>Add <a href="/docs/guides/security-best-practices">Security Best Practices</a> for production</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -1,0 +1,537 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+import { TypeSignature } from '@/components/docs/type-signature';
+
+export const metadata = {
+  title: 'Custom Providers - @auth-sdk/core',
+  description: 'Building custom authentication providers for @auth-sdk/core.',
+};
+
+export default function CustomProviders() {
+  return (
+    <DocsLayout
+      title="Custom Providers"
+      description="Building custom authentication providers for @auth-sdk/core."
+      prevPage={{ title: 'Email Magic Links', href: '/docs/providers/email-magic-links' }}
+    >
+      <div>
+        <h2>Why Create Custom Providers?</h2>
+        <p>
+          While @auth-sdk/core comes with built-in providers for popular services, you might need 
+          custom providers for:
+        </p>
+
+        <ul>
+          <li>Internal OAuth services</li>
+          <li>Legacy authentication systems</li>
+          <li>Specialized authentication requirements</li>
+          <li>Enterprise identity providers</li>
+          <li>Custom OAuth 2.0 implementations</li>
+        </ul>
+
+        <h2>Provider Types</h2>
+        <p>
+          @auth-sdk/core supports three types of custom providers:
+        </p>
+
+        <h3>OAuth Providers</h3>
+        <p>
+          For OAuth 2.0 compatible services:
+        </p>
+
+        <TypeSignature
+          name="OAuthProvider"
+          signature={`interface OAuthProvider {
+  type: 'oauth';
+  clientId: string;
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scope?: string[];
+  getUser: (token: string) => Promise<User>;
+}`}
+          description="Configuration for OAuth 2.0 providers"
+        />
+
+        <h3>Email Providers</h3>
+        <p>
+          For custom email-based authentication:
+        </p>
+
+        <TypeSignature
+          name="EmailProvider"
+          signature={`interface EmailProvider {
+  type: 'email';
+  server: string;
+  from: string;
+  auth?: { user: string; pass: string };
+  sendMagicLink: (email: string, token: string) => Promise<void>;
+  verifyToken: (token: string) => Promise<boolean>;
+}`}
+          description="Configuration for email-based providers"
+        />
+
+        <h3>Custom Providers</h3>
+        <p>
+          For completely custom authentication logic:
+        </p>
+
+        <TypeSignature
+          name="CustomProvider"
+          signature={`interface CustomProvider {
+  type: 'custom';
+  authenticate: (request: Request) => Promise<AuthenticateResult>;
+}`}
+          description="Configuration for custom authentication providers"
+        />
+
+        <h2>Creating an OAuth Provider</h2>
+        <p>
+          Here's how to create a custom OAuth provider for any OAuth 2.0 service:
+        </p>
+
+        <Example
+          title="Custom OAuth Provider"
+          description="Example OAuth provider for a custom service"
+          code={`import { OAuthProvider } from '@auth-sdk/core';
+
+interface CustomOAuthOptions {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scope?: string[];
+}
+
+export function customOAuth(options: CustomOAuthOptions): OAuthProvider {
+  return {
+    type: 'oauth',
+    clientId: options.clientId,
+    clientSecret: options.clientSecret,
+    authorizeUrl: options.authorizeUrl,
+    tokenUrl: options.tokenUrl,
+    userInfoUrl: options.userInfoUrl,
+    scope: options.scope || ['openid', 'email', 'profile'],
+    async getUser(token: string) {
+      try {
+        const response = await fetch(options.userInfoUrl, {
+          headers: {
+            'Authorization': \`Bearer \${token}\`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(\`Failed to fetch user info: \${response.statusText}\`);
+        }
+
+        const userData = await response.json();
+        
+        // Transform the response to match @auth-sdk/core user format
+        return {
+          id: userData.id || userData.sub,
+          email: userData.email,
+          name: userData.name || userData.display_name,
+          picture: userData.picture || userData.avatar_url,
+        };
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+        throw new Error('Failed to authenticate user');
+      }
+    },
+  };
+}`}
+        />
+
+        <h2>Using Custom OAuth Provider</h2>
+        <p>
+          Use your custom provider in your authentication configuration:
+        </p>
+
+        <Example
+          title="Using Custom OAuth Provider"
+          description="Configuration with custom OAuth provider"
+          code={`import { authMiddleware } from '@auth-sdk/core/next';
+import { customOAuth } from './providers/custom-oauth';
+
+const customProvider = customOAuth({
+  clientId: process.env.CUSTOM_CLIENT_ID!,
+  clientSecret: process.env.CUSTOM_CLIENT_SECRET!,
+  redirectUri: process.env.CUSTOM_REDIRECT_URI!,
+  authorizeUrl: 'https://api.custom.com/oauth/authorize',
+  tokenUrl: 'https://api.custom.com/oauth/token',
+  userInfoUrl: 'https://api.custom.com/user',
+  scope: ['read', 'write', 'profile'],
+});
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: customProvider,
+    callbacks: {
+      async user(u) {
+        // Custom user processing
+        return {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+    },
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+    errorRedirect: '/login',
+  }
+);`}
+        />
+
+        <h2>Creating an Email Provider</h2>
+        <p>
+          Create a custom email provider for specialized email authentication:
+        </p>
+
+        <Example
+          title="Custom Email Provider"
+          description="Example email provider with custom logic"
+          code={`import { EmailProvider } from '@auth-sdk/core';
+import nodemailer from 'nodemailer';
+
+interface CustomEmailOptions {
+  server: string;
+  from: string;
+  auth?: { user: string; pass: string };
+  template?: {
+    subject: string;
+    html: string;
+    text: string;
+  };
+}
+
+export function customEmail(options: CustomEmailOptions): EmailProvider {
+  const transporter = nodemailer.createTransporter({
+    host: options.server.split(':')[0],
+    port: parseInt(options.server.split(':')[1]) || 587,
+    secure: false,
+    auth: options.auth,
+  });
+
+  return {
+    type: 'email',
+    server: options.server,
+    from: options.from,
+    auth: options.auth,
+    async sendMagicLink(email: string, token: string) {
+      const magicLink = \`\${process.env.NEXTAUTH_URL}/api/auth/callback/email?token=\${token}\`;
+      
+      const mailOptions = {
+        from: options.from,
+        to: email,
+        subject: options.template?.subject || 'Your magic link',
+        html: (options.template?.html || \`
+          <div>
+            <h2>Sign in to your account</h2>
+            <p>Click the link below to sign in:</p>
+            <a href="\${magicLink}">Sign In</a>
+            <p>This link will expire in 15 minutes.</p>
+          </div>
+        \`).replace('{{magicLink}}', magicLink),
+        text: (options.template?.text || \`
+          Sign in to your account
+          
+          Click the link below to sign in:
+          \${magicLink}
+          
+          This link will expire in 15 minutes.
+        \`).replace('{{magicLink}}', magicLink),
+      };
+
+      await transporter.sendMail(mailOptions);
+    },
+    async verifyToken(token: string) {
+      // Implement your token verification logic
+      // This could involve checking a database, Redis, etc.
+      try {
+        // Example: verify JWT token
+        const jwt = require('jsonwebtoken');
+        const decoded = jwt.verify(token, process.env.AUTH_SECRET!);
+        return decoded && decoded.exp > Date.now() / 1000;
+      } catch {
+        return false;
+      }
+    },
+  };
+}`}
+        />
+
+        <h2>Creating a Custom Provider</h2>
+        <p>
+          For completely custom authentication logic:
+        </p>
+
+        <Example
+          title="Custom Authentication Provider"
+          description="Example of a completely custom provider"
+          code={`import { CustomProvider } from '@auth-sdk/core';
+
+interface CustomAuthOptions {
+  apiKey: string;
+  baseUrl: string;
+}
+
+export function customAuth(options: CustomAuthOptions): CustomProvider {
+  return {
+    type: 'custom',
+    async authenticate(request: Request) {
+      try {
+        // Extract credentials from request
+        const body = await request.json();
+        const { username, password } = body;
+
+        if (!username || !password) {
+          return {
+            error: 'Username and password are required',
+          };
+        }
+
+        // Authenticate with your custom service
+        const response = await fetch(\`\${options.baseUrl}/authenticate\`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': \`Bearer \${options.apiKey}\`,
+          },
+          body: JSON.stringify({ username, password }),
+        });
+
+        if (!response.ok) {
+          return {
+            error: 'Invalid credentials',
+          };
+        }
+
+        const userData = await response.json();
+
+        // Return successful authentication result
+        return {
+          session: {
+            user: {
+              id: userData.id,
+              email: userData.email,
+              name: userData.name,
+            },
+            expires: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+          },
+        };
+      } catch (error) {
+        return {
+          error: 'Authentication failed',
+        };
+      }
+    },
+  };
+}`}
+        />
+
+        <h2>Provider Testing</h2>
+        <p>
+          Test your custom providers thoroughly:
+        </p>
+
+        <Example
+          title="Provider Testing"
+          description="Unit tests for custom providers"
+          code={`import { describe, it, expect, vi } from 'vitest';
+import { customOAuth } from './custom-oauth';
+
+describe('Custom OAuth Provider', () => {
+  it('should create OAuth provider with correct configuration', () => {
+    const provider = customOAuth({
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback',
+      authorizeUrl: 'https://api.test.com/oauth/authorize',
+      tokenUrl: 'https://api.test.com/oauth/token',
+      userInfoUrl: 'https://api.test.com/user',
+    });
+
+    expect(provider.type).toBe('oauth');
+    expect(provider.clientId).toBe('test-client-id');
+    expect(provider.authorizeUrl).toBe('https://api.test.com/oauth/authorize');
+  });
+
+  it('should fetch user info correctly', async () => {
+    const provider = customOAuth({
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback',
+      authorizeUrl: 'https://api.test.com/oauth/authorize',
+      tokenUrl: 'https://api.test.com/oauth/token',
+      userInfoUrl: 'https://api.test.com/user',
+    });
+
+    // Mock fetch
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({
+        id: '123',
+        email: 'test@example.com',
+        name: 'Test User',
+        picture: 'https://example.com/avatar.jpg',
+      }),
+    });
+
+    const user = await provider.getUser('test-token');
+    
+    expect(user).toEqual({
+      id: '123',
+      email: 'test@example.com',
+      name: 'Test User',
+      picture: 'https://example.com/avatar.jpg',
+    });
+  });
+});`}
+        />
+
+        <h2>Provider Best Practices</h2>
+        <p>
+          Follow these best practices when creating custom providers:
+        </p>
+
+        <ul>
+          <li><strong>Error Handling:</strong> Always handle errors gracefully</li>
+          <li><strong>Type Safety:</strong> Use TypeScript for better type safety</li>
+          <li><strong>Testing:</strong> Write comprehensive tests for your providers</li>
+          <li><strong>Documentation:</strong> Document your provider's configuration options</li>
+          <li><strong>Security:</strong> Validate all inputs and handle sensitive data carefully</li>
+        </ul>
+
+        <h2>Provider Configuration</h2>
+        <p>
+          Make your providers configurable and reusable:
+        </p>
+
+        <Example
+          title="Configurable Provider"
+          description="Example of a configurable custom provider"
+          code={`interface ProviderConfig {
+  baseUrl: string;
+  apiKey: string;
+  timeout?: number;
+  retries?: number;
+  headers?: Record<string, string>;
+}
+
+export function createConfigurableProvider(config: ProviderConfig) {
+  return {
+    type: 'custom' as const,
+    async authenticate(request: Request) {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), config.timeout || 5000);
+
+      try {
+        const response = await fetch(\`\${config.baseUrl}/auth\`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': \`Bearer \${config.apiKey}\`,
+            ...config.headers,
+          },
+          body: await request.text(),
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(\`Authentication failed: \${response.statusText}\`);
+        }
+
+        const userData = await response.json();
+        
+        return {
+          session: {
+            user: {
+              id: userData.id,
+              email: userData.email,
+              name: userData.name,
+            },
+            expires: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          },
+        };
+      } catch (error) {
+        clearTimeout(timeoutId);
+        return {
+          error: error instanceof Error ? error.message : 'Authentication failed',
+        };
+      }
+    },
+  };
+}`}
+        />
+
+        <h2>Provider Examples</h2>
+        <p>
+          Here are some real-world examples of custom providers:
+        </p>
+
+        <h3>GitHub OAuth Provider</h3>
+        <CodeBlock language="typescript">
+{`export function github(options: {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+}) {
+  return customOAuth({
+    ...options,
+    authorizeUrl: 'https://github.com/login/oauth/authorize',
+    tokenUrl: 'https://github.com/login/oauth/access_token',
+    userInfoUrl: 'https://api.github.com/user',
+    scope: ['user:email'],
+  });
+}`}
+        </CodeBlock>
+
+        <h3>Discord OAuth Provider</h3>
+        <CodeBlock language="typescript">
+{`export function discord(options: {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+}) {
+  return customOAuth({
+    ...options,
+    authorizeUrl: 'https://discord.com/api/oauth2/authorize',
+    tokenUrl: 'https://discord.com/api/oauth2/token',
+    userInfoUrl: 'https://discord.com/api/users/@me',
+    scope: ['identify', 'email'],
+  });
+}`}
+        </CodeBlock>
+
+        <Callout type="success" title="Custom Providers Complete">
+          You've learned how to create custom providers for @auth-sdk/core. 
+          You can now integrate any authentication system with the SDK.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you can create custom providers, you can:
+        </p>
+
+        <ul>
+          <li>Explore <a href="/docs/guides/nextjs-integration">Next.js Integration</a> for advanced routing</li>
+          <li>Learn about <a href="/docs/guides/database-adapters">Database Adapters</a> for session persistence</li>
+          <li>Implement <a href="/docs/mcp/introduction">MCP Integration</a> for AI agent authentication</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

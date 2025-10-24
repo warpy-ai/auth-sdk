@@ -1,0 +1,298 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+import { ApiMethod } from '@/components/docs/api-method';
+
+export const metadata = {
+  title: 'Google OAuth - @auth-sdk/core',
+  description: 'Complete setup guide for Google OAuth authentication.',
+};
+
+export default function GoogleOAuth() {
+  return (
+    <DocsLayout
+      title="Google OAuth"
+      description="Complete setup guide for Google OAuth authentication."
+      prevPage={{ title: 'Providers Overview', href: '/docs/providers/overview' }}
+      nextPage={{ title: 'Email Magic Links', href: '/docs/providers/email-magic-links' }}
+    >
+      <div>
+        <h2>Google OAuth Setup</h2>
+        <p>
+          Google OAuth is the most popular authentication method for web applications. 
+          This guide walks you through setting up Google OAuth with @auth-sdk/core.
+        </p>
+
+        <h2>Google Cloud Console Setup</h2>
+        <p>
+          Before you can use Google OAuth, you need to set up a project in Google Cloud Console:
+        </p>
+
+        <h3>Step 1: Create a Google Cloud Project</h3>
+        <ol>
+          <li>Go to the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+          <li>Click "Select a project" → "New Project"</li>
+          <li>Enter a project name (e.g., "My Auth App")</li>
+          <li>Click "Create"</li>
+        </ol>
+
+        <h3>Step 2: Enable Google+ API</h3>
+        <ol>
+          <li>In your project, go to "APIs & Services" → "Library"</li>
+          <li>Search for "Google+ API"</li>
+          <li>Click on it and press "Enable"</li>
+        </ol>
+
+        <h3>Step 3: Create OAuth 2.0 Credentials</h3>
+        <ol>
+          <li>Go to "APIs & Services" → "Credentials"</li>
+          <li>Click "Create Credentials" → "OAuth 2.0 Client IDs"</li>
+          <li>If prompted, configure the OAuth consent screen:
+            <ul>
+              <li>Choose "External" for public apps</li>
+              <li>Fill in the required fields (App name, User support email, Developer contact)</li>
+              <li>Add your domain to authorized domains</li>
+            </ul>
+          </li>
+          <li>Select "Web application" as the application type</li>
+          <li>Add authorized redirect URIs:
+            <ul>
+              <li>Development: <code>http://localhost:3000/api/auth/callback/google</code></li>
+              <li>Production: <code>https://yourdomain.com/api/auth/callback/google</code></li>
+            </ul>
+          </li>
+          <li>Click "Create"</li>
+          <li>Copy the Client ID and Client Secret</li>
+        </ol>
+
+        <Callout type="warning" title="Important">
+          <ul>
+            <li>Keep your Client Secret secure and never commit it to version control</li>
+            <li>Use different OAuth applications for development and production</li>
+            <li>Add your production domain to authorized domains in the OAuth consent screen</li>
+          </ul>
+        </Callout>
+
+        <h2>Environment Variables</h2>
+        <p>
+          Add the Google OAuth credentials to your environment variables:
+        </p>
+
+        <CodeBlock language="bash">
+{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
+        </CodeBlock>
+
+        <h2>Using Google OAuth Provider</h2>
+        <p>
+          Import and configure the Google OAuth provider:
+        </p>
+
+        <Example
+          title="Basic Google OAuth Setup"
+          description="Minimal configuration for Google OAuth"
+          code={`import { google } from '@auth-sdk/core';
+
+const googleProvider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+});`}
+        />
+
+        <h2>Advanced Configuration</h2>
+        <p>
+          Google OAuth provider supports additional configuration options:
+        </p>
+
+        <Example
+          title="Advanced Google OAuth Configuration"
+          description="Full configuration with custom scopes and options"
+          code={`import { google } from '@auth-sdk/core';
+
+const googleProvider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  scope: [
+    'openid',
+    'email', 
+    'profile',
+    'https://www.googleapis.com/auth/userinfo.email',
+    'https://www.googleapis.com/auth/userinfo.profile'
+  ],
+});`}
+        />
+
+        <h2>Google OAuth Scopes</h2>
+        <p>
+          Google OAuth supports various scopes for different permissions:
+        </p>
+
+        <h3>Basic Scopes</h3>
+        <ul>
+          <li><code>openid</code> - OpenID Connect authentication</li>
+          <li><code>email</code> - Access to user's email address</li>
+          <li><code>profile</code> - Access to user's basic profile information</li>
+        </ul>
+
+        <h3>Extended Scopes</h3>
+        <ul>
+          <li><code>https://www.googleapis.com/auth/userinfo.email</code> - Detailed email access</li>
+          <li><code>https://www.googleapis.com/auth/userinfo.profile</code> - Detailed profile access</li>
+          <li><code>https://www.googleapis.com/auth/calendar</code> - Google Calendar access</li>
+          <li><code>https://www.googleapis.com/auth/drive</code> - Google Drive access</li>
+        </ul>
+
+        <Callout type="info" title="Scope Best Practices">
+          <ul>
+            <li>Request only the scopes you actually need</li>
+            <li>Start with basic scopes and add more as needed</li>
+            <li>Inform users about what data you're accessing</li>
+            <li>Handle scope changes gracefully in your app</li>
+          </ul>
+        </Callout>
+
+        <h2>User Data Structure</h2>
+        <p>
+          Google OAuth returns user data in this format:
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface GoogleUser {
+  id: string;           // Google user ID
+  email: string;        // User's email address
+  name: string;         // User's full name
+  picture: string;      // User's profile picture URL
+  verified_email: boolean; // Email verification status
+  locale: string;       // User's locale
+}`}
+        </CodeBlock>
+
+        <h2>Complete Implementation</h2>
+        <p>
+          Here's a complete example of Google OAuth integration:
+        </p>
+
+        <Example
+          title="Complete Google OAuth Setup"
+          description="Full implementation with error handling"
+          code={`import { authMiddleware } from '@auth-sdk/core/next';
+import { google } from '@auth-sdk/core';
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+      scope: ['openid', 'email', 'profile'],
+    }),
+    callbacks: {
+      async user(u) {
+        // Save user to your database
+        // Return the user object that will be stored in the session
+        return {
+          id: u.id,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+      jwt: (token) => {
+        // Add any custom claims to the JWT
+        return token;
+      },
+      session: (session) => {
+        // Customize the session object
+        return session;
+      },
+    },
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+    errorRedirect: '/login',
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith('/api/auth')) return handler(request);
+  return NextResponse.next();
+}`}
+        />
+
+        <h2>Testing Google OAuth</h2>
+        <p>
+          Test your Google OAuth integration:
+        </p>
+
+        <ol>
+          <li>Start your development server: <code>npm run dev</code></li>
+          <li>Visit <code>http://localhost:3000/api/auth/signin/google</code></li>
+          <li>Complete the Google OAuth flow</li>
+          <li>Verify you're redirected to your success page</li>
+          <li>Check that user data is correctly stored in the session</li>
+        </ol>
+
+        <h2>Common Issues</h2>
+        <p>
+          Here are solutions to common Google OAuth issues:
+        </p>
+
+        <h3>Redirect URI Mismatch</h3>
+        <p>
+          <strong>Error:</strong> "redirect_uri_mismatch"<br/>
+          <strong>Solution:</strong> Ensure the redirect URI in your Google Cloud Console exactly matches the one in your environment variables.
+        </p>
+
+        <h3>Invalid Client</h3>
+        <p>
+          <strong>Error:</strong> "invalid_client"<br/>
+          <strong>Solution:</strong> Check that your Client ID and Client Secret are correct and not expired.
+        </p>
+
+        <h3>Access Blocked</h3>
+        <p>
+          <strong>Error:</strong> "access_denied"<br/>
+          <strong>Solution:</strong> Make sure your OAuth consent screen is properly configured and published.
+        </p>
+
+        <h2>Production Deployment</h2>
+        <p>
+          For production deployment:
+        </p>
+
+        <ol>
+          <li>Create a separate OAuth application for production</li>
+          <li>Add your production domain to authorized domains</li>
+          <li>Update redirect URIs to use HTTPS</li>
+          <li>Set production environment variables</li>
+          <li>Test the OAuth flow in production</li>
+        </ol>
+
+        <Callout type="success" title="Google OAuth Complete">
+          You've successfully set up Google OAuth with @auth-sdk/core. 
+          Users can now sign in with their Google accounts.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you have Google OAuth working, you can:
+        </p>
+
+        <ul>
+          <li>Add <a href="/docs/providers/email-magic-links">Email Magic Links</a> for passwordless authentication</li>
+          <li>Implement <a href="/docs/guides/database-adapters">Database Adapters</a> for session persistence</li>
+          <li>Add <a href="/docs/guides/security-best-practices">Security Best Practices</a> for production</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}
