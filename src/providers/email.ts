@@ -50,7 +50,10 @@ export function email(options: EmailProviderOptions): EmailProviderConfig {
       });
     },
 
-    verify(token: string): Promise<{ email: string; userId?: string } | null> {
+    // eslint-disable-next-line require-await
+    async verify(
+      token: string
+    ): Promise<{ email: string; userId?: string } | null> {
       return verifyMagicToken(token);
     },
   };

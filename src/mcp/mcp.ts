@@ -85,7 +85,8 @@ export function createMCPTools({
       parameters: z.object({
         token: z.string().describe("JWT token to verify"),
       }),
-      execute: (args: { token: string }) => {
+      // eslint-disable-next-line require-await
+      execute: async (args: { token: string }) => {
         try {
           const { token } = args;
 
@@ -132,7 +133,8 @@ export function createMCPTools({
       parameters: z.object({
         token: z.string().describe("JWT token to revoke"),
       }),
-      execute: (args: { token: string }) => {
+      // eslint-disable-next-line require-await
+      execute: async (args: { token: string }) => {
         try {
           const { token } = args;
           const payload = verifyJWT(token, secret);

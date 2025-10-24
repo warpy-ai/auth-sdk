@@ -29,7 +29,8 @@ export function google(options: GoogleProviderOptions): OAuthProviderConfig {
     redirectUri: options.redirectUri,
     scope: options.scope || ["openid", "email", "profile"],
 
-    getUser(accessToken: string): Promise<UserProfile> {
+    // eslint-disable-next-line require-await
+    async getUser(accessToken: string): Promise<UserProfile> {
       return oauthProvider.getUserInfo(accessToken);
     },
   };

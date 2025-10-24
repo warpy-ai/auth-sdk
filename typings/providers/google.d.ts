@@ -1,4 +1,4 @@
-import type { OAuthProviderConfig } from './types';
+import type { OAuthProviderConfig } from "./types";
 export interface GoogleProviderOptions {
     clientId: string;
     clientSecret: string;

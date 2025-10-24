@@ -2,7 +2,7 @@ export declare const SESSION_COOKIE_NAME = "auth-session";
 export interface CookieOptions {
     httpOnly?: boolean;
     secure?: boolean;
-    sameSite?: 'strict' | 'lax' | 'none';
+    sameSite?: "strict" | "lax" | "none";
     maxAge?: number;
     path?: string;
 }

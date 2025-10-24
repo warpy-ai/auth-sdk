@@ -1,4 +1,4 @@
-import type { EmailProviderConfig } from './types';
+import type { EmailProviderConfig } from "./types";
 export interface EmailProviderOptions {
     server: string;
     from: string;
