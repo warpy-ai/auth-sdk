@@ -30,7 +30,9 @@
     "skipLibCheck": true
   },
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "./examples/**/*.tsx",
+    "./examples/**/*.ts"
   ],
   "include": [
     "./src/**/*.tsx",

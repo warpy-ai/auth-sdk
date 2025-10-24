@@ -1,8 +1,16 @@
-import * as React from 'react';
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { getSession, type Session } from '../core';
+"use client";
+import * as React from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  type ReactNode,
+} from "react";
+import type { Session } from "../core";
 
-interface AuthContextValue {
+export interface AuthContextValue {
   session: Session | null;
   loading: boolean;
   signIn: (email: string) => Promise<void>;
@@ -19,7 +27,12 @@ export interface AuthProviderProps {
   onSignOut?: () => void;
 }
 
-export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProviderProps) {
+export function AuthProvider({
+  children,
+  secret,
+  onSignIn,
+  onSignOut,
+}: AuthProviderProps) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,7 +40,7 @@ export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProv
     try {
       setLoading(true);
       // In browser, we need to fetch from an API endpoint
-      const response = await fetch('/api/auth/session');
+      const response = await fetch("/api/auth/session");
       if (response.ok) {
         const data = await response.json();
         setSession(data.session || null);
@@ -35,7 +48,7 @@ export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProv
         setSession(null);
       }
     } catch (error) {
-      console.error('Failed to fetch session:', error);
+      console.error("Failed to fetch session:", error);
       setSession(null);
     } finally {
       setLoading(false);
@@ -50,9 +63,9 @@ export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProv
     async (email: string) => {
       try {
         // Call API to initiate sign-in
-        const response = await fetch('/api/auth/signin', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/auth/signin", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email }),
         });
 
@@ -66,7 +79,7 @@ export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProv
           }
         }
       } catch (error) {
-        console.error('Sign in failed:', error);
+        console.error("Sign in failed:", error);
         throw error;
       }
     },
@@ -75,18 +88,20 @@ export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProv
 
   const signOut = useCallback(async () => {
     try {
-      await fetch('/api/auth/signout', { method: 'POST' });
+      await fetch("/api/auth/signout", { method: "POST" });
       setSession(null);
       if (onSignOut) {
         onSignOut();
       }
     } catch (error) {
-      console.error('Sign out failed:', error);
+      console.error("Sign out failed:", error);
     }
   }, [onSignOut]);
 
   return (
-    <AuthContext.Provider value={{ session, loading, signIn, signOut, refreshSession }}>
+    <AuthContext.Provider
+      value={{ session, loading, signIn, signOut, refreshSession }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -95,12 +110,10 @@ export function AuthProvider({ children, secret, onSignIn, onSignOut }: AuthProv
 export function useAuth(): AuthContextValue {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }
 
 // Server-side session helper
-export async function getServerSession(request: Request, secret: string): Promise<Session | null> {
-  return getSession(request, secret);
-}
+// server-side helper moved to hooks/server to avoid bundling server deps in client

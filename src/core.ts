@@ -1,10 +1,19 @@
-import { signJWT, verifyJWT, type JWTPayload } from './utils/jwt';
-import { serializeCookie, getSessionCookie, clearCookie, SESSION_COOKIE_NAME } from './utils/cookie';
-import { generateCSRFToken, validateCSRFToken } from './utils/csrf';
-import { OAuthProvider } from './utils/oauth';
-import type { Provider, OAuthProviderConfig, EmailProviderConfig } from './providers/types';
-import type { Adapter } from './adapters/types';
-import { createMCPTools } from './mcp/mcp';
+import { signJWT, verifyJWT, type JWTPayload } from "./utils/jwt";
+import {
+  serializeCookie,
+  getSessionCookie,
+  clearCookie,
+  SESSION_COOKIE_NAME,
+} from "./utils/cookie";
+import { generateCSRFToken, validateCSRFToken } from "./utils/csrf";
+import { OAuthProvider } from "./utils/oauth";
+import type {
+  Provider,
+  OAuthProviderConfig,
+  EmailProviderConfig,
+} from "./providers/types";
+import type { Adapter } from "./adapters/types";
+import { createMCPTools } from "./mcp/mcp";
 
 export interface AuthConfig {
   provider: Provider;
@@ -21,7 +30,7 @@ export interface Session {
   user: { id: string; email: string; name?: string; picture?: string };
   expires: Date;
   token?: string;
-  type?: 'standard' | 'mcp-agent';
+  type?: "standard" | "mcp-agent";
   scopes?: string[];
   agentId?: string;
 }
@@ -52,17 +61,21 @@ export async function authenticate(
           userId: payload.userId,
           scopes: payload.scopes,
           agentId: payload.agentId,
-          type: 'mcp-agent',
+          type: "mcp-agent",
         },
         config.secret,
         payload.expiresIn
       );
 
       const session: Session = {
-        user: { id: payload.userId, email: '', name: `Agent ${payload.agentId}` },
+        user: {
+          id: payload.userId,
+          email: "",
+          name: `Agent ${payload.agentId}`,
+        },
         expires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
         token,
-        type: 'mcp-agent',
+        type: "mcp-agent",
         scopes: payload.scopes,
         agentId: payload.agentId,
       };
@@ -72,24 +85,26 @@ export async function authenticate(
 
     // Standard authentication requires a request
     if (!request) {
-      return { error: 'Request object required for standard authentication' };
+      return { error: "Request object required for standard authentication" };
     }
 
     const provider = config.provider;
 
     // Handle OAuth provider
-    if (provider.type === 'oauth') {
+    if (provider.type === "oauth") {
       return await handleOAuthAuthentication(provider, config, request);
     }
 
     // Handle Email provider
-    if (provider.type === 'email') {
+    if (provider.type === "email") {
       return await handleEmailAuthentication(provider, config, request);
     }
 
-    return { error: 'Unsupported provider type' };
+    return { error: "Unsupported provider type" };
   } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Authentication failed' };
+    return {
+      error: error instanceof Error ? error.message : "Authentication failed",
+    };
   }
 }
 
@@ -99,21 +114,22 @@ async function handleOAuthAuthentication(
   request: Request
 ): Promise<AuthenticateResult> {
   const url = new URL(request.url);
-  const code = url.searchParams.get('code');
-  const state = url.searchParams.get('state');
+  const code = url.searchParams.get("code");
+  const state = url.searchParams.get("state");
 
   // If no code, initiate OAuth flow
   if (!code) {
     const oauthProvider = new OAuthProvider(provider);
-    const csrfState = generateCSRFToken();
+    // Generate CSRF token using the same sessionId key as validation ('oauth')
+    const csrfState = generateCSRFToken("oauth");
     const authorizeUrl = oauthProvider.getAuthorizeUrl(csrfState);
 
     return { redirectUrl: authorizeUrl };
   }
 
   // Validate CSRF state
-  if (!state || !validateCSRFToken('oauth', state)) {
-    return { error: 'Invalid CSRF token' };
+  if (!state || !validateCSRFToken("oauth", state)) {
+    return { error: "Invalid CSRF token" };
   }
 
   // Exchange code for token
@@ -142,16 +158,21 @@ async function handleOAuthAuthentication(
       userId: user.id,
       email: user.email,
       name: user.name,
-      type: 'standard',
+      type: "standard",
     },
     config.secret
   );
 
   const session: Session = {
-    user: { id: user.id, email: user.email, name: user.name, picture: user.picture },
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+    },
     expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     token: sessionToken,
-    type: 'standard',
+    type: "standard",
   };
 
   // Store in adapter if available
@@ -171,14 +192,14 @@ async function handleEmailAuthentication(
   request: Request
 ): Promise<AuthenticateResult> {
   const url = new URL(request.url);
-  const token = url.searchParams.get('token');
-  const email = url.searchParams.get('email');
+  const token = url.searchParams.get("token");
+  const email = url.searchParams.get("email");
 
   // If token provided, verify magic link
   if (token) {
     const verified = await provider.verify(token);
     if (!verified) {
-      return { error: 'Invalid or expired magic link' };
+      return { error: "Invalid or expired magic link" };
     }
 
     // Get or create user
@@ -198,7 +219,7 @@ async function handleEmailAuthentication(
         userId: user.id,
         email: user.email,
         name: user.name,
-        type: 'standard',
+        type: "standard",
       },
       config.secret
     );
@@ -207,7 +228,7 @@ async function handleEmailAuthentication(
       user: { id: user.id, email: user.email, name: user.name },
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       token: sessionToken,
-      type: 'standard',
+      type: "standard",
     };
 
     return { session };
@@ -220,12 +241,15 @@ async function handleEmailAuthentication(
     return { session: undefined }; // No error, email sent
   }
 
-  return { error: 'Email or token required' };
+  return { error: "Email or token required" };
 }
 
-export async function getSession(request: Request, secret: string): Promise<Session | null> {
+export async function getSession(
+  request: Request,
+  secret: string
+): Promise<Session | null> {
   try {
-    const cookieHeader = request.headers.get('cookie');
+    const cookieHeader = request.headers.get("cookie");
     const sessionToken = getSessionCookie(cookieHeader);
 
     if (!sessionToken) {
@@ -240,12 +264,12 @@ export async function getSession(request: Request, secret: string): Promise<Sess
     const session: Session = {
       user: {
         id: payload.userId,
-        email: payload.email || '',
+        email: payload.email || "",
         name: payload.name,
       },
       expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       token: sessionToken,
-      type: payload.type || 'standard',
+      type: payload.type || "standard",
       scopes: payload.scopes,
       agentId: payload.agentId,
     };
@@ -256,8 +280,11 @@ export async function getSession(request: Request, secret: string): Promise<Sess
   }
 }
 
-export async function signOut(request: Request, config: AuthConfig): Promise<void> {
-  const cookieHeader = request.headers.get('cookie');
+export async function signOut(
+  request: Request,
+  config: AuthConfig
+): Promise<void> {
+  const cookieHeader = request.headers.get("cookie");
   const sessionToken = getSessionCookie(cookieHeader);
 
   if (sessionToken && config.adapter) {
@@ -269,7 +296,7 @@ export async function signOut(request: Request, config: AuthConfig): Promise<voi
 }
 
 export function createSessionCookie(session: Session): string {
-  return serializeCookie(SESSION_COOKIE_NAME, session.token || '', {
+  return serializeCookie(SESSION_COOKIE_NAME, session.token || "", {
     maxAge: Math.floor((session.expires.getTime() - Date.now()) / 1000),
   });
 }
@@ -278,33 +305,40 @@ export function clearSessionCookie(): string {
   return clearCookie(SESSION_COOKIE_NAME);
 }
 
-export async function verifyAgentToken(request: Request, secret: string): Promise<Session | null> {
-  const authHeader = request.headers.get('Authorization');
-  const token = authHeader?.replace('Bearer ', '');
+export async function verifyAgentToken(
+  request: Request,
+  secret: string
+): Promise<Session | null> {
+  const authHeader = request.headers.get("Authorization");
+  const token = authHeader?.replace("Bearer ", "");
 
   if (!token) {
     return null;
   }
 
   const payload = verifyJWT(token, secret);
-  if (!payload || payload.type !== 'mcp-agent') {
+  if (!payload || payload.type !== "mcp-agent") {
     return null;
   }
 
   return {
-    user: { id: payload.userId, email: payload.email || '', name: payload.name },
+    user: {
+      id: payload.userId,
+      email: payload.email || "",
+      name: payload.name,
+    },
     expires: new Date(Date.now() + 15 * 60 * 1000),
     token,
-    type: 'mcp-agent',
+    type: "mcp-agent",
     scopes: payload.scopes,
     agentId: payload.agentId,
   };
 }
 
 // Export providers and MCP tools
-export { google } from './providers/google';
-export { email } from './providers/email';
-export type { Adapter } from './adapters/types';
+export { google } from "./providers/google";
+export { email } from "./providers/email";
+export type { Adapter } from "./adapters/types";
 
 // MCP tools will be created per-instance with the app's secret
-export { createMCPTools } from './mcp/mcp';
+export { createMCPTools } from "./mcp/mcp";
