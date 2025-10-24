@@ -7,24 +7,24 @@
     "types": "./typings/index.d.ts",
     "exports": {
         ".": {
+            "types": "./typings/index.d.ts",
             "import": "./dist/index.js",
-            "require": "./dist/index.js",
-            "types": "./typings/index.d.ts"
+            "default": "./dist/index.js"
         },
         "./hooks": {
+            "types": "./typings/hooks/index.d.ts",
             "import": "./dist/hooks/index.js",
-            "require": "./dist/hooks/index.js",
-            "types": "./typings/hooks/index.d.ts"
+            "default": "./dist/hooks/index.js"
         },
         "./hooks/server": {
+            "types": "./typings/hooks/server.d.ts",
             "import": "./dist/hooks/server.js",
-            "require": "./dist/hooks/server.js",
-            "types": "./typings/hooks/server.d.ts"
+            "default": "./dist/hooks/server.js"
         },
         "./next": {
+            "types": "./typings/next/index.d.ts",
             "import": "./dist/next/index.js",
-            "require": "./dist/next/index.js",
-            "types": "./typings/next/index.d.ts"
+            "default": "./dist/next/index.js"
         }
     },
     "scripts": {
@@ -73,6 +73,7 @@
     "*": {
       "hooks": ["typings/hooks/index.d.ts"],
       "hooks/server": ["typings/hooks/server.d.ts"],
+      "next": ["typings/next/index.d.ts"],
       "*": ["typings/index.d.ts"]
     }
   },

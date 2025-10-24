@@ -5,9 +5,6 @@ const nextConfig: NextConfig = {
     externalDir: true,
   },
   transpilePackages: ["@warpy-auth-sdk/core"],
-  turbopack: {
-    root: __dirname,
-  },
 };
 
 export default nextConfig;
