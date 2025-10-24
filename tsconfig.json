@@ -8,6 +8,7 @@
       "es2017",
       "esnext.asynciterable"
     ],
+    "jsx": "react",
     "sourceMap": false,
     "outDir": "./dist",
     "moduleResolution": "node",
@@ -18,13 +19,15 @@
     "strictNullChecks": true,
     "strictFunctionTypes": true,
     "noImplicitThis": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "allowSyntheticDefaultImports": false,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
     "emitDecoratorMetadata": true,
-    "experimentalDecorators": true
+    "experimentalDecorators": true,
+    "skipLibCheck": true
   },
   "exclude": [
     "node_modules"
