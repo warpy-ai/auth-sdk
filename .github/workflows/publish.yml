@@ -16,12 +16,10 @@ jobs:
             - name: Setup Node.js
               uses: actions/setup-node@v3
               with:
-                  node-version: "20" # or whichever version you use
+                  node-version: "lts/*"
                   registry-url: "https://registry.npmjs.org/"
-
-            # 3. Authenticate to npm
-            - name: Authenticate npm
-              run: npm config set //registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
             # 4. Install dependencies (optional)
             - name: Install dependencies
@@ -29,4 +27,4 @@ jobs:
 
             # 5. Publish the package
             - name: Publish package
-              run: npm publish
+              run: npm publish --access public
