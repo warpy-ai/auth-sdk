@@ -1,6 +1,6 @@
 {
   "name": "@warpy-auth-sdk/core",
-  "version": "0.0.13",
+  "version": "0.0.14",
   "description": "auth-sdk",
   "main": "./dist/index.js",
   "type": "module",

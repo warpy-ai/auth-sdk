@@ -66,8 +66,14 @@ export function createNextAuthHandler(
         return res;
       }
 
-      // OAuth sign-in start
-      if (action === "signin" && provider && method === "GET") {
+      // OAuth sign-in start (exclude special providers handled below)
+      if (
+        action === "signin" &&
+        provider &&
+        method === "GET" &&
+        provider !== "twofa" &&
+        provider !== "email"
+      ) {
         const result = await authenticate(config, request);
         if (result.redirectUrl) {
           const headers = new Headers();
@@ -138,10 +144,7 @@ export function createNextAuthHandler(
           // Extract identifier from redirect URL and return as JSON
           const redirectUrl = new URL(result.redirectUrl);
           const identifier = redirectUrl.searchParams.get("identifier");
-          return Response.json(
-            { success: true, identifier },
-            { status: 200 }
-          );
+          return Response.json({ success: true, identifier }, { status: 200 });
         }
 
         // If session is returned, code was verified successfully
