@@ -7,6 +7,7 @@ export interface OAuthProviderConfig {
   userInfoUrl: string;
   redirectUri: string;
   scope?: string[];
+  pkce?: "S256" | "plain" | false;
   getUser: (accessToken: string) => Promise<UserProfile>;
 }
 

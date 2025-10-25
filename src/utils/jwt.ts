@@ -1,4 +1,5 @@
-import * as jwt from "jsonwebtoken";
+import jwt from "jsonwebtoken";
+import type { SignOptions } from "jsonwebtoken";
 
 export interface JWTPayload {
   userId: string;
@@ -14,7 +15,7 @@ export function signJWT(
   secret: string,
   expiresIn: string = "7d"
 ): string {
-  return jwt.sign(payload, secret, { expiresIn } as jwt.SignOptions);
+  return jwt.sign(payload, secret, { expiresIn } as SignOptions);
 }
 
 export function verifyJWT(token: string, secret: string): JWTPayload | null {

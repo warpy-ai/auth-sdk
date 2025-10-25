@@ -70,7 +70,15 @@ export function createNextAuthHandler(
       if (action === "signin" && provider && method === "GET") {
         const result = await authenticate(config, request);
         if (result.redirectUrl) {
-          return Response.redirect(result.redirectUrl, 307);
+          const headers = new Headers();
+          headers.set("Location", result.redirectUrl);
+          // Set PKCE verifier cookie if provided
+          if (result.cookies && result.cookies.length > 0) {
+            result.cookies.forEach((cookie) => {
+              headers.append("Set-Cookie", cookie);
+            });
+          }
+          return new Response(null, { status: 307, headers });
         }
         return Response.json(
           { error: result.error || "Failed to start sign in" },
@@ -90,6 +98,12 @@ export function createNextAuthHandler(
         const headers = new Headers();
         headers.set("Location", location.toString());
         headers.append("Set-Cookie", createSessionCookie(result.session));
+        // Clear PKCE verifier cookie if provided
+        if (result.cookies && result.cookies.length > 0) {
+          result.cookies.forEach((cookie) => {
+            headers.append("Set-Cookie", cookie);
+          });
+        }
         return new Response(null, { status: 307, headers });
       }
 

@@ -9,6 +9,10 @@ export interface AuthConfig {
         enabled: boolean;
         scopes?: string[];
     };
+    warpy?: {
+        apiKey?: string;
+        baseUrl?: string;
+    };
     callbacks?: {
         user?: (user: {
             id?: string;
@@ -55,6 +59,7 @@ export interface AuthenticateResult {
     session?: Session;
     error?: string;
     redirectUrl?: string;
+    cookies?: string[];
 }
 export declare function authenticate(config: AuthConfig, request?: Request, payload?: MCPLoginPayload): Promise<AuthenticateResult>;
 export declare function getSession(request: Request, secret: string): Promise<Session | null>;
