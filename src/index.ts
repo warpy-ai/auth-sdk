@@ -27,6 +27,8 @@ export type { Adapter } from "./adapters/types";
 
 // MCP Tools
 export { createMCPTools, isTokenRevoked } from "./mcp/mcp";
+export { createMCPShield, type MCPShieldConfig } from "./shield/mcpShield";
+export type { WarpyConfig, ShieldMetricsConfig } from "./shield/types";
 
 // Utilities
 export { signJWT, verifyJWT, decodeJWT, type JWTPayload } from "./utils/jwt";

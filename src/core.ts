@@ -19,6 +19,10 @@ export interface AuthConfig {
   secret: string;
   adapter?: Adapter;
   mcp?: { enabled: boolean; scopes?: string[] };
+  warpy?: {
+    apiKey?: string;
+    baseUrl?: string;
+  };
   callbacks?: {
     /**
      * Resolve and/or upsert the application user given an OAuth profile or verified email.

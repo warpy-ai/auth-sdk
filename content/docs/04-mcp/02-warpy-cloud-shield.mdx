@@ -1,0 +1,170 @@
+---
+title: Warpy Cloud MCP Shield
+description: Secure MCP agent logins and tool calls via Warpy Cloud with zero-config onboarding, analytics, and edge protection.
+---
+
+## Overview
+
+Warpy Cloud MCP Shield is the default cloud provider for securing MCP (Model Context Protocol) agent authentication and tool execution.
+
+- Token provisioning and validation handled by Warpy Cloud
+- Edge security: rate limiting, WAF rules, and basic anomaly intent scanning
+- Centralized analytics and traffic metrics
+- Self-host fallback when no API key is provided
+
+When enabled, the SDK proxies MCP operations to a single endpoint `POST https://platform.warpy.co/api/v1/mcp/shield`.
+
+## Quickstart
+
+1. Set your API key in the environment:
+
+```bash
+export WARPY_API_KEY=warpy_api_key_123
+```
+
+2. Wrap your MCP tools with the Shield:
+
+```ts
+import { createMCPShield } from '@warpy-auth-sdk/core';
+
+const tools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  // Optional explicit config (env alone is enough)
+  warpy: { apiKey: process.env.WARPY_API_KEY },
+  metrics: { enabled: true, flushIntervalMs: 10000 },
+});
+```
+
+3. Use with your LLM runtime (e.g., Vercel AI SDK):
+
+```ts
+import { generateText } from 'ai';
+
+const { text } = await generateText({
+  model,
+  tools,
+  prompt: 'Login as user-123 with debug scope',
+});
+```
+
+If `WARPY_API_KEY` is not set, Shield auto-falls back to self-host mode using local JWT verification.
+
+## Configuration
+
+```ts
+type MCPShieldConfig = {
+  secret: string;
+  warpy?: {
+    apiKey?: string;  // if present (or WARPY_API_KEY env), cloud mode is enabled
+    baseUrl?: string; // default: https://platform.warpy.co/api/v1
+    timeoutMs?: number; // default: 5000
+    maxRetries?: number; // default: 3
+  };
+  metrics?: {
+    enabled: boolean; // default: false
+    flushIntervalMs?: number; // default: 10000
+    bufferSize?: number; // default: 100
+  };
+};
+```
+
+- Cloud mode detection: enabled when `WARPY_API_KEY` env is set or `warpy.apiKey` is provided.
+- Self-host mode: used when no API key is present.
+
+## How It Works
+
+Shield wraps each MCP tool call in three stages:
+
+1. Authentication
+   - Cloud: `action: "validate"` (token verification by Warpy)
+   - Self-host: local `verifyAgentToken()`
+2. Authorization + Intent Scan
+   - Cloud: `action: "check_authz"` (scope check + prompt heuristics)
+   - Self-host: local scope check only
+3. Execution
+   - Cloud: `action: "proxy"` (secure execution through Warpy)
+   - Self-host: direct tool invocation
+
+Revocation uses `action: "revoke"` in cloud mode; otherwise a local in-memory list.
+
+## Metrics
+
+When `metrics.enabled` is true, Shield buffers request metrics and flushes them periodically to the Warpy platform.
+
+Captured fields include:
+
+- timestamp, toolName, action (validate/check_authz/proxy or self-host)
+- durationMs
+- denied and denialReason (if applicable)
+- userId, agentId (when available)
+- scopes requested
+
+Example enabling metrics:
+
+```ts
+const tools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  metrics: { enabled: true, flushIntervalMs: 10000 },
+});
+```
+
+## API Contract (Warpy Cloud)
+
+Single endpoint: `POST /api/v1/mcp/shield`
+
+Request body:
+
+```json
+{
+  "action": "validate" | "check_authz" | "proxy" | "revoke",
+  "payload": { /* action-specific */ },
+  "metadata": { "toolName": "...", "timestamp": "...", "agentId": "..." }
+}
+```
+
+Response body:
+
+```json
+{ "success": true, "data": { /* action-specific */ }, "denied": false, "reason": null }
+```
+
+Errors:
+
+- 401: invalid API key
+- 429: rate limited (client retries with backoff)
+- 5xx: transient errors (client retries)
+
+## Self-Host Fallback
+
+If `WARPY_API_KEY` is not configured, Shield validates agent tokens via local JWT, performs scope checks locally, and executes tools directly. This mode keeps behavior backward compatible with `createMCPTools()`.
+
+## Example: Next.js Proxy (Node runtime)
+
+```ts
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { createMCPShield } from '@warpy-auth-sdk/core';
+
+const mcp = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+});
+
+export async function POST(req: NextRequest) {
+  const { tool, args } = await req.json();
+  const t = (mcp as any)[tool];
+  if (!t) return NextResponse.json({ error: 'Unknown tool' }, { status: 404 });
+  const result = await t.execute(args);
+  return NextResponse.json(result);
+}
+```
+
+## Pricing & Tiers
+
+- Free: basic validation and rate limiting
+- Pro: advanced analytics and threat intel (planned)
+
+## Notes
+
+- For production revocation lists, use Redis/DB instead of in-memory.
+- Always keep `AUTH_SECRET` consistent across your app and the Shield usage.
+
