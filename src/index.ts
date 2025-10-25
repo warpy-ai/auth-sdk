@@ -14,7 +14,11 @@ export {
 
 // Providers
 export { google, type GoogleProviderOptions } from "./providers/google";
-export { email, type EmailProviderOptions } from "./providers/email";
+export {
+  email,
+  type EmailProviderOptions,
+  type CustomEmailTemplate,
+} from "./providers/email";
 export { facebook, type FacebookProviderOptions } from "./providers/facebook";
 export { github, type GitHubProviderOptions } from "./providers/github";
 export { gitlab, type GitLabProviderOptions } from "./providers/gitlab";
@@ -30,6 +34,20 @@ export type {
   OAuthProviderConfig,
   EmailProviderConfig,
 } from "./providers/types";
+
+// Email services and templates
+export {
+  createEmailService,
+  renderEmailTemplate,
+  NodemailerService,
+  ResendService,
+  type EmailService,
+  type EmailServiceConfig,
+  type NodemailerServiceConfig,
+  type ResendServiceConfig,
+  type SendEmailParams,
+} from "./providers/email-services";
+export { default as MagicLinkEmail } from "./providers/email-templates/MagicLinkEmail";
 
 // Adapters
 export { prismaAdapter } from "./adapters/prisma";

@@ -9,8 +9,10 @@ A lightweight, modular authentication SDK for Next.js applications with **Model 
 ## Features
 
 - ✅ **Multiple Authentication Providers**
-  - Google OAuth 2.0
-  - Email Magic Links (passwordless)
+  - Google, Facebook, GitHub, GitLab, LinkedIn, Microsoft, Spotify, Discord, Twitch, Epic Games OAuth 2.0
+  - Email Magic Links (passwordless) with Resend and Nodemailer support
+  - React Email templates with customization
+  - PKCE support for all OAuth providers
   - Extensible provider system
 
 - ✅ **MCP (Model Context Protocol) Integration**
@@ -91,14 +93,21 @@ export async function GET(request: Request) {
 
 ### Email Magic Link
 
+#### With Resend
+
 ```typescript
 // app/api/auth/signin/email/route.ts
 import { authenticate, email } from 'auth-sdk';
 
 const emailConfig = {
   provider: email({
-    server: 'smtp.gmail.com:587',
     from: 'noreply@yourdomain.com',
+    service: {
+      type: 'resend',
+      apiKey: process.env.RESEND_API_KEY!
+    },
+    appName: 'My App',
+    companyName: 'My Company'
   }),
   secret: process.env.AUTH_SECRET!,
 };
@@ -109,6 +118,25 @@ export async function POST(request: Request) {
 
   return Response.json({ success: !result.error });
 }
+```
+
+#### With Nodemailer (SMTP)
+
+```typescript
+const emailConfig = {
+  provider: email({
+    from: 'noreply@yourdomain.com',
+    service: {
+      type: 'nodemailer',
+      server: 'smtp.gmail.com:587',
+      auth: {
+        user: process.env.GMAIL_USER!,
+        pass: process.env.GMAIL_APP_PASSWORD!
+      }
+    }
+  }),
+  secret: process.env.AUTH_SECRET!,
+};
 ```
 
 ### Get Session

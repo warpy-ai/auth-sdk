@@ -55,7 +55,13 @@ The SDK is built around a provider-based architecture with MCP integration and P
      - [twitch.ts](src/providers/twitch.ts): Twitch OAuth 2.0
      - [epic.ts](src/providers/epic.ts): Epic Games OAuth 2.0
      - [custom.ts](src/providers/custom.ts): Custom OAuth 2.0 provider with configurable endpoints
-   - **Email Provider** ([email.ts](src/providers/email.ts)): Magic link authentication via nodemailer
+   - **Email Provider** ([email.ts](src/providers/email.ts)): Magic link authentication with multiple email services
+     - **Email Services**: Nodemailer (SMTP) and Resend support
+     - **React Email Templates**: Professional default template with customization support
+     - **Email Service Abstraction** ([email-services.ts](src/providers/email-services.ts)): Unified interface for email services
+     - **Default Template** ([email-templates/MagicLinkEmail.tsx](src/providers/email-templates/MagicLinkEmail.tsx)): Beautiful, responsive React Email template
+     - Custom template support via React Email components
+     - Configurable token expiration (default 15 minutes)
    - Type definitions in [types.ts](src/providers/types.ts)
    - PKCE configuration: `"S256"` (default), `"plain"`, or `false`
 
@@ -269,6 +275,7 @@ Notes:
 - `/content/docs`: Directory containing the documentation for the project, including:
   - [Implementation.md](docs/Implementation.md): Full implementation details and architecture
   - [MVP-Plan.md](docs/MVP-Plan.md): Step-by-step implementation plan
+  - [Email-Provider-Guide.md](docs/Email-Provider-Guide.md): Comprehensive guide for email provider with Resend and Nodemailer support
 
 ### TypeScript Configuration
 
@@ -349,7 +356,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 - **jsonwebtoken**: JWT signing and verification
 - **cookie**: Cookie parsing and serialization
-- **nodemailer**: Email sending for magic links
+- **nodemailer**: Email sending via SMTP for magic links
+- **resend**: Modern email API for magic links
+- **@react-email/components**: React Email component library
+- **@react-email/render**: React Email template renderer
 - **ai** (Vercel AI SDK): MCP tool integration
 - **zod**: Schema validation for MCP tools
 - **react**: React hooks for client integration

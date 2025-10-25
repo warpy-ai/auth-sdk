@@ -1,6 +1,6 @@
 export { authenticate, getSession, signOut, verifyAgentToken, createSessionCookie, clearSessionCookie, type AuthConfig, type Session, type MCPLoginPayload, type AuthenticateResult, } from "./core";
 export { google, type GoogleProviderOptions } from "./providers/google";
-export { email, type EmailProviderOptions } from "./providers/email";
+export { email, type EmailProviderOptions, type CustomEmailTemplate, } from "./providers/email";
 export { facebook, type FacebookProviderOptions } from "./providers/facebook";
 export { github, type GitHubProviderOptions } from "./providers/github";
 export { gitlab, type GitLabProviderOptions } from "./providers/gitlab";
@@ -12,6 +12,8 @@ export { twitch, type TwitchProviderOptions } from "./providers/twitch";
 export { epic, type EpicProviderOptions } from "./providers/epic";
 export { custom, type CustomProviderOptions } from "./providers/custom";
 export type { Provider, OAuthProviderConfig, EmailProviderConfig, } from "./providers/types";
+export { createEmailService, renderEmailTemplate, NodemailerService, ResendService, type EmailService, type EmailServiceConfig, type NodemailerServiceConfig, type ResendServiceConfig, type SendEmailParams, } from "./providers/email-services";
+export { default as MagicLinkEmail } from "./providers/email-templates/MagicLinkEmail";
 export { prismaAdapter } from "./adapters/prisma";
 export type { Adapter } from "./adapters/types";
 export { createMCPTools, isTokenRevoked } from "./mcp/mcp";
