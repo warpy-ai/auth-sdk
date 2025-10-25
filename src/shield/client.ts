@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { type AxiosError } from "axios";
 import type {
   WarpyConfig,
   WarpyShieldRequest,
@@ -62,7 +62,7 @@ export class WarpyClient {
 
         if (!shouldRetry || attempt === this.maxRetries) {
           const message = ax.response?.data
-            ? (ax.response.data as any).error || ax.message
+            ? (ax.response.data as { error?: string }).error || ax.message
             : ax.message;
           throw new WarpyError(message, status, ax.code);
         }
