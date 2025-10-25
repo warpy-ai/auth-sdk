@@ -48,11 +48,8 @@ export function Hero() {
           Trusted by builders at
         </p>
         <div className="flex flex-wrap items-center justify-center gap-12 opacity-40">
-          <div className="text-base font-medium tracking-wide">VERCEL</div>
-          <div className="text-base font-medium tracking-wide">NEXT.JS</div>
-          <div className="text-base font-medium tracking-wide">SUPABASE</div>
-          <div className="text-base font-medium tracking-wide">PRISMA</div>
-          <div className="text-base font-medium tracking-wide">OPENAI</div>
+          <div className="text-base font-medium tracking-wide">LERIO</div>
+          <div className="text-base font-medium tracking-wide">SOURCEPILOT</div>
         </div>
       </div>
     </section>
