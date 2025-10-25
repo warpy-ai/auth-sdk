@@ -59,6 +59,7 @@ The SDK is built around a provider-based architecture with MCP integration:
    - **revoke_token**: Invalidates agent tokens immediately
    - Token revocation list (in-memory, should use Redis/DB in production)
    - Tools are compatible with Vercel AI SDK for LLM function calling
+   - Optional Warpy Cloud Shield via `createMCPShield()` for edge security and analytics
 
 5. **Adapter System** ([src/adapters/](src/adapters/))
    - Optional database adapters for session persistence
@@ -108,17 +109,34 @@ The auth-sdk implements **AI agent-delegated authentication** using MCP:
 **Example**:
 
 ```typescript
-import { createMCPTools } from "@warpy-auth-sdk/core";
+import { createMCPTools, createMCPShield } from "@warpy-auth-sdk/core";
 import { generateText } from "ai";
 
+// Self-host mode (local JWT)
 const mcpTools = createMCPTools({ secret: process.env.AUTH_SECRET });
+
+// Cloud mode (Warpy Shield) - auto-enabled when WARPY_API_KEY is present
+const shielded = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  warpy: { apiKey: process.env.WARPY_API_KEY },
+  metrics: { enabled: true, flushIntervalMs: 10000 },
+});
 
 const { text } = await generateText({
   model: yourModel,
-  tools: mcpTools,
+  tools: shielded,
   prompt: "Login as user-123 with debug scope",
 });
 ```
+
+### Warpy Cloud Shield
+
+- Default cloud provider for MCP security. Single endpoint `POST https://platform.warpy.co/api/v1/mcp/shield`.
+- Actions:
+  - `validate` (verify token), `check_authz` (scope + intent scan), `proxy` (secure execution), `revoke` (token revocation)
+- Zero-config: set `WARPY_API_KEY` to enable cloud mode automatically.
+- Metrics: buffered locally and auto-flushed to Warpy for dashboards.
+- Self-host fallback: if no API key, local JWT verification and scope checks are used.
 
 ### MCP HTTP Endpoint (Next.js Example)
 
