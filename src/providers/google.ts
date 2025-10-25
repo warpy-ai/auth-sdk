@@ -6,6 +6,7 @@ export interface GoogleProviderOptions {
   clientSecret: string;
   redirectUri: string;
   scope?: string[];
+  pkce?: "S256" | "plain" | false;
 }
 
 export function google(options: GoogleProviderOptions): OAuthProviderConfig {
@@ -28,6 +29,7 @@ export function google(options: GoogleProviderOptions): OAuthProviderConfig {
     userInfoUrl: "https://www.googleapis.com/oauth2/v3/userinfo",
     redirectUri: options.redirectUri,
     scope: options.scope || ["openid", "email", "profile"],
+    pkce: options.pkce !== undefined ? options.pkce : "S256", // Default to S256
 
     // eslint-disable-next-line require-await
     async getUser(accessToken: string): Promise<UserProfile> {

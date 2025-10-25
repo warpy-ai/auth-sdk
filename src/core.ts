@@ -4,6 +4,9 @@ import {
   getSessionCookie,
   clearCookie,
   SESSION_COOKIE_NAME,
+  getPKCEVerifierCookie,
+  createPKCEVerifierCookie,
+  clearPKCEVerifierCookie,
 } from "./utils/cookie";
 import { generateCSRFToken, validateCSRFToken } from "./utils/csrf";
 import { OAuthProvider } from "./utils/oauth";
@@ -59,6 +62,7 @@ export interface AuthenticateResult {
   session?: Session;
   error?: string;
   redirectUrl?: string;
+  cookies?: string[]; // Set-Cookie headers to send to client
 }
 
 export async function authenticate(
@@ -135,9 +139,23 @@ async function handleOAuthAuthentication(
     const oauthProvider = new OAuthProvider(provider);
     // Generate CSRF token using the same sessionId key as validation ('oauth')
     const csrfState = generateCSRFToken("oauth");
-    const authorizeUrl = oauthProvider.getAuthorizeUrl(csrfState);
 
-    return { redirectUrl: authorizeUrl };
+    // Generate PKCE challenge if enabled
+    const cookies: string[] = [];
+    let pkceChallenge;
+
+    if (provider.pkce !== false && provider.pkce) {
+      pkceChallenge = oauthProvider.generatePKCEChallenge(provider.pkce);
+      // Store verifier in secure cookie
+      cookies.push(createPKCEVerifierCookie(pkceChallenge.verifier));
+    }
+
+    const authorizeUrl = oauthProvider.getAuthorizeUrl(
+      csrfState,
+      pkceChallenge
+    );
+
+    return { redirectUrl: authorizeUrl, cookies };
   }
 
   // Validate CSRF state
@@ -162,13 +180,35 @@ async function handleOAuthAuthentication(
 
   // Exchange code for token
   const oauthProvider = new OAuthProvider(provider);
-  const tokenResponse = await oauthProvider.exchangeCodeForToken(code);
+
+  // Retrieve PKCE verifier from cookie if PKCE is enabled
+  let codeVerifier: string | undefined;
+
+  if (provider.pkce !== false && provider.pkce) {
+    codeVerifier = getPKCEVerifierCookie(cookieHeader) || undefined;
+    if (!codeVerifier) {
+      return {
+        error:
+          "PKCE verifier not found. Please restart the authentication flow.",
+      };
+    }
+  }
+
+  const tokenResponse = await oauthProvider.exchangeCodeForToken(
+    code,
+    codeVerifier
+  );
   const userProfile = await provider.getUser(tokenResponse.access_token);
 
+  // Clear PKCE verifier cookie after successful exchange
+  const cookies: string[] = [];
+  if (provider.pkce !== false && provider.pkce) {
+    cookies.push(clearPKCEVerifierCookie());
+  }
+
   // Resolve user: callbacks.user -> adapter -> raw profile
-  let user:
-    | { id: string; email: string; name?: string; picture?: string }
-    | any = userProfile;
+  let user: { id: string; email: string; name?: string; picture?: string } =
+    userProfile;
   if (config.callbacks?.user) {
     user = await config.callbacks.user(
       {
@@ -227,7 +267,7 @@ async function handleOAuthAuthentication(
     });
   }
 
-  return { session };
+  return { session, cookies };
 }
 
 async function handleEmailAuthentication(

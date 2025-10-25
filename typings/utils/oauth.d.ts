@@ -6,6 +6,7 @@ export interface OAuthConfig {
     userInfoUrl: string;
     redirectUri: string;
     scope?: string[];
+    pkce?: "S256" | "plain" | false;
 }
 export interface OAuthTokenResponse {
     access_token: string;
@@ -20,10 +21,17 @@ export interface OAuthUserInfo {
     name?: string;
     picture?: string;
 }
+export interface PKCEChallenge {
+    verifier: string;
+    challenge: string;
+    method: "S256" | "plain";
+}
 export declare class OAuthProvider {
     private config;
     constructor(config: OAuthConfig);
-    getAuthorizeUrl(state: string): string;
-    exchangeCodeForToken(code: string): Promise<OAuthTokenResponse>;
+    generatePKCEChallenge(method?: "S256" | "plain"): PKCEChallenge;
+    private base64URLEncode;
+    getAuthorizeUrl(state: string, pkceChallenge?: PKCEChallenge): string;
+    exchangeCodeForToken(code: string, codeVerifier?: string): Promise<OAuthTokenResponse>;
     getUserInfo(accessToken: string): Promise<OAuthUserInfo>;
 }

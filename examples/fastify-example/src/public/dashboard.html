@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard - Fastify Auth Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      color: #333;
+      font-size: 1.5em;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #667eea;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+    }
+
+    .user-avatar img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+
+    .user-details {
+      text-align: right;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: #333;
+    }
+
+    .user-email {
+      font-size: 0.85em;
+      color: #666;
+    }
+
+    .btn {
+      padding: 8px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      background: #5568d3;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+    }
+
+    .btn-danger:hover {
+      background: #c82333;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 40px auto;
+      padding: 0 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      margin-bottom: 20px;
+    }
+
+    .card h2 {
+      color: #333;
+      margin-bottom: 20px;
+      font-size: 1.5em;
+    }
+
+    .session-info {
+      display: grid;
+      gap: 15px;
+    }
+
+    .info-row {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 10px;
+      padding: 12px;
+      background: #f8f9fa;
+      border-radius: 5px;
+    }
+
+    .info-label {
+      font-weight: 600;
+      color: #667eea;
+    }
+
+    .info-value {
+      color: #333;
+      word-break: break-all;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 12px;
+      background: #28a745;
+      color: white;
+      border-radius: 12px;
+      font-size: 0.85em;
+      font-weight: 500;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 15px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+    }
+
+    pre {
+      background: #282c34;
+      color: #abb2bf;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-size: 0.9em;
+      line-height: 1.5;
+    }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Dashboard</h1>
+    <div class="user-info">
+      <div id="userAvatar" class="user-avatar"></div>
+      <div class="user-details">
+        <div id="userName" class="user-name">Loading...</div>
+        <div id="userEmail" class="user-email"></div>
+      </div>
+      <button onclick="signOut()" class="btn btn-danger">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div id="loading" class="card loading">
+      Loading your session...
+    </div>
+
+    <div id="error" class="error" style="display: none;"></div>
+
+    <div id="content" style="display: none;">
+      <div class="card">
+        <h2>Session Information</h2>
+        <div class="session-info" id="sessionInfo"></div>
+      </div>
+
+      <div class="card">
+        <h2>Raw Session Data</h2>
+        <p style="color: #666; margin-bottom: 15px;">
+          This is the complete session object returned by the SDK:
+        </p>
+        <pre id="rawSession"></pre>
+      </div>
+
+      <div class="card">
+        <h2>How It Works</h2>
+        <p style="color: #666; line-height: 1.6; margin-bottom: 15px;">
+          This dashboard is protected by @warpy-auth-sdk/core running on Fastify. The authentication flow:
+        </p>
+        <ol style="padding-left: 20px; color: #666; line-height: 1.8;">
+          <li>User clicks "Sign in with Google" on the login page</li>
+          <li>Fastify route <code>/auth/signin/google</code> calls <code>authenticate()</code> from the SDK</li>
+          <li>SDK redirects to Google OAuth consent screen</li>
+          <li>Google redirects back to <code>/auth/callback/google</code></li>
+          <li>SDK exchanges the code for tokens and creates a JWT session</li>
+          <li>Session cookie is set and user is redirected to dashboard</li>
+          <li>Dashboard fetches session via <code>/auth/session</code> endpoint</li>
+        </ol>
+        <div class="actions">
+          <button onclick="testAPI()" class="btn">Test Protected API</button>
+          <a href="/" class="btn">Back to Home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    async function loadSession() {
+      try {
+        const response = await fetch('/auth/session');
+        const data = await response.json();
+
+        if (!data.session) {
+          window.location.href = '/login';
+          return;
+        }
+
+        const session = data.session;
+        const user = session.user;
+
+        // Update header
+        document.getElementById('userName').textContent = user.name || 'User';
+        document.getElementById('userEmail').textContent = user.email;
+
+        const avatarEl = document.getElementById('userAvatar');
+        if (user.picture) {
+          avatarEl.innerHTML = `<img src="${user.picture}" alt="${user.name}">`;
+        } else {
+          avatarEl.textContent = (user.name || user.email).charAt(0).toUpperCase();
+        }
+
+        // Build session info
+        const sessionInfoHtml = `
+          <div class="info-row">
+            <div class="info-label">User ID</div>
+            <div class="info-value">${user.id}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Email</div>
+            <div class="info-value">${user.email}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Name</div>
+            <div class="info-value">${user.name || 'N/A'}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Session Type</div>
+            <div class="info-value"><span class="badge">${session.type || 'standard'}</span></div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Expires</div>
+            <div class="info-value">${new Date(session.expires).toLocaleString()}</div>
+          </div>
+        `;
+
+        document.getElementById('sessionInfo').innerHTML = sessionInfoHtml;
+        document.getElementById('rawSession').textContent = JSON.stringify(session, null, 2);
+
+        // Show content
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+      } catch (error) {
+        console.error('Failed to load session:', error);
+        const errorEl = document.getElementById('error');
+        errorEl.textContent = 'Failed to load session. Please try signing in again.';
+        errorEl.style.display = 'block';
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    async function signOut() {
+      try {
+        const response = await fetch('/auth/signout', { method: 'POST' });
+        if (response.ok) {
+          window.location.href = '/login';
+        }
+      } catch (error) {
+        console.error('Failed to sign out:', error);
+        alert('Failed to sign out. Please try again.');
+      }
+    }
+
+    async function testAPI() {
+      try {
+        const response = await fetch('/api/user');
+        const data = await response.json();
+        alert(`Protected API Test:\n\n${JSON.stringify(data, null, 2)}`);
+      } catch (error) {
+        alert('Failed to call protected API');
+      }
+    }
+
+    loadSession();
+  </script>
+</body>
+</html>

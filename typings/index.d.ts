@@ -5,6 +5,8 @@ export type { Provider, OAuthProviderConfig, EmailProviderConfig, } from "./prov
 export { prismaAdapter } from "./adapters/prisma";
 export type { Adapter } from "./adapters/types";
 export { createMCPTools, isTokenRevoked } from "./mcp/mcp";
+export { createMCPShield, type MCPShieldConfig } from "./shield/mcpShield";
+export type { WarpyConfig, ShieldMetricsConfig } from "./shield/types";
 export { signJWT, verifyJWT, decodeJWT, type JWTPayload } from "./utils/jwt";
 export { serializeCookie, parseCookies, getSessionCookie, clearCookie, SESSION_COOKIE_NAME, } from "./utils/cookie";
 export { generateCSRFToken, validateCSRFToken, cleanExpiredTokens, } from "./utils/csrf";

@@ -1,6 +1,7 @@
 import { serialize, parse, type SerializeOptions } from "cookie";
 
 export const SESSION_COOKIE_NAME = "auth-session";
+export const PKCE_VERIFIER_COOKIE_NAME = "auth_pkce_verifier";
 
 export interface CookieOptions {
   httpOnly?: boolean;
@@ -55,4 +56,21 @@ export function clearCookie(name: string): string {
     path: "/",
     maxAge: 0,
   });
+}
+
+export function getPKCEVerifierCookie(cookieHeader: string | null): string | null {
+  if (!cookieHeader) return null;
+
+  const cookies = parse(cookieHeader);
+  return cookies[PKCE_VERIFIER_COOKIE_NAME] || null;
+}
+
+export function createPKCEVerifierCookie(verifier: string): string {
+  return serializeCookie(PKCE_VERIFIER_COOKIE_NAME, verifier, {
+    maxAge: 600, // 10 minutes (enough time to complete OAuth flow)
+  });
+}
+
+export function clearPKCEVerifierCookie(): string {
+  return clearCookie(PKCE_VERIFIER_COOKIE_NAME);
 }

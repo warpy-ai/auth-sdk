@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 export interface OAuthConfig {
   clientId: string;
   clientSecret: string;
@@ -6,6 +7,7 @@ export interface OAuthConfig {
   userInfoUrl: string;
   redirectUri: string;
   scope?: string[];
+  pkce?: "S256" | "plain" | false;
 }
 
 export interface OAuthTokenResponse {
@@ -23,10 +25,54 @@ export interface OAuthUserInfo {
   picture?: string;
 }
 
+export interface PKCEChallenge {
+  verifier: string;
+  challenge: string;
+  method: "S256" | "plain";
+}
+
 export class OAuthProvider {
   constructor(private config: OAuthConfig) {}
 
-  getAuthorizeUrl(state: string): string {
+  /**
+   * Generate PKCE challenge and verifier
+   * S256: SHA-256 hash of verifier (more secure, recommended)
+   * plain: Verifier sent as-is (fallback for servers that don't support S256)
+   */
+  generatePKCEChallenge(method: "S256" | "plain" = "S256"): PKCEChallenge {
+    // Generate cryptographically secure random verifier (43-128 characters)
+    const verifier = this.base64URLEncode(
+      Buffer.from(
+        Array.from({ length: 32 }, () => Math.floor(Math.random() * 256))
+      )
+    );
+
+    let challenge: string;
+    if (method === "S256") {
+      // SHA-256 hash the verifier
+      const hash = createHash("sha256").update(verifier).digest();
+      challenge = this.base64URLEncode(hash);
+    } else {
+      // Plain method: challenge = verifier
+      challenge = verifier;
+    }
+
+    return { verifier, challenge, method };
+  }
+
+  /**
+   * Base64URL encoding (RFC 4648 Section 5)
+   * Standard Base64 but with URL-safe characters and no padding
+   */
+  private base64URLEncode(buffer: Buffer): string {
+    return buffer
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=/g, "");
+  }
+
+  getAuthorizeUrl(state: string, pkceChallenge?: PKCEChallenge): string {
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       redirect_uri: this.config.redirectUri,
@@ -35,26 +81,45 @@ export class OAuthProvider {
       state,
     });
 
+    // Add PKCE challenge if provided
+    if (pkceChallenge) {
+      params.set("code_challenge", pkceChallenge.challenge);
+      params.set("code_challenge_method", pkceChallenge.method);
+    }
+
     return `${this.config.authorizeUrl}?${params.toString()}`;
   }
 
-  async exchangeCodeForToken(code: string): Promise<OAuthTokenResponse> {
+  async exchangeCodeForToken(
+    code: string,
+    codeVerifier?: string
+  ): Promise<OAuthTokenResponse> {
+    const params = new URLSearchParams({
+      client_id: this.config.clientId,
+      client_secret: this.config.clientSecret,
+      code,
+      grant_type: "authorization_code",
+      redirect_uri: this.config.redirectUri,
+    });
+
+    // Add PKCE code verifier if provided
+    if (codeVerifier) {
+      params.set("code_verifier", codeVerifier);
+    }
+
     const response = await fetch(this.config.tokenUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams({
-        client_id: this.config.clientId,
-        client_secret: this.config.clientSecret,
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: this.config.redirectUri,
-      }),
+      body: params,
     });
 
     if (!response.ok) {
-      throw new Error(`OAuth token exchange failed: ${response.statusText}`);
+      const errorText = await response.text();
+      throw new Error(
+        `OAuth token exchange failed: ${response.statusText} - ${errorText}`
+      );
     }
 
     return response.json();
