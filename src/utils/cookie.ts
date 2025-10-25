@@ -58,10 +58,12 @@ export function clearCookie(name: string): string {
   });
 }
 
-export function getPKCEVerifierCookie(cookieHeader: string | null): string | null {
+export function getPKCEVerifierCookie(
+  cookieHeader?: string | null
+): string | null {
   if (!cookieHeader) return null;
 
-  const cookies = parse(cookieHeader);
+  const cookies = parseCookies(cookieHeader);
   return cookies[PKCE_VERIFIER_COOKIE_NAME] || null;
 }
 
