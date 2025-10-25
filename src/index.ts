@@ -29,10 +29,16 @@ export { discord, type DiscordProviderOptions } from "./providers/discord";
 export { twitch, type TwitchProviderOptions } from "./providers/twitch";
 export { epic, type EpicProviderOptions } from "./providers/epic";
 export { custom, type CustomProviderOptions } from "./providers/custom";
+export {
+  twofa,
+  type TwoFactorProviderOptions,
+  type CustomTwoFactorTemplate,
+} from "./providers/twofa";
 export type {
   Provider,
   OAuthProviderConfig,
   EmailProviderConfig,
+  TwoFactorProviderConfig,
 } from "./providers/types";
 
 // Email services and templates
@@ -48,6 +54,7 @@ export {
   type SendEmailParams,
 } from "./providers/email-services";
 export { default as MagicLinkEmail } from "./providers/email-templates/MagicLinkEmail";
+export { default as TwoFactorEmail } from "./providers/email-templates/TwoFactorEmail";
 
 // Adapters
 export { prismaAdapter } from "./adapters/prisma";
@@ -77,6 +84,10 @@ export {
   createMagicToken,
   verifyMagicToken,
   cleanExpiredMagicTokens,
+  generateTwoFactorCode,
+  createTwoFactorCode,
+  verifyTwoFactorCode,
+  cleanExpiredTwoFactorCodes,
 } from "./utils/tokens";
 export { OAuthProvider } from "./utils/oauth";
 

@@ -1,15 +1,20 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { authMiddleware } from "@warpy-auth-sdk/core/next";
-import { google } from "@warpy-auth-sdk/core";
+import { twofa } from "@warpy-auth-sdk/core";
 
 const handler = authMiddleware(
   {
     secret: process.env.AUTH_SECRET!,
-    provider: google({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    provider: twofa({
+      from: process.env.EMAIL_FROM!,
+      service: {
+        type: "resend",
+        apiKey: process.env.RESEND_API_KEY!,
+      },
+      appName: "Next.js Auth Example",
+      companyName: "Your Company",
+      expirationMinutes: 5, // 2FA codes should expire quickly
     }),
     callbacks: {
       // Resolve/upsert your user with smallest overhead
