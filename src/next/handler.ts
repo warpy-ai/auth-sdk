@@ -66,8 +66,14 @@ export function createNextAuthHandler(
         return res;
       }
 
-      // OAuth sign-in start
-      if (action === "signin" && provider && method === "GET") {
+      // OAuth sign-in start (exclude special providers handled below)
+      if (
+        action === "signin" &&
+        provider &&
+        method === "GET" &&
+        provider !== "twofa" &&
+        provider !== "email"
+      ) {
         const result = await authenticate(config, request);
         if (result.redirectUrl) {
           const headers = new Headers();
@@ -124,6 +130,36 @@ export function createNextAuthHandler(
         if (result.error)
           return Response.json({ error: result.error }, { status: 400 });
         return Response.json({ success: true });
+      }
+
+      // Two-Factor sign-in (send code or verify code)
+      if (action === "signin" && provider === "twofa" && method === "GET") {
+        const url = new URL(request.url);
+        const hasCode = url.searchParams.has("code");
+        const result = await authenticate(config, request);
+
+        // If redirectUrl is returned, it contains the identifier for code verification
+        // This happens after sending the code
+        if (result.redirectUrl && !hasCode) {
+          // Extract identifier from redirect URL and return as JSON
+          const redirectUrl = new URL(result.redirectUrl);
+          const identifier = redirectUrl.searchParams.get("identifier");
+          return Response.json({ success: true, identifier }, { status: 200 });
+        }
+
+        // If session is returned, code was verified successfully
+        if (result.session) {
+          const location = new URL(successUrl, new URL(request.url).origin);
+          const headers = new Headers();
+          headers.set("Location", location.toString());
+          headers.append("Set-Cookie", createSessionCookie(result.session));
+          return new Response(null, { status: 307, headers });
+        }
+
+        return Response.json(
+          { error: result.error || "Failed to process 2FA request" },
+          { status: 400 }
+        );
       }
 
       return Response.json({ error: "Not Found" }, { status: 404 });

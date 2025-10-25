@@ -14,6 +14,7 @@ import type {
   Provider,
   OAuthProviderConfig,
   EmailProviderConfig,
+  TwoFactorProviderConfig,
 } from "./providers/types";
 import type { Adapter } from "./adapters/types";
 
@@ -115,6 +116,11 @@ export async function authenticate(
     // Handle Email provider
     if (provider.type === "email") {
       return await handleEmailAuthentication(provider, config, request);
+    }
+
+    // Handle Two-Factor authentication provider
+    if (provider.type === "twofa") {
+      return await handleTwoFactorAuthentication(provider, config, request);
     }
 
     return { error: "Unsupported provider type" };
@@ -335,6 +341,77 @@ async function handleEmailAuthentication(
   }
 
   return { error: "Email or token required" };
+}
+
+async function handleTwoFactorAuthentication(
+  provider: TwoFactorProviderConfig,
+  config: AuthConfig,
+  request: Request
+): Promise<AuthenticateResult> {
+  const url = new URL(request.url);
+  const identifier = url.searchParams.get("identifier");
+  const code = url.searchParams.get("code");
+  const email = url.searchParams.get("email");
+
+  // If identifier and code provided, verify the 2FA code
+  if (identifier && code) {
+    const verified = await provider.verifyCode(identifier, code);
+    if (!verified) {
+      return { error: "Invalid or expired verification code" };
+    }
+
+    // Resolve user
+    let user: { id: string; email: string; name?: string } | any;
+    if (config.callbacks?.user) {
+      user = await config.callbacks.user(
+        { id: verified.userId, email: verified.email },
+        { provider: "twofa" }
+      );
+    } else if (config.adapter) {
+      user = await config.adapter.getUserByEmail(verified.email);
+      if (!user) {
+        user = await config.adapter.createUser({ email: verified.email });
+      }
+    } else {
+      user = { id: verified.userId || verified.email, email: verified.email };
+    }
+
+    // Create session
+    let jwtPayload: JWTPayload = {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      type: "standard",
+    } as JWTPayload;
+    if (config.callbacks?.jwt) {
+      jwtPayload = await config.callbacks.jwt(jwtPayload);
+    }
+    const sessionToken = signJWT(jwtPayload, config.secret);
+
+    let session: Session = {
+      user: { id: user.id, email: user.email, name: user.name },
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      token: sessionToken,
+      type: "standard",
+    };
+    if (config.callbacks?.session) {
+      session = await config.callbacks.session(session);
+    }
+
+    return { session };
+  }
+
+  // If email provided, send 2FA code
+  if (email) {
+    const result = await provider.sendCode(email);
+    // Return the identifier so the client can use it to verify the code
+    return {
+      session: undefined,
+      redirectUrl: `${url.origin}${url.pathname}?identifier=${result.identifier}`,
+    };
+  }
+
+  return { error: "Email, identifier, or code required" };
 }
 
 export async function getSession(

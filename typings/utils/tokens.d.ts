@@ -5,3 +5,13 @@ export declare function verifyMagicToken(token: string): {
     userId?: string;
 } | null;
 export declare function cleanExpiredMagicTokens(): void;
+export declare function generateTwoFactorCode(): string;
+export declare function createTwoFactorCode(email: string, userId?: string, expiresInMs?: number): {
+    identifier: string;
+    code: string;
+};
+export declare function verifyTwoFactorCode(identifier: string, code: string): {
+    email: string;
+    userId?: string;
+} | null;
+export declare function cleanExpiredTwoFactorCodes(): void;

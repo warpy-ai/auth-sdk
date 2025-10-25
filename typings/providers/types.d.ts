@@ -20,7 +20,19 @@ export interface EmailProviderConfig {
         userId?: string;
     } | null>;
 }
-export type Provider = OAuthProviderConfig | EmailProviderConfig;
+export interface TwoFactorProviderConfig {
+    type: "twofa";
+    from: string;
+    sendCode: (email: string) => Promise<{
+        identifier: string;
+        expiresIn: number;
+    }>;
+    verifyCode: (identifier: string, code: string) => Promise<{
+        email: string;
+        userId?: string;
+    } | null>;
+}
+export type Provider = OAuthProviderConfig | EmailProviderConfig | TwoFactorProviderConfig;
 export interface UserProfile {
     id: string;
     email: string;

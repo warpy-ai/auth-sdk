@@ -9,8 +9,11 @@ A lightweight, modular authentication SDK for Next.js applications with **Model 
 ## Features
 
 - ✅ **Multiple Authentication Providers**
-  - Google OAuth 2.0
-  - Email Magic Links (passwordless)
+  - Google, Facebook, GitHub, GitLab, LinkedIn, Microsoft, Spotify, Discord, Twitch, Epic Games OAuth 2.0
+  - Email Magic Links (passwordless) with Resend and Nodemailer support
+  - Two-Factor Email Authentication (2FA) with 6-digit verification codes
+  - React Email templates with customization
+  - PKCE support for all OAuth providers
   - Extensible provider system
 
 - ✅ **MCP (Model Context Protocol) Integration**
@@ -91,14 +94,21 @@ export async function GET(request: Request) {
 
 ### Email Magic Link
 
+#### With Resend
+
 ```typescript
 // app/api/auth/signin/email/route.ts
 import { authenticate, email } from 'auth-sdk';
 
 const emailConfig = {
   provider: email({
-    server: 'smtp.gmail.com:587',
     from: 'noreply@yourdomain.com',
+    service: {
+      type: 'resend',
+      apiKey: process.env.RESEND_API_KEY!
+    },
+    appName: 'My App',
+    companyName: 'My Company'
   }),
   secret: process.env.AUTH_SECRET!,
 };
@@ -110,6 +120,94 @@ export async function POST(request: Request) {
   return Response.json({ success: !result.error });
 }
 ```
+
+#### With Nodemailer (SMTP)
+
+```typescript
+const emailConfig = {
+  provider: email({
+    from: 'noreply@yourdomain.com',
+    service: {
+      type: 'nodemailer',
+      server: 'smtp.gmail.com:587',
+      auth: {
+        user: process.env.GMAIL_USER!,
+        pass: process.env.GMAIL_APP_PASSWORD!
+      }
+    }
+  }),
+  secret: process.env.AUTH_SECRET!,
+};
+```
+
+### Two-Factor Email Authentication (2FA)
+
+Send 6-digit verification codes via email for enhanced security.
+
+#### With Resend
+
+```typescript
+// app/api/auth/signin/twofa/route.ts
+import { authenticate, twofa } from 'auth-sdk';
+
+const twofaConfig = {
+  provider: twofa({
+    from: 'noreply@yourdomain.com',
+    service: {
+      type: 'resend',
+      apiKey: process.env.RESEND_API_KEY!
+    },
+    appName: 'My App',
+    expirationMinutes: 5 // Code expires in 5 minutes
+  }),
+  secret: process.env.AUTH_SECRET!,
+};
+
+export async function GET(request: Request) {
+  // Step 1: Send code (when ?email=user@example.com)
+  // Step 2: Verify code (when ?identifier=xxx&code=123456)
+  const result = await authenticate(twofaConfig, request);
+
+  if (result.redirectUrl) {
+    return Response.redirect(result.redirectUrl);
+  }
+
+  if (result.session) {
+    // Code verified, session created
+    return Response.json({ success: true });
+  }
+
+  return Response.json({ error: result.error });
+}
+```
+
+#### With Nodemailer (SMTP)
+
+```typescript
+const twofaConfig = {
+  provider: twofa({
+    from: 'noreply@yourdomain.com',
+    service: {
+      type: 'nodemailer',
+      server: 'smtp.gmail.com:587',
+      auth: {
+        user: process.env.GMAIL_USER!,
+        pass: process.env.GMAIL_APP_PASSWORD!
+      }
+    }
+  }),
+  secret: process.env.AUTH_SECRET!,
+};
+```
+
+**Features:**
+- Cryptographically secure 6-digit codes
+- Short-lived tokens (5 minutes default)
+- Single-use codes with retry support
+- Beautiful email templates
+- Automatic cleanup
+
+See [2FA Provider Documentation](./content/docs/02-providers/05-two-factor-email.mdx) and [2FA Implementation Guide](./content/docs/03-guides/two-factor-authentication.mdx) for complete documentation.
 
 ### Get Session
 

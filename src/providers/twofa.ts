@@ -1,22 +1,22 @@
 import type * as React from "react";
-import type { EmailProviderConfig } from "./types";
-import { createMagicToken, verifyMagicToken } from "../utils/tokens";
+import type { TwoFactorProviderConfig } from "./types";
+import { createTwoFactorCode, verifyTwoFactorCode } from "../utils/tokens";
 import {
   createEmailService,
   renderEmailTemplate,
   type EmailServiceConfig,
 } from "./email-services";
-import MagicLinkEmail from "./email-templates/MagicLinkEmail";
+import TwoFactorEmail from "./email-templates/TwoFactorEmail";
 
 /**
- * Custom email template configuration
+ * Custom 2FA email template configuration
  */
-export interface CustomEmailTemplate {
+export interface CustomTwoFactorTemplate {
   /**
    * React Email component to render
-   * Receives { magicLink: string } as props
+   * Receives { code: string } as props
    */
-  component: (props: { magicLink: string }) => React.ReactElement;
+  component: (props: { code: string }) => React.ReactElement;
   /**
    * Email subject line
    */
@@ -24,9 +24,9 @@ export interface CustomEmailTemplate {
 }
 
 /**
- * Email provider configuration options
+ * Two-Factor authentication provider configuration options
  */
-export interface EmailProviderOptions {
+export interface TwoFactorProviderOptions {
   /**
    * From email address
    */
@@ -41,7 +41,7 @@ export interface EmailProviderOptions {
    * Custom React Email template (optional)
    * If not provided, uses the default template
    */
-  template?: CustomEmailTemplate;
+  template?: CustomTwoFactorTemplate;
 
   /**
    * App name to display in the default email template
@@ -56,14 +56,17 @@ export interface EmailProviderOptions {
   companyName?: string;
 
   /**
-   * Token expiration time in minutes
-   * @default 15
+   * Code expiration time in minutes
+   * @default 5
    */
   expirationMinutes?: number;
 }
 
 /**
- * Email provider for magic link authentication
+ * Two-Factor authentication provider for email-based verification codes
+ *
+ * Sends a 6-digit numeric code to the user's email for login verification.
+ * Codes are short-lived (default 5 minutes) and single-use.
  *
  * Supports:
  * - Nodemailer (SMTP)
@@ -73,7 +76,7 @@ export interface EmailProviderOptions {
  *
  * @example
  * // With Nodemailer
- * email({
+ * twofa({
  *   from: 'noreply@example.com',
  *   service: {
  *     type: 'nodemailer',
@@ -87,7 +90,7 @@ export interface EmailProviderOptions {
  *
  * @example
  * // With Resend
- * email({
+ * twofa({
  *   from: 'noreply@example.com',
  *   service: {
  *     type: 'resend',
@@ -96,35 +99,34 @@ export interface EmailProviderOptions {
  * })
  *
  * @example
- * // With custom template
- * email({
+ * // With custom expiration
+ * twofa({
  *   from: 'noreply@example.com',
  *   service: { type: 'resend', apiKey: process.env.RESEND_API_KEY! },
- *   template: {
- *     component: ({ magicLink }) => (
- *       <MyCustomEmail magicLink={magicLink} />
- *     ),
- *     subject: 'Custom Sign In'
- *   }
+ *   expirationMinutes: 10,
+ *   appName: 'My Secure App'
  * })
  */
-export function email(options: EmailProviderOptions): EmailProviderConfig {
+export function twofa(
+  options: TwoFactorProviderOptions
+): TwoFactorProviderConfig {
   const emailService = createEmailService(options.service);
-  const expirationMinutes = options.expirationMinutes ?? 15;
+  const expirationMinutes = options.expirationMinutes ?? 5;
 
   return {
-    type: "email",
-    server: "service" in options.service ? options.service.type : "unknown",
+    type: "twofa",
     from: options.from,
 
-    async sendMagicLink(email: string, url: string): Promise<void> {
-      // Generate magic link token (convert minutes to milliseconds)
-      const token = createMagicToken(
+    async sendCode(
+      email: string
+    ): Promise<{ identifier: string; expiresIn: number }> {
+      // Generate 2FA code (convert minutes to milliseconds)
+      const expiresInMs = expirationMinutes * 60 * 1000;
+      const { identifier, code } = createTwoFactorCode(
         email,
         undefined,
-        expirationMinutes * 60 * 1000
+        expiresInMs
       );
-      const magicLink = `${url}?token=${token}`;
 
       // Render email HTML
       let html: string;
@@ -132,19 +134,19 @@ export function email(options: EmailProviderOptions): EmailProviderConfig {
 
       if (options.template) {
         // Use custom template
-        const templateElement = options.template.component({ magicLink });
+        const templateElement = options.template.component({ code });
         html = await renderEmailTemplate(templateElement);
         subject = options.template.subject;
       } else {
         // Use default template
-        const defaultTemplate = MagicLinkEmail({
-          magicLink,
+        const defaultTemplate = TwoFactorEmail({
+          code,
           appName: options.appName,
           companyName: options.companyName,
           expirationMinutes,
         });
         html = await renderEmailTemplate(defaultTemplate);
-        subject = `Sign in to ${options.appName || "Your App"}`;
+        subject = `Your verification code for ${options.appName || "Your App"}`;
       }
 
       // Send email
@@ -154,13 +156,19 @@ export function email(options: EmailProviderOptions): EmailProviderConfig {
         html,
         from: options.from,
       });
+
+      return {
+        identifier,
+        expiresIn: expiresInMs,
+      };
     },
 
     // eslint-disable-next-line require-await
-    async verify(
-      token: string
+    async verifyCode(
+      identifier: string,
+      code: string
     ): Promise<{ email: string; userId?: string } | null> {
-      return verifyMagicToken(token);
+      return verifyTwoFactorCode(identifier, code);
     },
   };
 }

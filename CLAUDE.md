@@ -55,7 +55,23 @@ The SDK is built around a provider-based architecture with MCP integration and P
      - [twitch.ts](src/providers/twitch.ts): Twitch OAuth 2.0
      - [epic.ts](src/providers/epic.ts): Epic Games OAuth 2.0
      - [custom.ts](src/providers/custom.ts): Custom OAuth 2.0 provider with configurable endpoints
-   - **Email Provider** ([email.ts](src/providers/email.ts)): Magic link authentication via nodemailer
+   - **Email Provider** ([email.ts](src/providers/email.ts)): Magic link authentication with multiple email services
+     - **Email Services**: Nodemailer (SMTP) and Resend support
+     - **React Email Templates**: Professional default template with customization support
+     - **Email Service Abstraction** ([email-services.ts](src/providers/email-services.ts)): Unified interface for email services
+     - **Default Template** ([email-templates/MagicLinkEmail.tsx](src/providers/email-templates/MagicLinkEmail.tsx)): Beautiful, responsive React Email template
+     - Custom template support via React Email components
+     - Configurable token expiration (default 15 minutes)
+   - **Two-Factor Authentication** ([twofa.ts](src/providers/twofa.ts)): Email-based 2FA with 6-digit verification codes
+     - **6-Digit Codes**: Cryptographically secure numeric verification codes (using crypto.randomBytes)
+     - **Email Services**: Nodemailer (SMTP) and Resend support (same as email provider)
+     - **React Email Templates**: Professional default 2FA template with customization support
+     - **Default Template** ([email-templates/TwoFactorEmail.tsx](src/providers/email-templates/TwoFactorEmail.tsx)): Beautiful, responsive template with prominent code display
+     - Custom template support via React Email components
+     - Configurable token expiration (default 5 minutes)
+     - Single-use codes with retry support (not deleted on failed attempts)
+     - Automatic cleanup of expired codes every 5 minutes
+     - Token utilities in [tokens.ts](src/utils/tokens.ts): `createTwoFactorCode()`, `verifyTwoFactorCode()`, `generateTwoFactorCode()`
    - Type definitions in [types.ts](src/providers/types.ts)
    - PKCE configuration: `"S256"` (default), `"plain"`, or `false`
 
@@ -266,9 +282,16 @@ Notes:
 
 ### Documentation
 
-- `/content/docs`: Directory containing the documentation for the project, including:
-  - [Implementation.md](docs/Implementation.md): Full implementation details and architecture
-  - [MVP-Plan.md](docs/MVP-Plan.md): Step-by-step implementation plan
+- `/content/docs`: Directory containing the structured documentation for the project:
+  - **01-getting-started**: Getting started guides and quickstart tutorials
+  - **02-providers**: Provider-specific documentation
+    - [05-two-factor-email.mdx](content/docs/02-providers/05-two-factor-email.mdx): Two-factor email authentication provider
+  - **03-guides**: Implementation and usage guides
+    - [two-factor-authentication.mdx](content/docs/03-guides/two-factor-authentication.mdx): Complete 2FA implementation guide
+  - **04-mcp**: MCP (Model Context Protocol) integration guides
+  - **05-api-reference**: API reference documentation
+  - **06-examples**: Example projects and code samples
+  - **07-advanced**: Advanced topics and best practices
 
 ### TypeScript Configuration
 
@@ -306,7 +329,16 @@ Notes:
   - Plain method fallback for legacy servers
   - Secure HttpOnly cookie storage for verifiers
   - Automatic cleanup after token exchange
-- Email magic link provider with nodemailer
+- Email magic link provider with Nodemailer and Resend
+- **Two-Factor Email Authentication (2FA)**:
+  - 6-digit cryptographically secure verification codes
+  - Email delivery via Resend and Nodemailer
+  - Beautiful React Email template (TwoFactorEmail.tsx)
+  - Short-lived codes (5 minutes default)
+  - Single-use codes with retry support
+  - Automatic cleanup of expired codes
+  - Custom template support
+  - Full integration with Next.js 16 Proxy
 - JWT/cookie-based session management
 - CSRF protection for OAuth flows
 - MCP tools (agent_login, get_session, revoke_token)
@@ -349,7 +381,10 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 
 - **jsonwebtoken**: JWT signing and verification
 - **cookie**: Cookie parsing and serialization
-- **nodemailer**: Email sending for magic links
+- **nodemailer**: Email sending via SMTP for magic links and 2FA codes
+- **resend**: Modern email API for magic links and 2FA codes
+- **@react-email/components**: React Email component library
+- **@react-email/render**: React Email template renderer
 - **ai** (Vercel AI SDK): MCP tool integration
 - **zod**: Schema validation for MCP tools
 - **react**: React hooks for client integration

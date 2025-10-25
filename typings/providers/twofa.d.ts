@@ -1,18 +1,18 @@
 import type * as React from "react";
-import type { EmailProviderConfig } from "./types";
+import type { TwoFactorProviderConfig } from "./types";
 import { type EmailServiceConfig } from "./email-services";
-export interface CustomEmailTemplate {
+export interface CustomTwoFactorTemplate {
     component: (props: {
-        magicLink: string;
+        code: string;
     }) => React.ReactElement;
     subject: string;
 }
-export interface EmailProviderOptions {
+export interface TwoFactorProviderOptions {
     from: string;
     service: EmailServiceConfig;
-    template?: CustomEmailTemplate;
+    template?: CustomTwoFactorTemplate;
     appName?: string;
     companyName?: string;
     expirationMinutes?: number;
 }
-export declare function email(options: EmailProviderOptions): EmailProviderConfig;
+export declare function twofa(options: TwoFactorProviderOptions): TwoFactorProviderConfig;

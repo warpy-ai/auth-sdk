@@ -25,13 +25,12 @@ export function Header() {
                 size="sm"
                 className="ml-2 gap-1 text-sm text-muted-foreground hover:text-foreground"
               >
-                v1
+                v0
                 <ChevronDown className="h-3 w-3" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start">
-              <DropdownMenuItem>v1 (latest)</DropdownMenuItem>
-              <DropdownMenuItem disabled>v0 (legacy)</DropdownMenuItem>
+              <DropdownMenuItem>v0 (beta)</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
