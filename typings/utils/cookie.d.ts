@@ -11,6 +11,6 @@ export declare function serializeCookie(name: string, value: string, options?: C
 export declare function parseCookies(cookieHeader?: string | null): Record<string, string>;
 export declare function getSessionCookie(cookieHeader?: string | null): string | null;
 export declare function clearCookie(name: string): string;
-export declare function getPKCEVerifierCookie(cookieHeader: string | null): string | null;
+export declare function getPKCEVerifierCookie(cookieHeader?: string | null): string | null;
 export declare function createPKCEVerifierCookie(verifier: string): string;
 export declare function clearPKCEVerifierCookie(): string;

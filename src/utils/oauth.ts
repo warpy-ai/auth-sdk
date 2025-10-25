@@ -18,11 +18,25 @@ export interface OAuthTokenResponse {
   scope?: string;
 }
 
-export interface OAuthUserInfo {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export interface OAuthUserInfo extends Record<string, any> {
   id: string;
   email: string;
   name?: string;
-  picture?: string;
+  picture?: string | { data?: { url?: string } }; // Facebook returns nested object
+  // Common provider-specific fields
+  sub?: string; // OpenID Connect standard
+  user_id?: string;
+  username?: string;
+  display_name?: string;
+  login?: string; // GitHub
+  avatar?: string;
+  avatar_url?: string;
+  images?: Array<{ url: string }>; // Spotify
+  account_id?: string; // Epic Games
+  userPrincipalName?: string; // Microsoft
+  displayName?: string; // Microsoft
+  mail?: string; // Microsoft
 }
 
 export interface PKCEChallenge {

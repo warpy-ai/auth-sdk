@@ -15,11 +15,29 @@ export interface OAuthTokenResponse {
     refresh_token?: string;
     scope?: string;
 }
-export interface OAuthUserInfo {
+export interface OAuthUserInfo extends Record<string, any> {
     id: string;
     email: string;
     name?: string;
-    picture?: string;
+    picture?: string | {
+        data?: {
+            url?: string;
+        };
+    };
+    sub?: string;
+    user_id?: string;
+    username?: string;
+    display_name?: string;
+    login?: string;
+    avatar?: string;
+    avatar_url?: string;
+    images?: Array<{
+        url: string;
+    }>;
+    account_id?: string;
+    userPrincipalName?: string;
+    displayName?: string;
+    mail?: string;
 }
 export interface PKCEChallenge {
     verifier: string;

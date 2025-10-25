@@ -42,11 +42,22 @@ The SDK is built around a provider-based architecture with MCP integration and P
 
 2. **Provider System** ([src/providers/](src/providers/))
    - Providers are factory functions that return configuration objects
-   - **OAuth Provider** ([google.ts](src/providers/google.ts)): Full OAuth 2.0 flow with PKCE support
-     - PKCE enabled by default with S256 method
-     - Configurable PKCE mode: `"S256"` (default), `"plain"`, or `false`
+   - All OAuth providers support PKCE (Proof Key for Code Exchange) with S256 enabled by default
+   - **OAuth Providers**:
+     - [google.ts](src/providers/google.ts): Google OAuth 2.0
+     - [facebook.ts](src/providers/facebook.ts): Facebook OAuth 2.0
+     - [github.ts](src/providers/github.ts): GitHub OAuth 2.0 (with email fetching for private emails)
+     - [gitlab.ts](src/providers/gitlab.ts): GitLab OAuth 2.0 (supports self-hosted instances)
+     - [linkedin.ts](src/providers/linkedin.ts): LinkedIn OAuth 2.0 with OpenID Connect
+     - [microsoft.ts](src/providers/microsoft.ts): Microsoft/Azure AD OAuth 2.0 (supports multi-tenant)
+     - [spotify.ts](src/providers/spotify.ts): Spotify OAuth 2.0
+     - [discord.ts](src/providers/discord.ts): Discord OAuth 2.0
+     - [twitch.ts](src/providers/twitch.ts): Twitch OAuth 2.0
+     - [epic.ts](src/providers/epic.ts): Epic Games OAuth 2.0
+     - [custom.ts](src/providers/custom.ts): Custom OAuth 2.0 provider with configurable endpoints
    - **Email Provider** ([email.ts](src/providers/email.ts)): Magic link authentication via nodemailer
    - Type definitions in [types.ts](src/providers/types.ts)
+   - PKCE configuration: `"S256"` (default), `"plain"`, or `false`
 
 3. **Utility Modules** ([src/utils/](src/utils/))
    - [jwt.ts](src/utils/jwt.ts): JWT signing and verification with jsonwebtoken
@@ -278,9 +289,20 @@ Notes:
 ### ✅ Completed (MVP Ready)
 
 - Core authentication functions (authenticate, getSession, signOut)
-- Google OAuth provider with full OAuth 2.0 flow
+- **Multiple OAuth providers with PKCE support**:
+  - Google OAuth 2.0
+  - Facebook OAuth 2.0
+  - GitHub OAuth 2.0 (with private email handling)
+  - GitLab OAuth 2.0 (self-hosted support)
+  - LinkedIn OAuth 2.0 (OpenID Connect)
+  - Microsoft/Azure AD OAuth 2.0 (multi-tenant)
+  - Spotify OAuth 2.0
+  - Discord OAuth 2.0
+  - Twitch OAuth 2.0
+  - Epic Games OAuth 2.0
+  - Custom OAuth 2.0 (configurable endpoints and user mapping)
 - **PKCE Support** (Proof Key for Code Exchange) - RFC 7636
-  - S256 method (SHA-256 challenge) enabled by default
+  - S256 method (SHA-256 challenge) enabled by default for all providers
   - Plain method fallback for legacy servers
   - Secure HttpOnly cookie storage for verifiers
   - Automatic cleanup after token exchange
@@ -301,7 +323,6 @@ Notes:
 
 - Node/Edge safe email magic link in Proxy (pluggable sender / external service)
 - Vitest test configuration and unit tests
-- Additional OAuth providers (GitHub, Microsoft, etc.)
 - Production-ready token storage (Redis/DB instead of in-memory)
 
 ## CI/CD Pipeline

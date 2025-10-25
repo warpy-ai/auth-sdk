@@ -15,6 +15,16 @@ export {
 // Providers
 export { google, type GoogleProviderOptions } from "./providers/google";
 export { email, type EmailProviderOptions } from "./providers/email";
+export { facebook, type FacebookProviderOptions } from "./providers/facebook";
+export { github, type GitHubProviderOptions } from "./providers/github";
+export { gitlab, type GitLabProviderOptions } from "./providers/gitlab";
+export { linkedin, type LinkedInProviderOptions } from "./providers/linkedin";
+export { microsoft, type MicrosoftProviderOptions } from "./providers/microsoft";
+export { spotify, type SpotifyProviderOptions } from "./providers/spotify";
+export { discord, type DiscordProviderOptions } from "./providers/discord";
+export { twitch, type TwitchProviderOptions } from "./providers/twitch";
+export { epic, type EpicProviderOptions } from "./providers/epic";
+export { custom, type CustomProviderOptions } from "./providers/custom";
 export type {
   Provider,
   OAuthProviderConfig,
