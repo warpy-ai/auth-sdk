@@ -1,0 +1,442 @@
+---
+title: Node.js HTTP Adapter
+description: Using @warpy-auth-sdk/core with pure Node.js HTTP
+---
+
+# Node.js HTTP Adapter
+
+The Node.js HTTP adapter provides integration of `@warpy-auth-sdk/core` with the native Node.js `http` module. This adapter has zero framework dependencies and gives you maximum control and flexibility.
+
+## Installation
+
+```bash
+npm install @warpy-auth-sdk/core
+# or
+yarn add @warpy-auth-sdk/core
+# or
+pnpm add @warpy-auth-sdk/core
+```
+
+No additional dependencies required!
+
+## Quick Start
+
+### Basic Setup
+
+```typescript
+import { createServer } from "http";
+import { createAuthHandler } from "@warpy-auth-sdk/core/adapters/node";
+import { google } from "@warpy-auth-sdk/core";
+
+// Configure authentication
+const { handler, requireAuth } = createAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Create HTTP server
+const server = createServer(async (req, res) => {
+  // Try auth handler first
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  // Your custom routes
+  if (req.url === "/api/user" && req.method === "GET") {
+    const authenticated = await requireAuth(req, res);
+    if (!authenticated) return; // Already sent 401
+
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ user: req.session.user }));
+    return;
+  }
+
+  // 404
+  res.writeHead(404);
+  res.end("Not Found");
+});
+
+server.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+## API Reference
+
+### `createAuthHandler(config, options)`
+
+Creates an authentication handler and middleware for Node.js HTTP servers.
+
+#### Parameters
+
+- **`config`** (`AuthConfig`): Authentication configuration
+  - `secret`: JWT signing secret (min 32 characters)
+  - `provider`: OAuth provider (Google, GitHub, etc.)
+  - `adapter`: Optional database adapter
+  - `callbacks`: Optional callbacks
+- **`options`** (`NodeAuthOptions`): Optional configuration
+  - `basePath`: Base path for auth routes (default: `/auth`)
+  - `successRedirect`: Redirect after successful auth (default: `/`)
+  - `errorRedirect`: Redirect after auth failure (default: `/login`)
+  - `mcp`: MCP configuration
+
+#### Returns
+
+An object with:
+- `handler`: Async function to handle auth routes
+- `requireAuth`: Middleware function to protect routes
+
+### Handler Routes
+
+When a request matches these routes, the handler returns `true`:
+
+- `GET {basePath}/session` - Get current session
+- `POST {basePath}/signout` - Sign out user
+- `GET {basePath}/signin/:provider` - Provider-specific sign-in
+- `GET {basePath}/callback/:provider` - Provider-specific callback
+- `POST {basePath}/mcp` - MCP tools endpoint (if enabled)
+
+## Usage Examples
+
+### Protecting Routes
+
+```typescript
+const server = createServer(async (req, res) => {
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  // Protected API endpoint
+  if (req.url === "/api/user" && req.method === "GET") {
+    const authenticated = await requireAuth(req, res);
+    if (!authenticated) return; // requireAuth sends 401 response
+
+    // Access session from req.session
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ user: req.session.user }));
+    return;
+  }
+
+  // Public endpoint
+  if (req.url === "/api/health") {
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ status: "ok" }));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end("Not Found");
+});
+```
+
+### Serving Static Files
+
+```typescript
+import { readFileSync } from "fs";
+import { join } from "path";
+
+const server = createServer(async (req, res) => {
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+
+  // Serve HTML
+  if (url.pathname === "/") {
+    const html = readFileSync(join(__dirname, "public/index.html"));
+    res.writeHead(200, { "content-type": "text/html" });
+    res.end(html);
+    return;
+  }
+
+  // Serve static assets
+  if (url.pathname.startsWith("/public/")) {
+    try {
+      const file = readFileSync(join(__dirname, url.pathname));
+      res.writeHead(200);
+      res.end(file);
+      return;
+    } catch {
+      res.writeHead(404);
+      res.end("Not Found");
+    }
+  }
+});
+```
+
+### Custom Callbacks
+
+```typescript
+const { handler, requireAuth } = createAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  callbacks: {
+    async user(oauthUser) {
+      // Create or update user in your database
+      return await db.user.findOrCreate({
+        where: { email: oauthUser.email },
+        defaults: {
+          name: oauthUser.name,
+          picture: oauthUser.picture,
+        },
+      });
+    },
+    jwt(token) {
+      token.role = "user";
+      return token;
+    },
+    session(session) {
+      session.customField = "value";
+      return session;
+    },
+  },
+});
+```
+
+### With Database Adapter
+
+```typescript
+import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const { handler, requireAuth } = createAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  adapter: PrismaAdapter(prisma),
+});
+```
+
+### MCP (AI Agent) Support
+
+```typescript
+const { handler, requireAuth } = createAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/api/auth",
+  mcp: {
+    enabled: true,
+    path: "/api/mcp",
+    shield: {
+      secret: process.env.AUTH_SECRET!,
+      warpy: {
+        apiKey: process.env.WARPY_API_KEY,
+      },
+    },
+  },
+});
+
+// MCP tools now available at POST /api/mcp
+```
+
+### URL Routing
+
+```typescript
+import { parse } from "url";
+
+const server = createServer(async (req, res) => {
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  const { pathname } = parse(req.url || "/", true);
+
+  // Route matching
+  switch (pathname) {
+    case "/":
+      // Home page
+      break;
+    case "/api/user":
+      const authenticated = await requireAuth(req, res);
+      if (!authenticated) return;
+      // Handle user API
+      break;
+    default:
+      res.writeHead(404);
+      res.end("Not Found");
+  }
+});
+```
+
+### Request Body Parsing
+
+```typescript
+async function parseJSON(req: IncomingMessage): Promise<any> {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk.toString();
+    });
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(body));
+      } catch (err) {
+        reject(err);
+      }
+    });
+  });
+}
+
+const server = createServer(async (req, res) => {
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  if (req.url === "/api/data" && req.method === "POST") {
+    try {
+      const body = await parseJSON(req);
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(JSON.stringify({ received: body }));
+    } catch {
+      res.writeHead(400);
+      res.end("Invalid JSON");
+    }
+  }
+});
+```
+
+## TypeScript Support
+
+The adapter includes full TypeScript support:
+
+```typescript
+import type {
+  IncomingMessage,
+  ServerResponse,
+  NodeAuthOptions,
+  NodeAuthMiddleware,
+  Session,
+} from "@warpy-auth-sdk/core/adapters/node";
+
+// Extend request type with session
+declare module "http" {
+  interface IncomingMessage {
+    session?: Session;
+  }
+}
+
+// Typed handler
+const server = createServer(
+  async (req: IncomingMessage, res: ServerResponse) => {
+    // ...
+  }
+);
+```
+
+## Complete Example
+
+See the [complete Node.js example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/node-example) in the repository.
+
+## Comparison with Other Adapters
+
+| Feature | Node.js | Express | Fastify | Hono |
+|---------|---------|---------|---------|------|
+| Framework Dependency | None | Yes | Yes | Yes |
+| Bundle Size | Smallest | Medium | Medium | Small |
+| Learning Curve | Steep | Easy | Easy | Easy |
+| Flexibility | Maximum | High | High | High |
+| TypeScript Support | ✓ | ✓ | ✓ | ✓ |
+| MCP Support | ✓ | ✓ | ✓ | ✓ |
+| Best For | Microservices, Serverless | Traditional apps | High performance | Multi-runtime |
+
+## Benefits of Pure Node.js
+
+1. **Zero Dependencies**: No framework overhead
+2. **Maximum Control**: Full control over request/response handling
+3. **Smallest Bundle**: Minimal production footprint
+4. **Learning**: Understand HTTP fundamentals
+5. **Flexibility**: Easy to integrate with any HTTP server
+
+## When to Use
+
+Choose the Node.js adapter when:
+
+- Building microservices with minimal dependencies
+- Deploying to serverless/edge environments
+- Need maximum performance
+- Want full control over HTTP handling
+- Learning HTTP fundamentals
+
+Choose a framework adapter when:
+
+- Building traditional web applications
+- Need rich middleware ecosystem
+- Want faster development
+- Team is familiar with the framework
+
+## Troubleshooting
+
+### Session not persisting
+
+The adapter automatically handles cookies. Ensure your client sends cookies:
+
+```typescript
+fetch("/api/user", {
+  credentials: "include", // Important!
+});
+```
+
+### Handler not catching routes
+
+Make sure you call the handler before your custom routes:
+
+```typescript
+const server = createServer(async (req, res) => {
+  // Call handler FIRST
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  // Then your routes
+  // ...
+});
+```
+
+### Request body issues
+
+The adapter handles body parsing for MCP endpoints. For custom endpoints, parse manually:
+
+```typescript
+async function readBody(req): Promise<string> {
+  return new Promise((resolve) => {
+    let body = "";
+    req.on("data", (chunk) => body += chunk);
+    req.on("end", () => resolve(body));
+  });
+}
+```
+
+### CORS issues
+
+Add CORS headers manually:
+
+```typescript
+const server = createServer(async (req, res) => {
+  // CORS headers
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+
+  if (req.method === "OPTIONS") {
+    res.writeHead(204);
+    res.end();
+    return;
+  }
+
+  const handled = await handler(req, res);
+  // ...
+});
+```
+
+## Next Steps
+
+- [Two-Factor Authentication](/docs/guides/two-factor-authentication)
+- [Database Adapters](/docs/adapters)
+- [MCP Integration](/docs/mcp)
+- [API Reference](/docs/api-reference)

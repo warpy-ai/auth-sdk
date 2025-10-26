@@ -1,0 +1,386 @@
+---
+title: Hono Adapter
+description: Using @warpy-auth-sdk/core with Hono
+---
+
+# Hono Adapter
+
+The Hono adapter provides seamless integration of `@warpy-auth-sdk/core` with Hono applications. Hono is a fast, lightweight web framework that works on Node.js, Deno, Bun, and Cloudflare Workers.
+
+## Installation
+
+```bash
+npm install @warpy-auth-sdk/core hono
+# or
+yarn add @warpy-auth-sdk/core hono
+# or
+pnpm add @warpy-auth-sdk/core hono
+```
+
+## Quick Start
+
+### 1. Basic Setup (Node.js)
+
+```typescript
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+// Configure authentication
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Protected route
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+// Start server
+serve({
+  fetch: app.fetch,
+  port: 3000,
+});
+```
+
+### 2. Cloudflare Workers
+
+```typescript
+import { Hono } from "hono";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "https://your-worker.workers.dev/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+});
+
+export default app;
+```
+
+### 3. Deno
+
+```typescript
+import { Hono } from "https://deno.land/x/hono/mod.ts";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+registerAuthRoutes(app, {
+  secret: Deno.env.get("AUTH_SECRET")!,
+  provider: google({
+    clientId: Deno.env.get("GOOGLE_CLIENT_ID")!,
+    clientSecret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+});
+
+Deno.serve(app.fetch);
+```
+
+## API Reference
+
+### `registerAuthRoutes(app, config, options)`
+
+Registers authentication routes on your Hono application.
+
+#### Parameters
+
+- **`app`** (`HonoApp`): Your Hono app instance
+- **`config`** (`AuthConfig`): Authentication configuration
+  - `secret`: JWT signing secret (min 32 characters)
+  - `provider`: OAuth provider (Google, GitHub, etc.)
+  - `adapter`: Optional database adapter
+  - `callbacks`: Optional callbacks
+- **`options`** (`HonoAuthOptions`): Optional configuration
+  - `basePath`: Base path for auth routes (default: `/auth`)
+  - `successRedirect`: Redirect after successful auth (default: `/`)
+  - `errorRedirect`: Redirect after auth failure (default: `/login`)
+  - `mcp`: MCP configuration
+
+#### Returns
+
+An object with:
+- `requireAuth`: Middleware function to protect routes
+
+### Registered Routes
+
+- `GET {basePath}/session` - Get current session
+- `POST {basePath}/signout` - Sign out user
+- `GET {basePath}/signin/:provider` - Provider-specific sign-in
+- `GET {basePath}/callback/:provider` - Provider-specific callback
+
+## Usage Examples
+
+### Protecting Routes
+
+```typescript
+// Single protected route
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+// Chain middleware
+app.get("/api/admin",
+  requireAuth,
+  checkAdminRole,
+  (c) => {
+    return c.json({ message: "Admin only" });
+  }
+);
+
+// Protect route group
+const api = new Hono();
+api.use("*", requireAuth);
+api.get("/data", (c) => c.json({ data: "Protected" }));
+
+app.route("/api/protected", api);
+```
+
+### Custom Callbacks
+
+```typescript
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  callbacks: {
+    async user(oauthUser) {
+      // Create or update user in database
+      return await db.user.upsert({
+        where: { email: oauthUser.email },
+        update: { lastLogin: new Date() },
+        create: {
+          email: oauthUser.email,
+          name: oauthUser.name,
+          picture: oauthUser.picture,
+        },
+      });
+    },
+    jwt(token) {
+      token.role = "user";
+      return token;
+    },
+    session(session) {
+      session.customField = "value";
+      return session;
+    },
+  },
+});
+```
+
+### Environment-specific Configuration
+
+```typescript
+import { Hono } from "hono";
+
+const app = new Hono<{
+  Bindings: {
+    AUTH_SECRET: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+  };
+}>();
+
+// Cloudflare Workers with env bindings
+app.get("/", (c) => {
+  const config = {
+    secret: c.env.AUTH_SECRET,
+    provider: google({
+      clientId: c.env.GOOGLE_CLIENT_ID,
+      clientSecret: c.env.GOOGLE_CLIENT_SECRET,
+      redirectUri: "https://worker.dev/api/auth/callback/google",
+    }),
+  };
+  // ...
+});
+```
+
+### With Database Adapter
+
+```typescript
+import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  adapter: PrismaAdapter(prisma),
+});
+```
+
+### Error Handling
+
+```typescript
+app.onError((err, c) => {
+  console.error("Error:", err);
+  return c.json({ error: "Internal Server Error" }, 500);
+});
+
+// Handle auth-specific errors
+app.get("/login", (c) => {
+  const error = c.req.query("error");
+  if (error) {
+    return c.html(`<div>Authentication failed: ${error}</div>`);
+  }
+  return c.html("<div>Login page</div>");
+});
+```
+
+### MCP (AI Agent) Support
+
+```typescript
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/api/auth",
+  mcp: {
+    enabled: true,
+    path: "/api/mcp",
+    shield: {
+      secret: process.env.AUTH_SECRET!,
+      warpy: {
+        apiKey: process.env.WARPY_API_KEY,
+      },
+    },
+  },
+});
+```
+
+## TypeScript Support
+
+The adapter includes full TypeScript support:
+
+```typescript
+import type {
+  HonoApp,
+  HonoContext,
+  HonoMiddleware,
+  HonoAuthOptions,
+  Session,
+} from "@warpy-auth-sdk/core/adapters/hono";
+
+// Typed context with session
+app.get("/api/user", requireAuth, (c: HonoContext) => {
+  const session = c.get("session") as Session;
+  return c.json({ user: session.user });
+});
+```
+
+## Multi-Runtime Support
+
+Hono works across multiple JavaScript runtimes:
+
+### Node.js
+
+```typescript
+import { serve } from "@hono/node-server";
+
+serve({
+  fetch: app.fetch,
+  port: 3000,
+});
+```
+
+### Bun
+
+```typescript
+// Just run: bun run index.ts
+export default app;
+```
+
+### Deno
+
+```typescript
+Deno.serve({ port: 3000 }, app.fetch);
+```
+
+### Cloudflare Workers
+
+```typescript
+// wrangler.toml required
+export default app;
+```
+
+## Complete Example
+
+See the [complete Hono example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/hono-example) in the repository.
+
+## Comparison with Other Adapters
+
+| Feature | Hono | Express | Fastify | Node.js |
+|---------|------|---------|---------|---------|
+| Framework Dependency | Yes | Yes | Yes | No |
+| Multi-runtime | ✓ | ✗ | ✗ | ✗ |
+| Edge Compatible | ✓ | ✗ | ✗ | ✗ |
+| TypeScript First | ✓ | ✗ | ✓ | ✓ |
+| Performance | Excellent | Good | Excellent | Excellent |
+| MCP Support | ✓ | ✓ | ✓ | ✓ |
+
+## Troubleshooting
+
+### Session not available in context
+
+Make sure you're using the `requireAuth` middleware:
+
+```typescript
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session"); // Available after requireAuth
+  return c.json({ user: session.user });
+});
+```
+
+### Environment variables not working (Cloudflare)
+
+Use env bindings instead of `process.env`:
+
+```typescript
+app.get("/", (c) => {
+  const secret = c.env.AUTH_SECRET; // Not process.env
+});
+```
+
+### CORS issues
+
+Configure CORS middleware:
+
+```typescript
+import { cors } from "hono/cors";
+
+app.use("*", cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
+```
+
+## Next Steps
+
+- [Two-Factor Authentication](/docs/guides/two-factor-authentication)
+- [Database Adapters](/docs/adapters)
+- [MCP Integration](/docs/mcp)
+- [API Reference](/docs/api-reference)

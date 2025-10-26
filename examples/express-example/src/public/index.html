@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Express Auth Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .container {
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 2em;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      font-size: 1.1em;
+    }
+
+    .features {
+      text-align: left;
+      margin: 30px 0;
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+
+    .features h2 {
+      font-size: 1.2em;
+      margin-bottom: 15px;
+      color: #667eea;
+    }
+
+    .features ul {
+      list-style: none;
+    }
+
+    .features li {
+      padding: 8px 0;
+      color: #555;
+    }
+
+    .features li:before {
+      content: "✓ ";
+      color: #667eea;
+      font-weight: bold;
+      margin-right: 8px;
+    }
+
+    .btn {
+      display: inline-block;
+      padding: 12px 30px;
+      background: #667eea;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      margin: 10px;
+    }
+
+    .btn:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+
+    .btn-secondary {
+      background: #764ba2;
+    }
+
+    .btn-secondary:hover {
+      background: #643a8a;
+    }
+
+    .tech-stack {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid #eee;
+      color: #999;
+      font-size: 0.9em;
+    }
+
+    .status {
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 5px;
+      font-size: 0.9em;
+    }
+
+    .status.loading {
+      background: #fff3cd;
+      color: #856404;
+    }
+
+    .status.authenticated {
+      background: #d4edda;
+      color: #155724;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Express Auth Example</h1>
+    <p class="subtitle">Platform-agnostic authentication with @warpy-auth-sdk/core</p>
+
+    <div id="status" class="status loading">Checking authentication status...</div>
+
+    <div class="features">
+      <h2>Features</h2>
+      <ul>
+        <li>Platform-agnostic core authentication</li>
+        <li>Google OAuth 2.0 integration</li>
+        <li>JWT-based sessions</li>
+        <li>Secure cookie management</li>
+        <li>MCP AI agent support</li>
+        <li>Works with any Node.js framework</li>
+      </ul>
+    </div>
+
+    <div id="actions">
+      <a href="/login" class="btn">Get Started</a>
+      <a href="https://github.com/anthropics/claude-code" class="btn btn-secondary">View Docs</a>
+    </div>
+
+    <div class="tech-stack">
+      Powered by Express + @warpy-auth-sdk/core
+    </div>
+  </div>
+
+  <script>
+    // Check authentication status
+    async function checkAuth() {
+      try {
+        const response = await fetch('/api/auth/session');
+        const data = await response.json();
+
+        const statusEl = document.getElementById('status');
+        const actionsEl = document.getElementById('actions');
+
+        if (data.session) {
+          statusEl.className = 'status authenticated';
+          statusEl.textContent = `Welcome back, ${data.session.user.name || data.session.user.email}!`;
+          actionsEl.innerHTML = `
+            <a href="/dashboard" class="btn">Go to Dashboard</a>
+          `;
+        } else {
+          statusEl.remove();
+        }
+      } catch (error) {
+        console.error('Failed to check auth status:', error);
+        document.getElementById('status').remove();
+      }
+    }
+
+    checkAuth();
+  </script>
+</body>
+</html>

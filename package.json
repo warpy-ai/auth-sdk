@@ -16,6 +16,21 @@
       "import": "./dist/adapters/fastify.js",
       "default": "./dist/adapters/fastify.js"
     },
+    "./adapters/express": {
+      "types": "./typings/adapters/express.d.ts",
+      "import": "./dist/adapters/express.js",
+      "default": "./dist/adapters/express.js"
+    },
+    "./adapters/hono": {
+      "types": "./typings/adapters/hono.d.ts",
+      "import": "./dist/adapters/hono.js",
+      "default": "./dist/adapters/hono.js"
+    },
+    "./adapters/node": {
+      "types": "./typings/adapters/node.d.ts",
+      "import": "./dist/adapters/node.js",
+      "default": "./dist/adapters/node.js"
+    },
     "./hooks": {
       "types": "./typings/hooks/index.d.ts",
       "import": "./dist/hooks/index.js",
@@ -83,6 +98,15 @@
     "*": {
       "adapters/fastify": [
         "typings/adapters/fastify.d.ts"
+      ],
+      "adapters/express": [
+        "typings/adapters/express.d.ts"
+      ],
+      "adapters/hono": [
+        "typings/adapters/hono.d.ts"
+      ],
+      "adapters/node": [
+        "typings/adapters/node.d.ts"
       ],
       "hooks": [
         "typings/hooks/index.d.ts"

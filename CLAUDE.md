@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is an authentication SDK for Node.js and React applications, providing a flexible authentication system with support for multiple providers (OAuth, email magic links), database adapters, and **MCP (Model Context Protocol)** for AI agent-delegated authentication.
 
-Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./hooks`, `./hooks/server`, `./next`).
+Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./adapters/fastify`, `./adapters/express`, `./adapters/hono`, `./adapters/node`, `./hooks`, `./hooks/server`, `./next`).
 
 ## Development Commands
 
@@ -96,9 +96,20 @@ The SDK is built around a provider-based architecture with MCP integration and P
    - Optional Warpy Cloud Shield via `createMCPShield()` for edge security and analytics
 
 5. **Adapter System** ([src/adapters/](src/adapters/))
-   - Optional database adapters for session persistence
-   - [prisma.ts](src/adapters/prisma.ts): Full Prisma adapter with session, user, and account CRUD
-   - Type definitions in [types.ts](src/adapters/types.ts)
+   - **Database Adapters**: Optional adapters for session persistence
+     - [prisma.ts](src/adapters/prisma.ts): Full Prisma adapter with session, user, and account CRUD
+     - Type definitions in [types.ts](src/adapters/types.ts)
+   - **Framework Adapters**: Platform-agnostic HTTP adapters for popular frameworks
+     - [fastify.ts](src/adapters/fastify.ts): Fastify adapter with plugin-based registration
+     - [express.ts](src/adapters/express.ts): Express adapter with middleware pattern
+     - [hono.ts](src/adapters/hono.ts): Hono adapter with multi-runtime support (Node/Deno/Bun/Cloudflare)
+     - [node.ts](src/adapters/node.ts): Pure Node.js HTTP adapter with zero framework dependencies
+   - All framework adapters provide:
+     - `registerAuthRoutes()` or `createAuthHandler()`: Route registration
+     - `requireAuth`: Middleware/guard function for protecting routes
+     - Full PKCE OAuth support
+     - MCP tools endpoint integration (optional)
+     - TypeScript type safety with minimal type shims
 
 6. **React Integration** ([src/hooks/useAuth.tsx](src/hooks/useAuth.tsx))
    - `AuthProvider`: Context provider for managing session state in React apps
@@ -287,6 +298,9 @@ Notes:
   - **02-providers**: Provider-specific documentation
     - [05-two-factor-email.mdx](content/docs/02-providers/05-two-factor-email.mdx): Two-factor email authentication provider
   - **03-guides**: Implementation and usage guides
+    - [express-adapter.mdx](content/docs/03-guides/express-adapter.mdx): Express framework adapter guide
+    - [hono-adapter.mdx](content/docs/03-guides/hono-adapter.mdx): Hono framework adapter guide (multi-runtime)
+    - [nodejs-adapter.mdx](content/docs/03-guides/nodejs-adapter.mdx): Pure Node.js HTTP adapter guide
     - [two-factor-authentication.mdx](content/docs/03-guides/two-factor-authentication.mdx): Complete 2FA implementation guide
   - **04-mcp**: MCP (Model Context Protocol) integration guides
   - **05-api-reference**: API reference documentation
@@ -349,7 +363,12 @@ Notes:
 - Zero-config env support for Google OAuth
 - Customization callbacks: `callbacks.user`, `callbacks.jwt`, `callbacks.session`
 - MCP route handler for exposing tools to AI agents (`POST /api/mcp` in example)
-- Platform-agnostic Fastify example with PKCE support
+- Framework adapters with complete examples:
+  - Fastify adapter ([examples/fastify-example](examples/fastify-example))
+  - Express adapter ([examples/express-example](examples/express-example))
+  - Hono adapter with multi-runtime support ([examples/hono-example](examples/hono-example))
+  - Pure Node.js HTTP adapter ([examples/node-example](examples/node-example))
+- All adapters support PKCE, MCP integration, and protected routes
 
 ### 🚧 Pending
 
