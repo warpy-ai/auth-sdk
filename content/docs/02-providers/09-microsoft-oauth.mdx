@@ -1,0 +1,66 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Microsoft / Azure AD OAuth - @warpy-auth-sdk/core',
+  description: 'Azure AD OAuth with PKCE and multi-tenant support.',
+};
+
+export default function MicrosoftOAuth() {
+  return (
+    <DocsLayout
+      title="Microsoft / Azure AD OAuth"
+      description="Azure AD OAuth with PKCE and multi-tenant support."
+      prevPage={{ title: 'LinkedIn OAuth', href: '/docs/providers/linkedin-oauth' }}
+      nextPage={{ title: 'Spotify OAuth', href: '/docs/providers/spotify-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Supports tenants: <code>common</code>, <code>organizations</code>, <code>consumers</code>, or a specific tenant ID.
+          PKCE (S256) is enabled by default.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+MS_CLIENT_ID=your-azure-client-id
+MS_CLIENT_SECRET=your-azure-client-secret
+MS_REDIRECT_URI=http://localhost:3000/api/auth/callback/microsoft`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Microsoft OAuth Setup"
+          description="Default tenant (common)"
+          code={`import { microsoft } from '@warpy-auth-sdk/core';
+
+const provider = microsoft({
+  clientId: process.env.MS_CLIENT_ID!,
+  clientSecret: process.env.MS_CLIENT_SECRET!,
+  redirectUri: process.env.MS_REDIRECT_URI!,
+  scope: ['openid', 'profile', 'email', 'User.Read'],
+});`}
+        />
+
+        <Example
+          title="Specific tenant"
+          description="Organizations only"
+          code={`const provider = microsoft({
+  clientId: process.env.MS_CLIENT_ID!,
+  clientSecret: process.env.MS_CLIENT_SECRET!,
+  redirectUri: process.env.MS_REDIRECT_URI!,
+  tenant: 'organizations',
+});`}
+        />
+
+        <Callout type="info" title="Photos">
+          Microsoft Graph profile photos require a separate endpoint; the default mapping omits pictures.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

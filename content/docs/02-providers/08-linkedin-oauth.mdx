@@ -1,0 +1,54 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'LinkedIn OAuth - @warpy-auth-sdk/core',
+  description: 'LinkedIn OpenID Connect userinfo with PKCE.',
+};
+
+export default function LinkedInOAuth() {
+  return (
+    <DocsLayout
+      title="LinkedIn OAuth"
+      description="LinkedIn OpenID Connect userinfo with PKCE."
+      prevPage={{ title: 'GitLab OAuth', href: '/docs/providers/gitlab-oauth' }}
+      nextPage={{ title: 'Microsoft OAuth', href: '/docs/providers/microsoft-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          LinkedIn integration uses the OIDC <code>/userinfo</code> endpoint. PKCE (S256) is on by default.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+LINKEDIN_CLIENT_ID=your-linkedin-client-id
+LINKEDIN_CLIENT_SECRET=your-linkedin-client-secret
+LINKEDIN_REDIRECT_URI=http://localhost:3000/api/auth/callback/linkedin`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic LinkedIn OAuth Setup"
+          description="Minimal configuration"
+          code={`import { linkedin } from '@warpy-auth-sdk/core';
+
+const provider = linkedin({
+  clientId: process.env.LINKEDIN_CLIENT_ID!,
+  clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
+  redirectUri: process.env.LINKEDIN_REDIRECT_URI!,
+  scope: ['openid', 'profile', 'email'],
+});`}
+        />
+
+        <Callout type="info" title="Scopes">
+          LinkedIn requires OpenID scopes to access the userinfo endpoint.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

@@ -41,10 +41,21 @@ export default function ProvidersOverview() {
         </p>
 
         <h3>OAuth Providers</h3>
+        <p>
+          All OAuth providers use PKCE by default with the S256 method and secure HttpOnly cookie storage
+          for verifiers. You can override via <code>pkce</code> option: <code>"S256" | "plain" | false</code>.
+        </p>
         <ul>
-          <li><strong>Google OAuth:</strong> Full OAuth 2.0 flow with Google</li>
-          <li><strong>GitHub OAuth:</strong> GitHub authentication (coming soon)</li>
-          <li><strong>Microsoft OAuth:</strong> Microsoft/Azure AD authentication (coming soon)</li>
+          <li><a href="/docs/providers/google-oauth"><strong>Google</strong></a> — OpenID Connect scopes, profile and email</li>
+          <li><a href="/docs/providers/github-oauth"><strong>GitHub</strong></a> — Handles private emails via <code>/user/emails</code></li>
+          <li><a href="/docs/providers/gitlab-oauth"><strong>GitLab</strong></a> — Supports self‑hosted via <code>domain</code> option</li>
+          <li><a href="/docs/providers/linkedin-oauth"><strong>LinkedIn</strong></a> — OpenID Connect userinfo endpoint</li>
+          <li><a href="/docs/providers/microsoft-oauth"><strong>Microsoft / Azure AD</strong></a> — Multi‑tenant via <code>tenant</code></li>
+          <li><a href="/docs/providers/spotify-oauth"><strong>Spotify</strong></a> — Email and profile scopes</li>
+          <li><a href="/docs/providers/discord-oauth"><strong>Discord</strong></a> — <code>identify</code> and <code>email</code> scopes</li>
+          <li><a href="/docs/providers/twitch-oauth"><strong>Twitch</strong></a> — Requires <code>Client-Id</code> header for user API</li>
+          <li><a href="/docs/providers/epic-games-oauth"><strong>Epic Games</strong></a> — Basic profile support</li>
+          <li><a href="/docs/providers/custom-providers"><strong>Custom OAuth</strong></a> — Any OAuth 2.0 provider</li>
         </ul>
 
         <h3>Email Providers</h3>

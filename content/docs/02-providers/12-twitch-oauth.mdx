@@ -1,0 +1,55 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Twitch OAuth - @warpy-auth-sdk/core',
+  description: 'Twitch OAuth with PKCE; requires Client-Id header for user API.',
+};
+
+export default function TwitchOAuth() {
+  return (
+    <DocsLayout
+      title="Twitch OAuth"
+      description="Twitch OAuth with PKCE; requires Client-Id header for user API."
+      prevPage={{ title: 'Discord OAuth', href: '/docs/providers/discord-oauth' }}
+      nextPage={{ title: 'Epic Games OAuth', href: '/docs/providers/epic-games-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Twitch requires the <code>Client-Id</code> header when calling <code>/helix/users</code>.
+          PKCE (S256) is enabled by default.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+TWITCH_CLIENT_ID=your-twitch-client-id
+TWITCH_CLIENT_SECRET=your-twitch-client-secret
+TWITCH_REDIRECT_URI=http://localhost:3000/api/auth/callback/twitch`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Twitch OAuth Setup"
+          description="Minimal configuration"
+          code={`import { twitch } from '@warpy-auth-sdk/core';
+
+const provider = twitch({
+  clientId: process.env.TWITCH_CLIENT_ID!,
+  clientSecret: process.env.TWITCH_CLIENT_SECRET!,
+  redirectUri: process.env.TWITCH_REDIRECT_URI!,
+  scope: ['user:read:email'],
+});`}
+        />
+
+        <Callout type="info" title="Headers">
+          The SDK sets the required headers when fetching user info; ensure <code>TWITCH_CLIENT_ID</code> is configured.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

@@ -1,0 +1,71 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Custom OAuth Providers - @warpy-auth-sdk/core',
+  description: 'Integrate any OAuth 2.0 provider with PKCE and custom mapping.',
+};
+
+export default function CustomProviders() {
+  return (
+    <DocsLayout
+      title="Custom OAuth Providers"
+      description="Integrate any OAuth 2.0 provider with PKCE and custom mapping."
+      prevPage={{ title: 'Epic Games OAuth', href: '/docs/providers/epic-games-oauth' }}
+      nextPage={{ title: 'Facebook OAuth', href: '/docs/providers/facebook-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Use the <code>custom()</code> provider to integrate any OAuth 2.0 service by specifying the authorization,
+          token, and userinfo endpoints. PKCE (S256) is enabled by default. Optionally provide a <code>userInfoMapper</code>
+          to map non-standard userinfo responses to the SDK <code>UserProfile</code> shape.
+        </p>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Custom Provider"
+          description="Standard OIDC userinfo"
+          code={`import { custom } from '@warpy-auth-sdk/core';
+
+const provider = custom({
+  clientId: process.env.CUSTOM_CLIENT_ID!,
+  clientSecret: process.env.CUSTOM_CLIENT_SECRET!,
+  redirectUri: process.env.CUSTOM_REDIRECT_URI!,
+  authorizeUrl: 'https://oauth.provider.com/authorize',
+  tokenUrl: 'https://oauth.provider.com/token',
+  userInfoUrl: 'https://oauth.provider.com/userinfo',
+  scope: ['openid', 'email', 'profile'],
+});`}
+        />
+
+        <Example
+          title="Custom Mapping"
+          description="Non-standard userinfo fields"
+          code={`const provider = custom({
+  clientId: process.env.CUSTOM_CLIENT_ID!,
+  clientSecret: process.env.CUSTOM_CLIENT_SECRET!,
+  redirectUri: process.env.CUSTOM_REDIRECT_URI!,
+  authorizeUrl: 'https://api.example.com/oauth/authorize',
+  tokenUrl: 'https://api.example.com/oauth/token',
+  userInfoUrl: 'https://api.example.com/me',
+  userInfoMapper: (u) => ({
+    id: u.user_id,
+    email: u.user_email,
+    name: u.display_name,
+    picture: u.avatar_url,
+  }),
+});`}
+        />
+
+        <Callout type="info" title="PKCE">
+          You can set <code>pkce</code> to <code>"plain"</code> or <code>false</code> for legacy servers, but S256 is recommended.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

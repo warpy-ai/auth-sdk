@@ -141,6 +141,11 @@ export function proxy(request: NextRequest) {
 }
 ```
 
+### Endpoints (Proxy)
+
+- `GET /api/auth/signin/twofa?email=user@example.com` — Send verification code
+- `GET /api/auth/signin/twofa?identifier=xxx&code=123456` — Verify code and sign in
+
 ### Client-Side Integration
 
 ```typescript

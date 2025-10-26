@@ -37,7 +37,19 @@ const navigation = [
     items: [
       { title: "Overview", href: "/docs/providers/overview" },
       { title: "Google OAuth", href: "/docs/providers/google-oauth" },
+      { title: "GitHub OAuth", href: "/docs/providers/github-oauth" },
+      { title: "GitLab OAuth", href: "/docs/providers/gitlab-oauth" },
+      { title: "LinkedIn OAuth", href: "/docs/providers/linkedin-oauth" },
+      { title: "Microsoft OAuth", href: "/docs/providers/microsoft-oauth" },
+      { title: "Spotify OAuth", href: "/docs/providers/spotify-oauth" },
+      { title: "Discord OAuth", href: "/docs/providers/discord-oauth" },
+      { title: "Twitch OAuth", href: "/docs/providers/twitch-oauth" },
+      { title: "Epic Games OAuth", href: "/docs/providers/epic-games-oauth" },
       { title: "Email Magic Links", href: "/docs/providers/email-magic-links" },
+      {
+        title: "Two-Factor Email (2FA)",
+        href: "/docs/providers/two-factor-email",
+      },
       { title: "Custom Providers", href: "/docs/providers/custom-providers" },
     ],
   },
@@ -176,9 +188,7 @@ export function DocsLayout({
             </div>
 
             {/* Content */}
-            <div className="prose max-w-none">
-              {children}
-            </div>
+            <div className="prose max-w-none">{children}</div>
 
             {/* Navigation */}
             {(prevPage || nextPage) && (
