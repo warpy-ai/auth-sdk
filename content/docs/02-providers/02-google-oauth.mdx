@@ -37,11 +37,10 @@ export default function GoogleOAuth() {
           <li>Click "Create"</li>
         </ol>
 
-        <h3>Step 2: Enable Google+ API</h3>
+        <h3>Step 2: Enable Required APIs</h3>
         <ol>
           <li>In your project, go to "APIs & Services" → "Library"</li>
-          <li>Search for "Google+ API"</li>
-          <li>Click on it and press "Enable"</li>
+          <li>Enable "People API" (and any other APIs you need)</li>
         </ol>
 
         <h3>Step 3: Create OAuth 2.0 Credentials</h3>
@@ -106,7 +105,7 @@ const googleProvider = google({
 
         <h2>Advanced Configuration</h2>
         <p>
-          Google OAuth provider supports additional configuration options:
+          Google OAuth provider supports additional configuration options. PKCE (S256) is enabled by default.
         </p>
 
         <Example

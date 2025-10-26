@@ -1,0 +1,537 @@
+# Two-Factor Email Authentication Guide
+
+This guide covers implementing two-factor authentication (2FA) using email verification codes with the Warpy Auth SDK.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Email Services](#email-services)
+- [Customization](#customization)
+- [Security Considerations](#security-considerations)
+- [API Reference](#api-reference)
+- [Examples](#examples)
+
+## Overview
+
+The 2FA email provider sends a 6-digit numeric verification code to the user's email address. The user must enter this code to complete authentication.
+
+### Features
+
+- ✅ **Cryptographically secure** 6-digit codes
+- ✅ **Short-lived tokens** (5 minutes default)
+- ✅ **Single-use codes** with retry support
+- ✅ **Beautiful email templates** using React Email
+- ✅ **Multiple email services** (Resend, Nodemailer)
+- ✅ **Custom templates** support
+- ✅ **Automatic cleanup** of expired codes
+- ✅ **Zero-config** Next.js integration
+
+### How It Works
+
+1. User enters their email address
+2. SDK generates a 6-digit code and sends it via email
+3. SDK returns an identifier to track the code
+4. User enters the code from their email
+5. SDK verifies the code and creates a session
+
+## Installation
+
+```bash
+npm install @warpy-auth-sdk/core
+```
+
+## Quick Start
+
+### 1. Configure the Provider
+
+```typescript
+import { twofa } from "@warpy-auth-sdk/core";
+
+const provider = twofa({
+  from: "noreply@yourdomain.com",
+  service: {
+    type: "resend",
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+});
+```
+
+### 2. Set Up Next.js Proxy (Recommended)
+
+```typescript
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { twofa } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: twofa({
+      from: process.env.TWOFA_FROM!,
+      service: {
+        type: "resend",
+        apiKey: process.env.RESEND_API_KEY!,
+      },
+    }),
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login-2fa",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+```
+
+### 3. Create Login UI
+
+```typescript
+"use client";
+
+import { useState } from "react";
+
+export default function Login2FA() {
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [identifier, setIdentifier] = useState("");
+
+  const handleSendCode = async () => {
+    const response = await fetch(
+      `/api/auth/signin/twofa?email=${encodeURIComponent(email)}`
+    );
+    const url = new URL(response.url);
+    setIdentifier(url.searchParams.get("identifier")!);
+    setStep("code");
+  };
+
+  const handleVerifyCode = async () => {
+    await fetch(`/api/auth/signin/twofa?identifier=${identifier}&code=${code}`);
+    window.location.href = "/dashboard";
+  };
+
+  return step === "email" ? (
+    <EmailStep email={email} setEmail={setEmail} onSubmit={handleSendCode} />
+  ) : (
+    <CodeStep code={code} setCode={setCode} onSubmit={handleVerifyCode} />
+  );
+}
+```
+
+## Configuration
+
+### Basic Configuration
+
+```typescript
+twofa({
+  from: "noreply@yourdomain.com",
+  service: {
+    type: "resend",
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+});
+```
+
+### Full Configuration
+
+```typescript
+twofa({
+  // Required: sender email address
+  from: "noreply@yourdomain.com",
+
+  // Required: email service configuration
+  service: {
+    type: "resend",
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+
+  // Optional: app name for email template
+  appName: "My App",
+
+  // Optional: company name for email template
+  companyName: "My Company",
+
+  // Optional: code expiration in minutes (default: 5)
+  expirationMinutes: 10,
+
+  // Optional: custom email template
+  template: {
+    component: ({ code }) => <MyCustomTemplate code={code} />,
+    subject: "Your verification code",
+  },
+});
+```
+
+## Email Services
+
+### Resend (Recommended)
+
+```typescript
+twofa({
+  from: "noreply@yourdomain.com",
+  service: {
+    type: "resend",
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+});
+```
+
+**Environment variables:**
+```env
+RESEND_API_KEY=re_your_api_key_here
+```
+
+**Benefits:**
+- Simple API
+- High deliverability
+- Great documentation
+- Affordable pricing
+- Built-in analytics
+
+### Nodemailer (SMTP)
+
+```typescript
+twofa({
+  from: "noreply@yourdomain.com",
+  service: {
+    type: "nodemailer",
+    server: "smtp.gmail.com:587",
+    auth: {
+      user: process.env.SMTP_USER!,
+      pass: process.env.SMTP_PASS!,
+    },
+  },
+});
+```
+
+**Environment variables:**
+```env
+SMTP_SERVER=smtp.gmail.com:587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+```
+
+**Supported SMTP providers:**
+- Gmail (requires app password)
+- SendGrid
+- Mailgun
+- AWS SES
+- Any SMTP server
+
+## Customization
+
+### Custom Expiration
+
+Change how long codes are valid:
+
+```typescript
+twofa({
+  from: "noreply@yourdomain.com",
+  service: { /* ... */ },
+  expirationMinutes: 10, // 10 minutes instead of 5
+});
+```
+
+### Custom Email Template
+
+Create your own email template using React Email:
+
+```typescript
+import { TwoFactorEmail } from "@warpy-auth-sdk/core";
+import * as React from "react";
+import { Html, Body, Container, Text } from "@react-email/components";
+
+function MyCustomTwoFactorEmail({ code }: { code: string }) {
+  return (
+    <Html>
+      <Body>
+        <Container>
+          <Text>Your verification code is:</Text>
+          <Text style={{ fontSize: "48px", fontWeight: "bold" }}>{code}</Text>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+twofa({
+  from: "noreply@yourdomain.com",
+  service: { /* ... */ },
+  template: {
+    component: MyCustomTwoFactorEmail,
+    subject: "Your custom verification code",
+  },
+});
+```
+
+### Custom User Resolution
+
+Customize how users are created/retrieved:
+
+```typescript
+authMiddleware(
+  {
+    provider: twofa({ /* ... */ }),
+    callbacks: {
+      async user(u) {
+        // Custom database logic
+        const user = await db.user.upsert({
+          where: { email: u.email },
+          create: {
+            email: u.email,
+            createdAt: new Date(),
+          },
+          update: {
+            lastLogin: new Date(),
+          },
+        });
+        return user;
+      },
+    },
+  },
+  { /* ... */ }
+);
+```
+
+## Security Considerations
+
+### Code Properties
+
+- **Length:** 6 digits (000000 - 999999)
+- **Generation:** Cryptographically secure (crypto.randomBytes)
+- **Expiration:** 5 minutes default (configurable)
+- **Single-use:** Deleted after successful verification
+- **Retry:** Unlimited attempts until expiration
+
+### Token Storage
+
+**Development:** In-memory Map storage (suitable for single-server setups)
+
+**Production:** Use Redis or database for token storage:
+
+```typescript
+// Example with Redis (requires implementation)
+import { createClient } from "redis";
+
+const redis = createClient();
+
+// Override token storage functions
+export function createTwoFactorCode(email: string) {
+  const { identifier, code } = generateCode();
+  await redis.set(
+    `2fa:${identifier}`,
+    JSON.stringify({ email, code }),
+    "EX",
+    300 // 5 minutes
+  );
+  return { identifier, code };
+}
+
+export async function verifyTwoFactorCode(identifier: string, code: string) {
+  const stored = await redis.get(`2fa:${identifier}`);
+  if (!stored) return null;
+
+  const { email, code: storedCode } = JSON.parse(stored);
+  if (storedCode !== code) return null;
+
+  await redis.del(`2fa:${identifier}`);
+  return { email };
+}
+```
+
+### Rate Limiting
+
+**Recommended:** Add rate limiting to prevent abuse:
+
+```typescript
+import { RateLimiter } from "your-rate-limiter";
+
+const limiter = new RateLimiter({
+  points: 5, // 5 requests
+  duration: 60, // per 60 seconds
+});
+
+// In your route handler
+await limiter.consume(email);
+```
+
+### Email Security
+
+**SPF, DKIM, DMARC:** Configure these DNS records for your domain to improve deliverability and prevent spoofing.
+
+**From Address:** Use a verified domain for the "from" address.
+
+**Monitoring:** Set up email deliverability monitoring.
+
+## API Reference
+
+### `twofa(options)`
+
+Creates a two-factor authentication provider.
+
+**Parameters:**
+
+```typescript
+interface TwoFactorProviderOptions {
+  from: string;
+  service: EmailServiceConfig;
+  template?: CustomTwoFactorTemplate;
+  appName?: string;
+  companyName?: string;
+  expirationMinutes?: number;
+}
+```
+
+**Returns:** `TwoFactorProviderConfig`
+
+### `createTwoFactorCode(email, userId?, expiresInMs?)`
+
+Generates a 6-digit code and stores it.
+
+**Parameters:**
+- `email` (string): User's email address
+- `userId?` (string): Optional user ID to associate with code
+- `expiresInMs?` (number): Expiration time in milliseconds (default: 300000 = 5 minutes)
+
+**Returns:** `{ identifier: string; code: string }`
+
+### `verifyTwoFactorCode(identifier, code)`
+
+Verifies a 2FA code.
+
+**Parameters:**
+- `identifier` (string): The identifier returned when code was created
+- `code` (string): The 6-digit code entered by user
+
+**Returns:** `{ email: string; userId?: string } | null`
+
+### `generateTwoFactorCode()`
+
+Generates a cryptographically secure 6-digit code.
+
+**Returns:** `string` (6-digit numeric string)
+
+## Examples
+
+### Standalone Authentication
+
+```typescript
+import { authenticate, twofa } from "@warpy-auth-sdk/core";
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: twofa({
+    from: "noreply@example.com",
+    service: {
+      type: "resend",
+      apiKey: process.env.RESEND_API_KEY!,
+    },
+  }),
+};
+
+// Send code
+const sendRequest = new Request(
+  "https://example.com/auth?email=user@example.com"
+);
+const { redirectUrl } = await authenticate(config, sendRequest);
+// redirectUrl contains identifier
+
+// Verify code
+const verifyRequest = new Request(
+  `https://example.com/auth?identifier=${identifier}&code=123456`
+);
+const { session } = await authenticate(config, verifyRequest);
+```
+
+### With Database Adapter
+
+```typescript
+import { prismaAdapter } from "@warpy-auth-sdk/core";
+
+authMiddleware(
+  {
+    provider: twofa({ /* ... */ }),
+    adapter: prismaAdapter(prisma),
+  },
+  { /* ... */ }
+);
+```
+
+### With Custom JWT Claims
+
+```typescript
+authMiddleware(
+  {
+    provider: twofa({ /* ... */ }),
+    callbacks: {
+      async jwt(token) {
+        return {
+          ...token,
+          role: "user",
+          customClaim: "value",
+        };
+      },
+    },
+  },
+  { /* ... */ }
+);
+```
+
+## Troubleshooting
+
+### Codes Not Arriving
+
+1. **Check spam folder**
+2. **Verify email service credentials**
+3. **Check "from" email domain is verified**
+4. **Test with different email provider**
+5. **Check email service logs**
+
+### "Invalid or Expired Code"
+
+1. **Check code hasn't expired** (5 minutes default)
+2. **Verify identifier is correct**
+3. **Ensure code is exactly 6 digits**
+4. **Check for typos** (codes are numeric only)
+
+### Session Not Created
+
+1. **Verify AUTH_SECRET is set**
+2. **Check browser allows cookies**
+3. **Ensure redirect URLs are correct**
+4. **Check for CORS issues**
+
+### Email Deliverability Issues
+
+1. **Configure SPF, DKIM, DMARC**
+2. **Use verified domain**
+3. **Monitor bounce rates**
+4. **Test with multiple providers**
+
+## Best Practices
+
+1. **Use short expiration times** (5-10 minutes)
+2. **Implement rate limiting** on code generation
+3. **Use Redis/DB for production** token storage
+4. **Monitor email deliverability**
+5. **Configure proper DNS records** (SPF, DKIM, DMARC)
+6. **Log authentication attempts** for security audit
+7. **Provide clear error messages** to users
+8. **Test email delivery** before going live
+9. **Use environment variables** for configuration
+10. **Implement backup authentication** method
+
+## Related Resources
+
+- [Email Provider Guide](./Email-Provider-Guide.md)
+- [Implementation Guide](./Implementation.md)
+- [Next.js Integration](./Next-Integration.md)
+- [Security Best Practices](./Security.md)
+- [React Email Documentation](https://react.email)

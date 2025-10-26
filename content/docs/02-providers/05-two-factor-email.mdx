@@ -1,0 +1,388 @@
+# Two-Factor Email Authentication
+
+Two-factor email authentication sends a 6-digit verification code to the user's email address, providing an additional layer of security beyond traditional email magic links.
+
+## Overview
+
+The `twofa` provider generates cryptographically secure 6-digit codes that expire after a short time (5 minutes by default). Users receive the code via email and must enter it to complete authentication.
+
+### Key Features
+
+- **Cryptographically Secure**: Uses `crypto.randomBytes` for code generation
+- **Short-Lived**: Codes expire after 5 minutes (configurable)
+- **Single-Use**: Codes are deleted after successful verification
+- **Retry-Friendly**: Failed verification attempts don't delete the code
+- **Beautiful Templates**: Professional React Email templates
+- **Multiple Services**: Supports Resend and Nodemailer (SMTP)
+
+## Basic Setup
+
+### With Resend
+
+```typescript
+import { twofa } from "@warpy-auth-sdk/core";
+
+const provider = twofa({
+  from: "noreply@yourdomain.com",
+  service: {
+    type: "resend",
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+});
+```
+
+### With Nodemailer (SMTP)
+
+```typescript
+import { twofa } from "@warpy-auth-sdk/core";
+
+const provider = twofa({
+  from: "noreply@yourdomain.com",
+  service: {
+    type: "nodemailer",
+    server: "smtp.gmail.com:587",
+    auth: {
+      user: process.env.SMTP_USER!,
+      pass: process.env.SMTP_PASS!,
+    },
+  },
+});
+```
+
+## Configuration Options
+
+```typescript
+interface TwoFactorProviderOptions {
+  // Required: sender email address
+  from: string;
+
+  // Required: email service configuration
+  service: EmailServiceConfig;
+
+  // Optional: custom React Email template
+  template?: CustomTwoFactorTemplate;
+
+  // Optional: app name for email template (default: "Your App")
+  appName?: string;
+
+  // Optional: company name for email template (default: "Your Company")
+  companyName?: string;
+
+  // Optional: code expiration in minutes (default: 5)
+  expirationMinutes?: number;
+}
+```
+
+## Authentication Flow
+
+The 2FA flow consists of two steps:
+
+### Step 1: Send Verification Code
+
+```typescript
+import { authenticate } from "@warpy-auth-sdk/core";
+
+// User provides email
+const sendRequest = new Request(
+  "https://yourdomain.com/auth?email=user@example.com"
+);
+
+const result = await authenticate(config, sendRequest);
+
+// result.redirectUrl contains the identifier for code verification
+// Example: /auth?identifier=abc123...
+```
+
+### Step 2: Verify Code
+
+```typescript
+// User provides the 6-digit code from their email
+const verifyRequest = new Request(
+  "https://yourdomain.com/auth?identifier=abc123...&code=123456"
+);
+
+const result = await authenticate(config, verifyRequest);
+
+// result.session contains the authenticated session
+```
+
+## Next.js Integration
+
+### Using Next.js 16 Proxy
+
+```typescript
+// proxy.ts
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { twofa } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: twofa({
+      from: process.env.EMAIL_FROM!,
+      service: {
+        type: "resend",
+        apiKey: process.env.RESEND_API_KEY!,
+      },
+      expirationMinutes: 5,
+    }),
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+```
+
+### Endpoints (Proxy)
+
+- `GET /api/auth/signin/twofa?email=user@example.com` — Send verification code
+- `GET /api/auth/signin/twofa?identifier=xxx&code=123456` — Verify code and sign in
+
+### Client-Side Integration
+
+```typescript
+"use client";
+
+import { useState } from "react";
+
+export default function TwoFactorLogin() {
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [identifier, setIdentifier] = useState("");
+
+  const handleSendCode = async () => {
+    const response = await fetch(
+      `/api/auth/signin/twofa?email=${encodeURIComponent(email)}`
+    );
+
+    // Extract identifier from redirect URL
+    const url = new URL(response.url);
+    const id = url.searchParams.get("identifier");
+    setIdentifier(id!);
+    setStep("code");
+  };
+
+  const handleVerifyCode = async () => {
+    await fetch(
+      `/api/auth/signin/twofa?identifier=${identifier}&code=${code}`
+    );
+    // User is now authenticated, redirect to dashboard
+    window.location.href = "/dashboard";
+  };
+
+  return step === "email" ? (
+    <EmailInput onSubmit={handleSendCode} />
+  ) : (
+    <CodeInput onSubmit={handleVerifyCode} />
+  );
+}
+```
+
+## Email Templates
+
+### Default Template
+
+The SDK includes a beautiful default email template:
+
+- Large, prominent 6-digit code display
+- Clear expiration information
+- Security reminder
+- Responsive design
+- Professional styling
+
+### Custom Template
+
+Create your own template using React Email:
+
+```typescript
+import * as React from "react";
+import { Html, Body, Container, Text } from "@react-email/components";
+
+function MyTwoFactorEmail({ code }: { code: string }) {
+  return (
+    <Html>
+      <Body style={{ fontFamily: "sans-serif" }}>
+        <Container>
+          <Text style={{ fontSize: "24px", fontWeight: "bold" }}>
+            Your Verification Code
+          </Text>
+          <Text
+            style={{
+              fontSize: "48px",
+              fontWeight: "bold",
+              letterSpacing: "8px",
+              color: "#0070f3",
+            }}
+          >
+            {code}
+          </Text>
+          <Text>This code will expire in 5 minutes.</Text>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+// Use in provider configuration
+twofa({
+  from: "noreply@yourdomain.com",
+  service: { /* ... */ },
+  template: {
+    component: MyTwoFactorEmail,
+    subject: "Your verification code",
+  },
+});
+```
+
+## Security Considerations
+
+### Code Generation
+
+- **Cryptographically Secure**: Uses Node.js `crypto.randomBytes()`
+- **Length**: 6 digits (1,000,000 possible combinations)
+- **Expiration**: 5 minutes default (configurable)
+- **Rate Limiting**: Should be implemented at application level
+
+### Token Storage
+
+**Development**: In-memory Map storage (suitable for single-server)
+
+**Production**: Use Redis or database for distributed systems:
+
+```typescript
+// Example with Redis
+import { createClient } from "redis";
+
+const redis = createClient();
+
+export async function createTwoFactorCode(email: string) {
+  const code = generateTwoFactorCode();
+  const identifier = generateSecureToken();
+
+  await redis.set(
+    `2fa:${identifier}`,
+    JSON.stringify({ email, code }),
+    "EX",
+    300 // 5 minutes
+  );
+
+  return { identifier, code };
+}
+```
+
+### Best Practices
+
+1. **Short Expiration**: Keep codes valid for 5-10 minutes maximum
+2. **Rate Limiting**: Limit code generation to prevent abuse
+3. **Email Verification**: Verify sender domain with SPF/DKIM/DMARC
+4. **Retry Limits**: Consider limiting verification attempts
+5. **Audit Logging**: Log authentication attempts for security monitoring
+
+## Customization
+
+### Change Expiration Time
+
+```typescript
+twofa({
+  from: "noreply@yourdomain.com",
+  service: { /* ... */ },
+  expirationMinutes: 10, // 10 minutes instead of 5
+});
+```
+
+### Branding
+
+```typescript
+twofa({
+  from: "noreply@yourdomain.com",
+  service: { /* ... */ },
+  appName: "My Secure App",
+  companyName: "My Company Inc.",
+});
+```
+
+### Multiple Email Services
+
+You can configure different services for different environments:
+
+```typescript
+twofa({
+  from: process.env.EMAIL_FROM!,
+  service:
+    process.env.NODE_ENV === "production"
+      ? {
+          type: "resend",
+          apiKey: process.env.RESEND_API_KEY!,
+        }
+      : {
+          type: "nodemailer",
+          server: "localhost:1025", // Local mail server for dev
+          auth: { user: "", pass: "" },
+        },
+});
+```
+
+## API Endpoints
+
+When using Next.js middleware, these endpoints are automatically created:
+
+- `GET /api/auth/signin/twofa?email=user@example.com` - Send verification code
+- `GET /api/auth/signin/twofa?identifier=xxx&code=123456` - Verify code
+- `GET /api/auth/session` - Get current session
+- `POST /api/auth/signout` - Sign out
+
+## Error Handling
+
+```typescript
+const result = await authenticate(config, request);
+
+if (result.error) {
+  switch (result.error) {
+    case "Invalid or expired verification code":
+      // Code is wrong or has expired
+      break;
+    case "Email, identifier, or code required":
+      // Missing required parameters
+      break;
+    default:
+      // Other authentication errors
+      break;
+  }
+}
+```
+
+## Troubleshooting
+
+### Codes Not Arriving
+
+1. Check spam/junk folder
+2. Verify sender domain is verified in email service
+3. Check email service logs for delivery errors
+4. Test with different email provider
+
+### Invalid Code Errors
+
+1. Verify code hasn't expired (5 minutes default)
+2. Check for typos (codes are exactly 6 digits)
+3. Ensure identifier matches the one from send step
+4. Check if code has already been used (single-use)
+
+## Related Documentation
+
+- [Email Provider Guide](/docs/providers/email-magic-links) - Learn about email magic links
+- [Custom Providers](/docs/providers/custom-providers) - Create custom authentication providers
+- [Next.js Integration](/docs/guides/nextjs-integration) - Complete Next.js setup guide
+
+## Examples
+
+- [Next.js 2FA Example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/nextjs-email-code) - Complete working example
+- [2FA Implementation Guide](/docs/guides/two-factor-authentication) - Step-by-step implementation guide

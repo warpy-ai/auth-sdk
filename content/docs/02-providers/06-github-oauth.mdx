@@ -1,0 +1,61 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'GitHub OAuth - @warpy-auth-sdk/core',
+  description: 'GitHub OAuth with PKCE and private email handling.',
+};
+
+export default function GitHubOAuth() {
+  return (
+    <DocsLayout
+      title="GitHub OAuth"
+      description="GitHub OAuth with PKCE and private email handling."
+      prevPage={{ title: 'Google OAuth', href: '/docs/providers/google-oauth' }}
+      nextPage={{ title: 'GitLab OAuth', href: '/docs/providers/gitlab-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          GitHub OAuth supports PKCE (S256) by default. When a user keeps their email private,
+          the SDK fetches the primary email from <code>/user/emails</code> to ensure a valid user record.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+GITHUB_CLIENT_ID=your-github-client-id
+GITHUB_CLIENT_SECRET=your-github-client-secret
+GITHUB_REDIRECT_URI=http://localhost:3000/api/auth/callback/github`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic GitHub OAuth Setup"
+          description="Minimal configuration"
+          code={`import { github } from '@warpy-auth-sdk/core';
+
+const provider = github({
+  clientId: process.env.GITHUB_CLIENT_ID!,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+  redirectUri: process.env.GITHUB_REDIRECT_URI!,
+  scope: ['read:user', 'user:email'],
+});`}
+        />
+
+        <h2>PKCE</h2>
+        <p>
+          PKCE is enabled by default (<code>"S256"</code>). You can set <code>pkce</code> to <code>"plain"</code> or <code>false</code>
+          for legacy servers, though this is not recommended.
+        </p>
+
+        <Callout type="info" title="Scopes">
+          We recommend <code>read:user</code> and <code>user:email</code> so the SDK can retrieve a primary email if private.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+
