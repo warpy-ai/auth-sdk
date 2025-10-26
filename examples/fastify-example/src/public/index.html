@@ -158,7 +158,7 @@
     // Check authentication status
     async function checkAuth() {
       try {
-        const response = await fetch('/auth/session');
+        const response = await fetch('/api/auth/session');
         const data = await response.json();
 
         const statusEl = document.getElementById('status');
