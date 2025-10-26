@@ -237,7 +237,7 @@
   <script>
     async function loadSession() {
       try {
-        const response = await fetch('/auth/session');
+        const response = await fetch('/api/auth/session');
         const data = await response.json();
 
         if (!data.session) {
@@ -300,7 +300,7 @@
 
     async function signOut() {
       try {
-        const response = await fetch('/auth/signout', { method: 'POST' });
+        const response = await fetch('/api/auth/signout', { method: 'POST' });
         if (response.ok) {
           window.location.href = '/login';
         }

@@ -1,0 +1,65 @@
+### Fastify Adapter
+
+Use the first-class Fastify adapter to wire the core SDK in a Fastify app with minimal glue.
+
+Requirements:
+- fastify v4/v5
+- @fastify/cookie
+
+Install in your app:
+
+```bash
+npm i fastify @fastify/cookie
+```
+
+Register the plugin:
+
+```ts
+import fastify from "fastify";
+import fastifyCookie from "@fastify/cookie";
+import { registerAuthPlugin } from "@warpy-auth-sdk/core/adapters/fastify";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+const app = fastify({ logger: true });
+await app.register(fastifyCookie);
+
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+const { requireAuth } = registerAuthPlugin(app, authConfig, {
+  basePath: "/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+app.get("/api/user", { preHandler: requireAuth }, async (req) => {
+  return { user: (req as any).session.user };
+});
+```
+
+Routes provided under `basePath` (default `/auth`):
+- GET `{basePath}/session`
+- POST `{basePath}/signout`
+- GET `{basePath}/signin` (and `/signin/:provider`)
+- GET `{basePath}/callback` (and `/callback/:provider`)
+
+MCP (optional):
+
+```ts
+registerAuthPlugin(app, authConfig, {
+  basePath: "/auth",
+  mcp: {
+    enabled: true,
+    path: "/api/mcp",
+    shield: { secret: process.env.AUTH_SECRET! },
+  },
+});
+```
+
+
