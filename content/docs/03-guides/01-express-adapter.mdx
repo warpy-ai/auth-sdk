@@ -1,0 +1,294 @@
+---
+title: Express Adapter
+description: Using @warpy-auth-sdk/core with Express
+---
+
+# Express Adapter
+
+The Express adapter provides seamless integration of `@warpy-auth-sdk/core` with Express applications. It handles all authentication routes and provides middleware for protecting your API endpoints.
+
+## Installation
+
+```bash
+npm install @warpy-auth-sdk/core express cookie-parser
+# or
+yarn add @warpy-auth-sdk/core express cookie-parser
+# or
+pnpm add @warpy-auth-sdk/core express cookie-parser
+```
+
+## Quick Start
+
+### 1. Basic Setup
+
+```typescript
+import express from "express";
+import cookieParser from "cookie-parser";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/express";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = express();
+
+// Required middleware
+app.use(express.json());
+app.use(cookieParser());
+
+// Configure authentication
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Protected route
+app.get("/api/user", requireAuth, (req, res) => {
+  res.json({ user: req.session.user });
+});
+
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});
+```
+
+### 2. Environment Variables
+
+Create a `.env` file:
+
+```bash
+AUTH_SECRET=your-secret-key-min-32-chars
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+```
+
+## API Reference
+
+### `registerAuthRoutes(app, config, options)`
+
+Registers authentication routes on your Express application.
+
+#### Parameters
+
+- **`app`** (`express.Application`): Your Express app instance
+- **`config`** (`AuthConfig`): Authentication configuration
+  - `secret`: JWT signing secret (min 32 characters)
+  - `provider`: OAuth provider (Google, GitHub, etc.)
+  - `adapter`: Optional database adapter for session persistence
+  - `callbacks`: Optional callbacks for customization
+- **`options`** (`ExpressAuthOptions`): Optional configuration
+  - `basePath`: Base path for auth routes (default: `/auth`)
+  - `successRedirect`: Redirect after successful auth (default: `/`)
+  - `errorRedirect`: Redirect after auth failure (default: `/login`)
+  - `mcp`: MCP (AI agent) configuration
+
+#### Returns
+
+An object with:
+- `requireAuth`: Middleware function to protect routes
+
+### Registered Routes
+
+When you call `registerAuthRoutes()`, the following routes are automatically registered:
+
+- `GET {basePath}/session` - Get current session
+- `POST {basePath}/signout` - Sign out user
+- `GET {basePath}/signin` - Generic sign-in
+- `GET {basePath}/signin/:provider` - Provider-specific sign-in (e.g., `/signin/google`)
+- `GET {basePath}/callback` - Generic OAuth callback
+- `GET {basePath}/callback/:provider` - Provider-specific callback
+
+## Usage Examples
+
+### Protecting Routes
+
+```typescript
+// Single protected route
+app.get("/api/user", requireAuth, (req, res) => {
+  res.json({ user: req.session.user });
+});
+
+// Multiple middleware
+app.get("/api/admin",
+  requireAuth,
+  checkAdminRole,
+  (req, res) => {
+    res.json({ message: "Admin only" });
+  }
+);
+
+// Protect a group of routes
+app.use("/api/protected", requireAuth);
+app.get("/api/protected/data", (req, res) => {
+  res.json({ data: "Secret data" });
+});
+```
+
+### Multiple Providers
+
+```typescript
+import { google, github, facebook } from "@warpy-auth-sdk/core";
+
+// Register auth for multiple providers
+const providers = [
+  google({ clientId: "...", clientSecret: "...", redirectUri: "..." }),
+  github({ clientId: "...", clientSecret: "...", redirectUri: "..." }),
+  facebook({ clientId: "...", clientSecret: "...", redirectUri: "..." }),
+];
+
+// You'll need to register routes for each provider separately
+// or use a dynamic provider selection approach
+```
+
+### Custom Callbacks
+
+```typescript
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  callbacks: {
+    // Resolve/create user in your database
+    async user(oauthUser) {
+      const user = await db.user.findOrCreate({
+        where: { email: oauthUser.email },
+        defaults: {
+          name: oauthUser.name,
+          picture: oauthUser.picture,
+        },
+      });
+      return user;
+    },
+    // Customize JWT claims
+    jwt(token) {
+      token.customClaim = "value";
+      return token;
+    },
+    // Customize session object
+    session(session) {
+      session.customData = "value";
+      return session;
+    },
+  },
+});
+```
+
+### With Database Adapter
+
+```typescript
+import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  adapter: PrismaAdapter(prisma),
+});
+```
+
+### MCP (AI Agent) Support
+
+```typescript
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/api/auth",
+  mcp: {
+    enabled: true,
+    path: "/api/mcp",
+    shield: {
+      secret: process.env.AUTH_SECRET!,
+      warpy: {
+        apiKey: process.env.WARPY_API_KEY,
+      },
+    },
+  },
+});
+
+// Now AI agents can call POST /api/mcp with tool requests
+```
+
+## TypeScript Support
+
+The adapter includes full TypeScript support with type definitions:
+
+```typescript
+import type {
+  ExpressApplication,
+  ExpressRequest,
+  ExpressResponse,
+  ExpressAuthOptions,
+  RequireAuth,
+} from "@warpy-auth-sdk/core/adapters/express";
+
+// Access session in protected routes
+app.get("/api/user", requireAuth, (req: ExpressRequest, res: ExpressResponse) => {
+  const session = req.session; // Fully typed
+  res.json({ user: session.user });
+});
+```
+
+## Complete Example
+
+See the [complete Express example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/express-example) in the repository for a full working application.
+
+## Comparison with Other Adapters
+
+| Feature | Express | Fastify | Hono | Node.js |
+|---------|---------|---------|------|---------|
+| Framework Dependency | Yes | Yes | Yes | No |
+| Middleware Pattern | Yes | preHandler | Yes | Manual |
+| TypeScript Support | ✓ | ✓ | ✓ | ✓ |
+| MCP Support | ✓ | ✓ | ✓ | ✓ |
+| Multi-runtime | Node only | Node only | Node/Deno/Bun/CF | Node only |
+
+## Troubleshooting
+
+### Session not persisting
+
+Make sure you've registered the `cookie-parser` middleware:
+
+```typescript
+import cookieParser from "cookie-parser";
+app.use(cookieParser());
+```
+
+### 401 Unauthorized on protected routes
+
+Ensure the user is authenticated before accessing protected routes:
+
+```typescript
+// Check if user is authenticated
+app.get("/api/auth/session", async (req, res) => {
+  const session = await getSession(req, config.secret);
+  res.json({ session });
+});
+```
+
+### CORS issues
+
+If your frontend is on a different domain, configure CORS:
+
+```typescript
+import cors from "cors";
+
+app.use(cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));
+```
+
+## Next Steps
+
+- [Two-Factor Authentication](/docs/guides/two-factor-authentication)
+- [Database Adapters](/docs/adapters)
+- [MCP Integration](/docs/mcp)
+- [API Reference](/docs/api-reference)
