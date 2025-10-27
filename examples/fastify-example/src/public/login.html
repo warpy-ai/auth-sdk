@@ -142,16 +142,98 @@
       border-radius: 3px;
       font-size: 12px;
     }
+
+    .form-group {
+      margin-bottom: 20px;
+    }
+
+    .email-input {
+      width: 100%;
+      padding: 15px;
+      font-size: 16px;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      transition: border-color 0.3s ease;
+    }
+
+    .email-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 15px 24px;
+      background: #667eea;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 12px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success.show {
+      display: block;
+    }
+
+    .loading {
+      display: none;
+      margin: 20px 0;
+    }
+
+    .loading.show {
+      display: block;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
   <div class="login-container">
     <h1>Sign In</h1>
-    <p class="subtitle">Continue with your Google account</p>
+    <p class="subtitle" id="subtitle">Choose your sign-in method</p>
 
     <div id="error" class="error"></div>
+    <div id="success" class="success"></div>
 
-    <a href="/api/auth/signin/google" class="google-btn">
+    <!-- Google OAuth Button (shown dynamically) -->
+    <a href="/api/auth/signin/google" class="google-btn" id="googleBtn" style="display: none;">
       <svg class="google-icon" viewBox="0 0 24 24">
         <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
         <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -161,11 +243,55 @@
       Sign in with Google
     </a>
 
-    <div class="divider">
-      <span>Platform-agnostic authentication</span>
+    <div class="divider" id="authDivider" style="display: none;">
+      <span>OR</span>
+    </div>
+
+    <!-- 2FA Email Form (shown dynamically) -->
+    <form id="twofaForm" style="display: none;">
+      <div class="form-group">
+        <input
+          type="email"
+          id="emailInput"
+          class="email-input"
+          placeholder="Enter your email for 2FA"
+          required
+        >
+      </div>
+      <button type="submit" class="submit-btn" id="submitBtn">
+        Send Verification Code
+      </button>
+    </form>
+
+    <div class="divider" id="magicDivider" style="display: none;">
+      <span>OR</span>
+    </div>
+
+    <!-- Magic Link Form (shown dynamically) -->
+    <form id="magicLinkForm" style="display: none;">
+      <div class="form-group">
+        <input
+          type="email"
+          id="magicEmailInput"
+          class="email-input"
+          placeholder="Enter your email for magic link"
+          required
+        >
+      </div>
+      <button type="submit" class="submit-btn" id="magicSubmitBtn">
+        Send Magic Link
+      </button>
+    </form>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
     </div>
 
     <a href="/" class="back-link">← Back to home</a>
+
+    <div class="divider">
+      <span>Platform-agnostic authentication</span>
+    </div>
 
     <div class="info">
       <strong>Developer Note:</strong>
@@ -174,15 +300,126 @@
   </div>
 
   <script>
+    const googleBtn = document.getElementById('googleBtn');
+    const twofaForm = document.getElementById('twofaForm');
+    const emailInput = document.getElementById('emailInput');
+    const submitBtn = document.getElementById('submitBtn');
+    const magicLinkForm = document.getElementById('magicLinkForm');
+    const magicEmailInput = document.getElementById('magicEmailInput');
+    const magicSubmitBtn = document.getElementById('magicSubmitBtn');
+    const errorEl = document.getElementById('error');
+    const successEl = document.getElementById('success');
+    const loadingEl = document.getElementById('loading');
+    const subtitle = document.getElementById('subtitle');
+
     // Check for error in URL
     const params = new URLSearchParams(window.location.search);
     const error = params.get('error');
 
     if (error) {
-      const errorEl = document.getElementById('error');
       errorEl.textContent = decodeURIComponent(error);
       errorEl.classList.add('show');
     }
+
+    // Always show all available auth options
+    function showAuthOptions() {
+      const authDivider = document.getElementById('authDivider');
+      const magicDivider = document.getElementById('magicDivider');
+
+      // Show Google OAuth button
+      googleBtn.style.display = 'flex';
+
+      // Show first divider
+      authDivider.style.display = 'block';
+
+      // Show 2FA Email form
+      twofaForm.style.display = 'block';
+
+      // Show second divider
+      magicDivider.style.display = 'block';
+
+      // Show Magic Link form
+      magicLinkForm.style.display = 'block';
+
+      // Update subtitle
+      subtitle.textContent = 'Choose your sign-in method';
+    }
+
+    // Handle 2FA form submission
+    twofaForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = emailInput.value.trim();
+
+      if (!email) {
+        showError('Please enter your email');
+        return;
+      }
+
+      try {
+        showLoading(true);
+        clearMessages();
+
+        const response = await fetch('/api/auth/signin/twofa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to send verification code');
+        }
+
+        // Redirect to verification page
+        window.location.href = `/verify?email=${encodeURIComponent(email)}&identifier=${data.identifier}`;
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    // Handle Magic Link form submission
+    magicLinkForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = magicEmailInput.value.trim();
+
+      if (!email) {
+        showError('Please enter your email');
+        return;
+      }
+
+      try {
+        showLoading(true);
+        clearMessages();
+
+        const response = await fetch('/api/auth/signin/email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to send magic link');
+        }
+
+        showSuccess('Magic link sent! Check your email and click the link to sign in.');
+        magicEmailInput.value = '';
+      } catch (err) {
+        showError(err.message);
+      } finally {
+        showLoading(false);
+      }
+    });
 
     // Check if already authenticated
     async function checkAuth() {
@@ -198,7 +435,37 @@
       }
     }
 
+    // UI helpers
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+
+    function showSuccess(message) {
+      successEl.textContent = message;
+      successEl.classList.add('show');
+    }
+
+    function clearMessages() {
+      errorEl.classList.remove('show');
+      successEl.classList.remove('show');
+    }
+
+    function showLoading(show) {
+      if (show) {
+        loadingEl.classList.add('show');
+        submitBtn.disabled = true;
+        magicSubmitBtn.disabled = true;
+      } else {
+        loadingEl.classList.remove('show');
+        submitBtn.disabled = false;
+        magicSubmitBtn.disabled = false;
+      }
+    }
+
+    // Initialize
     checkAuth();
+    showAuthOptions();
   </script>
 </body>
 </html>

@@ -60,6 +60,8 @@ export interface AuthenticateResult {
     error?: string;
     redirectUrl?: string;
     cookies?: string[];
+    identifier?: string;
+    expiresIn?: number;
 }
 export declare function authenticate(config: AuthConfig, request?: Request, payload?: MCPLoginPayload): Promise<AuthenticateResult>;
 export declare function getSession(request: Request, secret: string): Promise<Session | null>;
