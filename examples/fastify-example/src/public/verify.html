@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verify Code - Fastify Auth Example</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .verify-container {
+      background: white;
+      padding: 50px;
+      border-radius: 10px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+      max-width: 450px;
+      width: 100%;
+      text-align: center;
+    }
+
+    h1 {
+      color: #333;
+      margin-bottom: 10px;
+      font-size: 1.8em;
+    }
+
+    .subtitle {
+      color: #666;
+      margin-bottom: 30px;
+      line-height: 1.5;
+    }
+
+    .email-display {
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 5px;
+      margin-bottom: 30px;
+      font-weight: 500;
+      color: #667eea;
+      font-size: 14px;
+    }
+
+    .code-input-container {
+      margin-bottom: 30px;
+    }
+
+    .code-input {
+      width: 100%;
+      padding: 15px;
+      font-size: 24px;
+      text-align: center;
+      border: 2px solid #ddd;
+      border-radius: 5px;
+      letter-spacing: 8px;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      transition: border-color 0.3s ease;
+    }
+
+    .code-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .verify-btn {
+      width: 100%;
+      padding: 15px 24px;
+      background: #667eea;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      font-weight: 600;
+      color: white;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .verify-btn:hover:not(:disabled) {
+      background: #5568d3;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+
+    .verify-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .resend-container {
+      margin-top: 30px;
+      padding-top: 30px;
+      border-top: 1px solid #eee;
+    }
+
+    .resend-text {
+      color: #666;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    .resend-btn {
+      background: none;
+      border: none;
+      color: #667eea;
+      text-decoration: underline;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 5px 10px;
+    }
+
+    .resend-btn:hover {
+      color: #5568d3;
+    }
+
+    .resend-btn:disabled {
+      color: #999;
+      cursor: not-allowed;
+      text-decoration: none;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 12px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .error.show {
+      display: block;
+    }
+
+    .success {
+      background: #d4edda;
+      color: #155724;
+      padding: 12px;
+      border-radius: 5px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      display: none;
+    }
+
+    .success.show {
+      display: block;
+    }
+
+    .loading {
+      display: none;
+      margin: 10px 0;
+    }
+
+    .loading.show {
+      display: block;
+    }
+
+    .spinner {
+      border: 3px solid #f3f3f3;
+      border-top: 3px solid #667eea;
+      border-radius: 50%;
+      width: 30px;
+      height: 30px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .timer {
+      font-size: 12px;
+      color: #999;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="verify-container">
+    <h1>Verify Your Code</h1>
+    <p class="subtitle">We've sent a 6-digit verification code to:</p>
+    <div class="email-display" id="emailDisplay">Loading...</div>
+
+    <div id="error" class="error"></div>
+    <div id="success" class="success"></div>
+
+    <form id="verifyForm">
+      <div class="code-input-container">
+        <input
+          type="text"
+          id="codeInput"
+          class="code-input"
+          placeholder="000000"
+          maxlength="6"
+          pattern="[0-9]{6}"
+          required
+          autocomplete="off"
+        >
+      </div>
+
+      <button type="submit" class="verify-btn" id="verifyBtn">
+        Verify Code
+      </button>
+    </form>
+
+    <div class="loading" id="loading">
+      <div class="spinner"></div>
+    </div>
+
+    <div class="resend-container">
+      <p class="resend-text">Didn't receive the code?</p>
+      <button class="resend-btn" id="resendBtn">Resend Code</button>
+      <div class="timer" id="timer"></div>
+    </div>
+
+    <a href="/login" class="back-link">← Back to login</a>
+  </div>
+
+  <script>
+    const codeInput = document.getElementById('codeInput');
+    const verifyForm = document.getElementById('verifyForm');
+    const verifyBtn = document.getElementById('verifyBtn');
+    const resendBtn = document.getElementById('resendBtn');
+    const emailDisplay = document.getElementById('emailDisplay');
+    const errorEl = document.getElementById('error');
+    const successEl = document.getElementById('success');
+    const loadingEl = document.getElementById('loading');
+    const timerEl = document.getElementById('timer');
+
+    let email = '';
+    let identifier = '';
+    let resendTimer = null;
+    let resendCountdown = 60;
+
+    // Get email and identifier from URL params
+    const params = new URLSearchParams(window.location.search);
+    email = params.get('email');
+    identifier = params.get('identifier');
+
+    if (!email || !identifier) {
+      showError('Invalid verification link. Please try again.');
+      verifyBtn.disabled = true;
+    } else {
+      emailDisplay.textContent = email;
+      // Auto-focus code input
+      codeInput.focus();
+    }
+
+    // Only allow numeric input
+    codeInput.addEventListener('input', (e) => {
+      e.target.value = e.target.value.replace(/[^0-9]/g, '');
+    });
+
+    // Handle form submission
+    verifyForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const code = codeInput.value.trim();
+
+      if (code.length !== 6) {
+        showError('Please enter a 6-digit code');
+        return;
+      }
+
+      await verifyCode(code);
+    });
+
+    // Verify code
+    async function verifyCode(code) {
+      try {
+        showLoading(true);
+        clearMessages();
+
+        console.log('Verifying code:', code, 'with identifier:', identifier);
+
+        const response = await fetch('/api/auth/verify/twofa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ identifier, code }),
+        });
+
+        console.log('Response status:', response.status);
+
+        const data = await response.json();
+        console.log('Response data:', data);
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Verification failed');
+        }
+
+        showSuccess('Verification successful! Redirecting...');
+        setTimeout(() => {
+          window.location.href = '/dashboard';
+        }, 1500);
+      } catch (error) {
+        console.error('Verification error:', error);
+        showError(error.message);
+        codeInput.select();
+      } finally {
+        showLoading(false);
+      }
+    }
+
+    // Handle resend
+    resendBtn.addEventListener('click', async () => {
+      try {
+        showLoading(true);
+        clearMessages();
+
+        const response = await fetch('/api/auth/signin/twofa', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to resend code');
+        }
+
+        // Update identifier from new code
+        identifier = data.identifier;
+
+        showSuccess('Code sent! Check your email.');
+        startResendTimer();
+      } catch (error) {
+        showError(error.message);
+      } finally {
+        showLoading(false);
+      }
+    });
+
+    // Resend timer
+    function startResendTimer() {
+      resendCountdown = 60;
+      resendBtn.disabled = true;
+      updateTimer();
+
+      resendTimer = setInterval(() => {
+        resendCountdown--;
+        updateTimer();
+
+        if (resendCountdown <= 0) {
+          clearInterval(resendTimer);
+          resendBtn.disabled = false;
+          timerEl.textContent = '';
+        }
+      }, 1000);
+    }
+
+    function updateTimer() {
+      timerEl.textContent = `Resend available in ${resendCountdown}s`;
+    }
+
+    // UI helpers
+    function showError(message) {
+      errorEl.textContent = message;
+      errorEl.classList.add('show');
+    }
+
+    function showSuccess(message) {
+      successEl.textContent = message;
+      successEl.classList.add('show');
+    }
+
+    function clearMessages() {
+      errorEl.classList.remove('show');
+      successEl.classList.remove('show');
+    }
+
+    function showLoading(show) {
+      if (show) {
+        loadingEl.classList.add('show');
+        verifyBtn.disabled = true;
+        resendBtn.disabled = true;
+      } else {
+        loadingEl.classList.remove('show');
+        verifyBtn.disabled = false;
+        if (resendCountdown <= 0) {
+          resendBtn.disabled = false;
+        }
+      }
+    }
+
+    // Start initial resend timer
+    startResendTimer();
+  </script>
+</body>
+</html>

@@ -6,6 +6,7 @@ import {
   Head,
   Heading,
   Html,
+  Link,
   Preview,
   Section,
   Text,
@@ -14,42 +15,77 @@ import {
 export interface MagicLinkEmailProps {
   magicLink: string;
   appName?: string;
-  companyName?: string;
   expirationMinutes?: number;
+  companyName?: string;
+  companyLogo?: string;
 }
 
 export function MagicLinkEmail({
   magicLink,
-  appName = "Your App",
-  companyName = "Your Company",
+  appName = "Auth SDK",
   expirationMinutes = 15,
+  companyName = "Auth SDK",
+  companyLogo = "https://www.auth-sdk.dev/logo.png",
 }: MagicLinkEmailProps) {
   return (
-    <Html>
-      <Head />
-      <Preview>Sign in to {appName}</Preview>
+    <Html lang="en">
+      <Head>
+        <meta charSet="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Magic Link - {appName}</title>
+      </Head>
+      <Preview>Sign in to your account</Preview>
       <Body style={main}>
-        <Container style={container}>
-          <Heading style={h1}>Sign in to {appName}</Heading>
-          <Text style={text}>
-            Click the button below to sign in to your account. This link will
-            expire in {expirationMinutes} minutes.
-          </Text>
-          <Section style={buttonContainer}>
-            <Button style={button} href={magicLink}>
-              Sign In
-            </Button>
-          </Section>
-          <Text style={text}>
-            Or copy and paste this URL into your browser:
-          </Text>
-          <Text style={link}>{magicLink}</Text>
-          <Text style={footer}>
-            If you didn&apos;t request this email, you can safely ignore it.
-          </Text>
-          <Text style={footer}>
-            © {new Date().getFullYear()} {companyName}. All rights reserved.
-          </Text>
+        <Container style={outerContainer}>
+          <Container style={container}>
+            {/* Logo/Brand */}
+            <Section style={logoSection}>
+              <Heading style={logo}>{appName}</Heading>
+            </Section>
+
+            {/* Main Heading */}
+            <Heading style={h1}>Sign in to your account</Heading>
+
+            {/* Description */}
+            <Text style={description}>
+              Click the button below to securely sign in. This magic link will
+              expire in {expirationMinutes} minutes for your security.
+            </Text>
+
+            {/* Magic Link Button */}
+            <Section style={buttonContainer}>
+              <Button style={button} href={magicLink}>
+                Sign In
+              </Button>
+            </Section>
+
+            {/* Alternative Link */}
+            <Section style={dividerSection}>
+              <Text style={alternativeText}>Or copy and paste this link:</Text>
+              <Section style={linkBox}>
+                <Link href={magicLink} style={linkText}>
+                  {magicLink}
+                </Link>
+              </Section>
+            </Section>
+
+            {/* Security Notice */}
+            <Section style={securitySection}>
+              <Text style={securityText}>
+                If you didn&apos;t request this email, you can safely ignore it.
+              </Text>
+            </Section>
+
+            {/* Footer */}
+            <Section style={footerSection}>
+              <Text style={footer}>
+                Powered by{" "}
+                <Link href="https://www.auth-sdk.dev/" style={footerLink}>
+                  auth sdk @ warpy
+                </Link>
+              </Text>
+            </Section>
+          </Container>
         </Container>
       </Body>
     </Html>
@@ -58,65 +94,127 @@ export function MagicLinkEmail({
 
 // Styles
 const main = {
-  backgroundColor: "#f6f9fc",
-  fontFamily:
-    '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+  margin: "0",
+  padding: "0",
+  backgroundColor: "#000000",
+  fontFamily: "'Courier New', Courier, monospace",
+};
+
+const outerContainer = {
+  width: "100%",
+  backgroundColor: "#000000",
+  padding: "60px 20px",
 };
 
 const container = {
-  backgroundColor: "#ffffff",
-  margin: "0 auto",
-  padding: "20px 0 48px",
-  marginBottom: "64px",
   maxWidth: "600px",
+  margin: "0 auto",
+  padding: "0 30px",
+  textAlign: "center" as const,
+};
+
+const logoSection = {
+  marginBottom: "50px",
+};
+
+const logo = {
+  color: "#ffffff",
+  fontSize: "24px",
+  fontWeight: "600",
+  margin: "0",
+  letterSpacing: "-0.5px",
 };
 
 const h1 = {
-  color: "#333",
-  fontSize: "24px",
-  fontWeight: "bold",
-  margin: "40px 0",
-  padding: "0 48px",
+  color: "#ffffff",
+  fontSize: "32px",
+  fontWeight: "600",
+  margin: "0 0 20px 0",
+  lineHeight: "1.2",
+  letterSpacing: "-0.5px",
 };
 
-const text = {
-  color: "#333",
+const description = {
+  color: "#888888",
   fontSize: "16px",
-  lineHeight: "26px",
-  padding: "0 48px",
+  margin: "0 0 40px 0",
+  lineHeight: "1.6",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 };
 
 const buttonContainer = {
-  padding: "27px 48px",
+  margin: "40px 0",
 };
 
 const button = {
-  backgroundColor: "#0070f3",
-  borderRadius: "5px",
-  color: "#fff",
-  fontSize: "16px",
-  fontWeight: "bold",
+  display: "inline-block",
+  backgroundColor: "#ffffff",
+  color: "#000000",
   textDecoration: "none",
-  textAlign: "center" as const,
-  display: "block",
-  width: "100%",
-  padding: "12px",
+  padding: "16px 40px",
+  borderRadius: "6px",
+  fontSize: "15px",
+  fontWeight: "600",
+  letterSpacing: "0.3px",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 };
 
-const link = {
-  color: "#0070f3",
-  fontSize: "14px",
-  textDecoration: "none",
-  padding: "0 48px",
+const dividerSection = {
+  marginTop: "50px",
+  paddingTop: "30px",
+  borderTop: "1px solid #1a1a1a",
+};
+
+const alternativeText = {
+  color: "#666666",
+  fontSize: "13px",
+  margin: "0 0 12px 0",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
+
+const linkBox = {
+  backgroundColor: "#0a0a0a",
+  border: "1px solid #1a1a1a",
+  borderRadius: "6px",
+  padding: "14px",
   wordBreak: "break-all" as const,
 };
 
-const footer = {
-  color: "#8898aa",
+const linkText = {
+  color: "#888888",
   fontSize: "12px",
-  lineHeight: "16px",
-  padding: "0 48px",
-  marginTop: "20px",
+  textDecoration: "none",
+  fontFamily: "'Courier New', Courier, monospace",
+};
+
+const securitySection = {
+  marginTop: "40px",
+};
+
+const securityText = {
+  color: "#666666",
+  fontSize: "13px",
+  margin: "0",
+  lineHeight: "1.6",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
+
+const footerSection = {
+  padding: "50px 30px 30px 30px",
+  textAlign: "center" as const,
+};
+
+const footer = {
+  color: "#666666",
+  fontSize: "13px",
+  margin: "0",
+  fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+};
+
+const footerLink = {
+  color: "#ffffff",
+  textDecoration: "none",
+  fontWeight: "500",
 };
 
 export default MagicLinkEmail;

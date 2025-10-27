@@ -64,6 +64,8 @@ export interface AuthenticateResult {
   error?: string;
   redirectUrl?: string;
   cookies?: string[]; // Set-Cookie headers to send to client
+  identifier?: string; // For 2FA: identifier to verify code
+  expiresIn?: number; // For 2FA: code expiration time in milliseconds
 }
 
 export async function authenticate(
@@ -404,10 +406,10 @@ async function handleTwoFactorAuthentication(
   // If email provided, send 2FA code
   if (email) {
     const result = await provider.sendCode(email);
-    // Return the identifier so the client can use it to verify the code
+    // Return the identifier and expiresIn so the client can use it to verify the code
     return {
-      session: undefined,
-      redirectUrl: `${url.origin}${url.pathname}?identifier=${result.identifier}`,
+      identifier: result.identifier,
+      expiresIn: result.expiresIn,
     };
   }
 

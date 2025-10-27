@@ -128,6 +128,13 @@ export function twofa(
         expiresInMs
       );
 
+      // Log code in development mode for testing
+      if (process.env.NODE_ENV !== "production") {
+        console.log(
+          `🔐 2FA Code for ${email}: ${code} (expires in ${expirationMinutes} min)`
+        );
+      }
+
       // Render email HTML
       let html: string;
       let subject: string;
