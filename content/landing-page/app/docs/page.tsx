@@ -10,6 +10,37 @@ import {
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { BookOpen, Code, Rocket, Settings } from "lucide-react";
+import type { Metadata } from "next";
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://warpy-auth-sdk.vercel.app';
+const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent('Documentation')}&description=${encodeURIComponent('Everything you need to build secure authentication')}`;
+
+export const metadata: Metadata = {
+  title: "Documentation",
+  description: "Everything you need to build secure authentication with @warpy-auth-sdk/core. Complete guides, API reference, and examples.",
+  openGraph: {
+    title: "Documentation",
+    description: "Everything you need to build secure authentication with @warpy-auth-sdk/core",
+    type: "website",
+    url: `${siteUrl}/docs`,
+    images: [
+      {
+        url: ogImageUrl,
+        width: 1200,
+        height: 630,
+        alt: "Documentation",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Documentation",
+    description: "Everything you need to build secure authentication with @warpy-auth-sdk/core",
+    images: [ogImageUrl],
+    creator: "@warpy_ai",
+  },
+};
 
 const docSections = [
   {

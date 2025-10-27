@@ -6,7 +6,11 @@ export type HonoContext = {
     url: string;
     parseBody?: () => Promise<unknown>;
   };
-  header: (name: string, value: string | string[], options?: { append?: boolean }) => void;
+  header: (
+    name: string,
+    value: string | string[],
+    options?: { append?: boolean }
+  ) => void;
   status: (code: number) => void;
   redirect: (url: string, status?: number) => Response;
   json: (body: unknown, status?: number) => Response;

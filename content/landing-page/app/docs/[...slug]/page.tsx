@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 
 // Import all MDX files from the local docs directory (copied during build)
 import Installation from "@/docs/01-getting-started/01-installation.mdx";
@@ -122,6 +123,99 @@ interface PageProps {
   }>;
 }
 
+// Get page metadata helper
+const getPageMetadata = (slug: string) => {
+  const metadata: Record<string, { title: string; description: string }> = {
+    "getting-started/installation": {
+      title: "Installation",
+      description:
+        "Install @warpy-auth-sdk/core and set up your first authentication flow in minutes.",
+    },
+    "getting-started/quickstart": {
+      title: "Quickstart",
+      description: "Get up and running with @warpy-auth-sdk/core in 5 minutes.",
+    },
+    "getting-started/environment-setup": {
+      title: "Environment Setup",
+      description: "Configure environment variables for @warpy-auth-sdk/core.",
+    },
+    "getting-started/first-auth-flow": {
+      title: "First Auth Flow",
+      description:
+        "Complete walkthrough of implementing Google OAuth authentication.",
+    },
+    "providers/overview": {
+      title: "Providers Overview",
+      description:
+        "Understanding the provider architecture in @warpy-auth-sdk/core.",
+    },
+    "providers/google-oauth": {
+      title: "Google OAuth",
+      description: "Complete setup guide for Google OAuth authentication.",
+    },
+    "providers/email-magic-links": {
+      title: "Email Magic Links",
+      description: "Passwordless authentication with email magic links.",
+    },
+    "providers/custom-providers": {
+      title: "Custom Providers",
+      description:
+        "Building custom authentication providers for @warpy-auth-sdk/core.",
+    },
+    "mcp/introduction": {
+      title: "MCP Introduction",
+      description:
+        "Introduction to Model Context Protocol (MCP) for AI agent authentication.",
+    },
+    "api/core-functions": {
+      title: "Core Functions",
+      description: "Core authentication functions in @warpy-auth-sdk/core.",
+    },
+    "examples/nextjs-app-router": {
+      title: "Next.js App Router Example",
+      description: "Complete Next.js App Router example with @warpy-auth-sdk/core.",
+    },
+  };
+  return metadata[slug] || { title: "Documentation", description: "Documentation for @warpy-auth-sdk/core" };
+};
+
+// Generate dynamic metadata for each docs page
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug: slugArray } = await params;
+  const slug = slugArray.join("/");
+  const pageMetadata = getPageMetadata(slug);
+
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://warpy-auth-sdk.vercel.app';
+  const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent(pageMetadata.title)}&description=${encodeURIComponent(pageMetadata.description)}`;
+
+  return {
+    title: pageMetadata.title,
+    description: pageMetadata.description,
+    openGraph: {
+      title: pageMetadata.title,
+      description: pageMetadata.description,
+      type: "article",
+      url: `${siteUrl}/docs/${slug}`,
+      images: [
+        {
+          url: ogImageUrl,
+          width: 1200,
+          height: 630,
+          alt: pageMetadata.title,
+          type: "image/png",
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: pageMetadata.title,
+      description: pageMetadata.description,
+      images: [ogImageUrl],
+      creator: "@warpy_ai",
+    },
+  };
+}
+
 export default async function DocsPage({ params }: PageProps) {
   const { slug: slugArray } = await params;
   const slug = slugArray.join("/");
@@ -130,64 +224,6 @@ export default async function DocsPage({ params }: PageProps) {
   if (!Component) {
     notFound();
   }
-
-  // Get page metadata
-  const getPageMetadata = (slug: string) => {
-    const metadata: Record<string, { title: string; description: string }> = {
-      "getting-started/installation": {
-        title: "Installation - @warpy-auth-sdk/core",
-        description:
-          "Install @warpy-auth-sdk/core and set up your first authentication flow in minutes.",
-      },
-      "getting-started/quickstart": {
-        title: "Quickstart - @warpy-auth-sdk/core",
-        description: "Get up and running with @warpy-auth-sdk/core in 5 minutes.",
-      },
-      "getting-started/environment-setup": {
-        title: "Environment Setup - @warpy-auth-sdk/core",
-        description: "Configure environment variables for @warpy-auth-sdk/core.",
-      },
-      "getting-started/first-auth-flow": {
-        title: "First Auth Flow - @warpy-auth-sdk/core",
-        description:
-          "Complete walkthrough of implementing Google OAuth authentication.",
-      },
-      "providers/overview": {
-        title: "Providers Overview - @warpy-auth-sdk/core",
-        description:
-          "Understanding the provider architecture in @warpy-auth-sdk/core.",
-      },
-      "providers/google-oauth": {
-        title: "Google OAuth - @warpy-auth-sdk/core",
-        description: "Complete setup guide for Google OAuth authentication.",
-      },
-      "providers/email-magic-links": {
-        title: "Email Magic Links - @warpy-auth-sdk/core",
-        description: "Passwordless authentication with email magic links.",
-      },
-      "providers/custom-providers": {
-        title: "Custom Providers - @warpy-auth-sdk/core",
-        description:
-          "Building custom authentication providers for @warpy-auth-sdk/core.",
-      },
-      "mcp/introduction": {
-        title: "MCP Introduction - @warpy-auth-sdk/core",
-        description:
-          "Introduction to Model Context Protocol (MCP) for AI agent authentication.",
-      },
-      "api/core-functions": {
-        title: "Core Functions - @warpy-auth-sdk/core",
-        description: "Core authentication functions in @warpy-auth-sdk/core.",
-      },
-      "examples/nextjs-app-router": {
-        title: "Next.js App Router Example - @warpy-auth-sdk/core",
-        description: "Complete Next.js App Router example with @warpy-auth-sdk/core.",
-      },
-    };
-    return metadata[slug] || { title: "Documentation", description: "" };
-  };
-
-  const metadata = getPageMetadata(slug);
 
   return <Component />;
 }
