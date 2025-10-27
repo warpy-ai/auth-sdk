@@ -3,6 +3,37 @@ import { Footer } from "@/components/footer"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import Link from "next/link"
+import type { Metadata } from "next"
+
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://warpy-auth-sdk.vercel.app';
+const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent('Cookbook')}&description=${encodeURIComponent('Step-by-step authentication recipes and patterns')}`;
+
+export const metadata: Metadata = {
+  title: "Cookbook",
+  description: "Step-by-step recipes for common authentication patterns and use cases. Learn OAuth, magic links, MCP, and more.",
+  openGraph: {
+    title: "Cookbook",
+    description: "Step-by-step recipes for common authentication patterns and use cases",
+    type: "website",
+    url: `${siteUrl}/cookbook`,
+    images: [
+      {
+        url: ogImageUrl,
+        width: 1200,
+        height: 630,
+        alt: "Cookbook",
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Cookbook",
+    description: "Step-by-step recipes for common authentication patterns and use cases",
+    images: [ogImageUrl],
+    creator: "@warpy_ai",
+  },
+}
 
 const recipes = [
   {
