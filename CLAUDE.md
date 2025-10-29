@@ -28,17 +28,19 @@ Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./adapters/fastify`
 The SDK is built around a provider-based architecture with MCP integration and PKCE security:
 
 1. **Core Module** ([src/core.ts](src/core.ts)) - Central authentication logic
-   - `AuthConfig` interface: Main configuration accepting a provider, secret, optional adapter, and MCP config
+   - `AuthConfig` interface: Main configuration accepting a provider, secret, optional adapter, MCP config, and CAPTCHA config
    - `callbacks` on `AuthConfig`:
      - `user(user, { provider })` resolve/upsert your app user (DB integration hook)
      - `jwt(token)` mutate claims before signing
      - `session(session)` shape the returned session
-   - `authenticate()`: Handles sign-in flow (OAuth with PKCE, email, **MCP agent login**)
+   - `captcha` on `AuthConfig`: Optional CAPTCHA configuration for bot protection
+   - `authenticate()`: Handles sign-in flow (OAuth with PKCE, email, **MCP agent login**, CAPTCHA verification)
    - `getSession()`: Parses and validates session cookies/JWT
    - `signOut()`: Clears sessions and revokes tokens
    - `verifyAgentToken()`: Validates MCP agent tokens for scoped access
    - `createSessionCookie()` / `clearSessionCookie()`: Cookie management helpers
    - **PKCE Support**: Automatic PKCE (Proof Key for Code Exchange) for OAuth security
+   - **CAPTCHA Support**: Optional bot protection with multiple providers
 
 2. **Provider System** ([src/providers/](src/providers/))
    - Providers are factory functions that return configuration objects
@@ -85,6 +87,18 @@ The SDK is built around a provider-based architecture with MCP integration and P
    - [cookie.ts](src/utils/cookie.ts): Cookie serialization with secure defaults
      - Manages PKCE verifier storage in HttpOnly cookies
    - [tokens.ts](src/utils/tokens.ts): Magic link token generation and verification
+
+3a. **CAPTCHA System** ([src/captcha/](src/captcha/))
+   - **Multiple Providers**: reCAPTCHA v2, reCAPTCHA v3, hCaptcha, Cloudflare Turnstile
+   - [types.ts](src/captcha/types.ts): CAPTCHA provider interfaces and configuration types
+   - [recaptcha-v2.ts](src/captcha/recaptcha-v2.ts): Google reCAPTCHA v2 (checkbox-based)
+   - [recaptcha-v3.ts](src/captcha/recaptcha-v3.ts): Google reCAPTCHA v3 (invisible, score-based)
+   - [hcaptcha.ts](src/captcha/hcaptcha.ts): hCaptcha provider (privacy-focused)
+   - [turnstile.ts](src/captcha/turnstile.ts): Cloudflare Turnstile (lightweight)
+   - [index.ts](src/captcha/index.ts): Factory function `createCaptchaProvider()` and exports
+   - **Selective Enforcement**: Configure per authentication method (email, 2FA, OAuth)
+   - **Server-Side Verification**: Secure token validation with remote IP support
+   - **Type Safety**: Full TypeScript support with exhaustive checking
 
 4. **MCP Integration** ([src/mcp/mcp.ts](src/mcp/mcp.ts)) - **AI Agent Delegated Authentication**
    - `createMCPTools()`: Factory function that creates AI SDK-compatible tools
@@ -302,6 +316,7 @@ Notes:
     - [hono-adapter.mdx](content/docs/03-guides/hono-adapter.mdx): Hono framework adapter guide (multi-runtime)
     - [nodejs-adapter.mdx](content/docs/03-guides/nodejs-adapter.mdx): Pure Node.js HTTP adapter guide
     - [two-factor-authentication.mdx](content/docs/03-guides/two-factor-authentication.mdx): Complete 2FA implementation guide
+    - [captcha-integration.mdx](content/docs/03-guides/captcha-integration.mdx): CAPTCHA bot protection guide
   - **04-mcp**: MCP (Model Context Protocol) integration guides
   - **05-api-reference**: API reference documentation
   - **06-examples**: Example projects and code samples
@@ -368,7 +383,14 @@ Notes:
   - Express adapter ([examples/express-example](examples/express-example))
   - Hono adapter with multi-runtime support ([examples/hono-example](examples/hono-example))
   - Pure Node.js HTTP adapter ([examples/node-example](examples/node-example))
-- All adapters support PKCE, MCP integration, and protected routes
+- All adapters support PKCE, MCP integration, CAPTCHA, and protected routes
+- **CAPTCHA Bot Protection**:
+  - Multiple providers: reCAPTCHA v2, reCAPTCHA v3, hCaptcha, Cloudflare Turnstile
+  - Selective enforcement per authentication method (email, 2FA, OAuth)
+  - Server-side verification with remote IP support
+  - Full TypeScript support with type-safe configuration
+  - React hooks integration with `captchaToken` parameter
+  - Next.js proxy automatic token handling
 
 ### 🚧 Pending
 

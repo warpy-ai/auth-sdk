@@ -117,13 +117,17 @@ export function createNextAuthHandler(
       if (action === "signin" && provider === "email" && method === "POST") {
         const body = await request.json().catch(() => ({}));
         const email = body?.email as string | undefined;
+        const captchaToken = body?.captchaToken as string | undefined;
         if (!email)
           return Response.json({ error: "Email is required" }, { status: 400 });
 
-        // Build callback URL with email param for magic link
+        // Build callback URL with email and captchaToken params for magic link
         const origin = new URL(request.url).origin;
         const cb = new URL(`${base}/callback/email`, origin);
         cb.searchParams.set("email", email);
+        if (captchaToken) {
+          cb.searchParams.set("captchaToken", captchaToken);
+        }
         const mock = new Request(cb.toString());
 
         const result = await authenticate(config, mock);

@@ -12,6 +12,8 @@ import GoogleOAuth from "@/docs/02-providers/02-google-oauth.mdx";
 import EmailMagicLinks from "@/docs/02-providers/03-email-magic-links.mdx";
 import CustomProviders from "@/docs/02-providers/04-custom-providers.mdx";
 
+import CaptchaIntegration from "@/docs/03-guides/05-captcha-integration.mdx";
+
 import MCPIntroduction from "@/docs/04-mcp/01-introduction.mdx";
 import CoreFunctions from "@/docs/05-api-reference/01-core-functions.mdx";
 import NextJSAppRouter from "@/docs/06-examples/01-nextjs-app-router.mdx";
@@ -26,6 +28,7 @@ const routes: Record<string, React.ComponentType> = {
   "providers/google-oauth": GoogleOAuth,
   "providers/email-magic-links": EmailMagicLinks,
   "providers/custom-providers": CustomProviders,
+  "guides/captcha-integration": CaptchaIntegration,
   "mcp/introduction": MCPIntroduction,
   "api/core-functions": CoreFunctions,
   "examples/nextjs-app-router": NextJSAppRouter,
@@ -65,6 +68,10 @@ const navigation = [
       { title: "React Hooks", href: "/docs/guides/react-hooks" },
       { title: "Session Management", href: "/docs/guides/session-management" },
       { title: "Database Adapters", href: "/docs/guides/database-adapters" },
+      {
+        title: "CAPTCHA Integration",
+        href: "/docs/guides/captcha-integration",
+      },
       {
         title: "Security Best Practices",
         href: "/docs/guides/security-best-practices",
@@ -162,6 +169,11 @@ const getPageMetadata = (slug: string) => {
       description:
         "Building custom authentication providers for @warpy-auth-sdk/core.",
     },
+    "guides/captcha-integration": {
+      title: "CAPTCHA Integration",
+      description:
+        "Add bot protection to your authentication flows with reCAPTCHA, hCaptcha, and Cloudflare Turnstile.",
+    },
     "mcp/introduction": {
       title: "MCP Introduction",
       description:
@@ -173,19 +185,28 @@ const getPageMetadata = (slug: string) => {
     },
     "examples/nextjs-app-router": {
       title: "Next.js App Router Example",
-      description: "Complete Next.js App Router example with @warpy-auth-sdk/core.",
+      description:
+        "Complete Next.js App Router example with @warpy-auth-sdk/core.",
     },
   };
-  return metadata[slug] || { title: "Documentation", description: "Documentation for @warpy-auth-sdk/core" };
+  return (
+    metadata[slug] || {
+      title: "Documentation",
+      description: "Documentation for @warpy-auth-sdk/core",
+    }
+  );
 };
 
 // Generate dynamic metadata for each docs page
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { slug: slugArray } = await params;
   const slug = slugArray.join("/");
   const pageMetadata = getPageMetadata(slug);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://warpy-auth-sdk.vercel.app';
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://warpy-auth-sdk.vercel.app";
   const ogImageUrl = `${siteUrl}/api/og?title=${encodeURIComponent(pageMetadata.title)}&description=${encodeURIComponent(pageMetadata.description)}`;
 
   return {

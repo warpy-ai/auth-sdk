@@ -1,0 +1,774 @@
+---
+title: "CAPTCHA Integration"
+description: "Add bot protection to your authentication flows with CAPTCHA providers"
+---
+
+# CAPTCHA Integration
+
+Protect your authentication flows from bots and automated attacks by integrating CAPTCHA verification. The auth-sdk supports multiple CAPTCHA providers with a unified API.
+
+## Supported Providers
+
+- **reCAPTCHA v2** - Google's checkbox-based CAPTCHA
+- **reCAPTCHA v3** - Google's invisible, score-based CAPTCHA
+- **hCaptcha** - Privacy-focused alternative to reCAPTCHA
+- **Cloudflare Turnstile** - Lightweight, privacy-focused CAPTCHA
+
+## Quick Start (Next.js 16)
+
+For Next.js users, follow these steps to add CAPTCHA protection:
+
+### 1. Get reCAPTCHA Keys
+
+1. Visit [Google reCAPTCHA Admin Console](https://www.google.com/recaptcha/admin)
+2. Create a new reCAPTCHA v2 project (checkbox type)
+3. Copy both the **Site Key** and **Secret Key** (keep them together!)
+
+### 2. Configure Environment Variables
+
+Create or update `.env.local`:
+
+```bash
+AUTH_SECRET=your-super-secret-jwt-key
+RESEND_API_KEY=re_your_api_key
+
+# Both keys must be from the SAME reCAPTCHA project
+RECAPTCHA_SITE_KEY=your-site-key-here
+RECAPTCHA_SECRET_KEY=your-secret-key-here
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your-site-key-here  # Must match RECAPTCHA_SITE_KEY
+```
+
+### 3. Create Middleware
+
+Create `middleware.ts` at the root of your Next.js project:
+
+```typescript
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { email } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: email({
+      from: "noreply@example.com",
+      service: { type: "resend", apiKey: process.env.RESEND_API_KEY! }
+    }),
+    captcha: {
+      provider: {
+        type: "recaptcha-v2",
+        siteKey: process.env.RECAPTCHA_SITE_KEY!,
+        secretKey: process.env.RECAPTCHA_SECRET_KEY!
+      },
+      enforceOnEmail: true
+    }
+  },
+  { basePath: "/api/auth" }
+);
+
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/auth")) {
+    return handler(request);
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: ["/(api|trpc)(.*)"],
+};
+```
+
+### 4. Add to Sign-In Form
+
+See the [complete example](#client-component) below for a full implementation with error handling.
+
+That's it! CAPTCHA protection is now active on your authentication flows.
+
+---
+
+## Detailed Configuration
+
+### 1. Install Dependencies
+
+The SDK includes CAPTCHA support by default. No additional packages required.
+
+### 2. Configure CAPTCHA Provider
+
+Add CAPTCHA configuration to your auth setup:
+
+```typescript
+import { email, type RecaptchaV2Config } from "@warpy-auth-sdk/core";
+
+const authConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: email({
+    from: "noreply@example.com",
+    service: {
+      type: "resend",
+      apiKey: process.env.RESEND_API_KEY!
+    }
+  }),
+  captcha: {
+    provider: {
+      type: "recaptcha-v2",
+      siteKey: process.env.RECAPTCHA_SITE_KEY!,
+      secretKey: process.env.RECAPTCHA_SECRET_KEY!
+    },
+    enforceOnEmail: true,      // Default: true
+    enforceOnTwoFactor: true,  // Default: true
+    enforceOnOAuth: false      // Default: false
+  }
+};
+```
+
+### 3. Frontend Integration
+
+#### reCAPTCHA v2 (Checkbox)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+</head>
+<body>
+  <form id="signupForm">
+    <input type="email" id="email" required />
+    <div class="g-recaptcha" data-sitekey="YOUR_SITE_KEY"></div>
+    <button type="submit">Sign up</button>
+  </form>
+
+  <script>
+    document.getElementById('signupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      const captchaToken = grecaptcha.getResponse();
+
+      if (!captchaToken) {
+        alert('Please complete the CAPTCHA');
+        return;
+      }
+
+      const response = await fetch('/api/auth/signin/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, captchaToken })
+      });
+
+      if (response.ok) {
+        alert('Magic link sent!');
+      }
+    });
+  </script>
+</body>
+</html>
+```
+
+#### reCAPTCHA v3 (Invisible)
+
+```html
+<script src="https://www.google.com/recaptcha/api.js?render=YOUR_SITE_KEY"></script>
+
+<script>
+  async function handleSubmit(email) {
+    const captchaToken = await grecaptcha.execute('YOUR_SITE_KEY', {
+      action: 'login'
+    });
+
+    const response = await fetch('/api/auth/signin/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, captchaToken })
+    });
+  }
+</script>
+```
+
+#### React Integration
+
+```tsx
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useEffect, useState } from "react";
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+  }
+}
+
+function SignInForm() {
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Load reCAPTCHA script
+    const script = document.createElement("script");
+    script.src = "https://www.google.com/recaptcha/api.js";
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const captchaToken = window.grecaptcha.getResponse();
+
+      if (!captchaToken) {
+        alert("Please complete the CAPTCHA");
+        return;
+      }
+
+      await signIn(email, captchaToken);
+      alert("Magic link sent!");
+    } catch (error) {
+      console.error("Sign in failed:", error);
+    } finally {
+      setLoading(false);
+      window.grecaptcha.reset();
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        required
+      />
+      <div className="g-recaptcha" data-sitekey="YOUR_SITE_KEY" />
+      <button type="submit" disabled={loading}>
+        {loading ? "Sending..." : "Sign In"}
+      </button>
+    </form>
+  );
+}
+```
+
+## Provider Configuration
+
+### reCAPTCHA v2
+
+Checkbox-based challenge for strong bot protection.
+
+```typescript
+captcha: {
+  provider: {
+    type: "recaptcha-v2",
+    siteKey: process.env.RECAPTCHA_SITE_KEY!,
+    secretKey: process.env.RECAPTCHA_SECRET_KEY!,
+    // Optional: custom verification endpoint
+    verifyUrl: "https://www.google.com/recaptcha/api/siteverify"
+  }
+}
+```
+
+**Get Keys:** [Google reCAPTCHA Admin](https://www.google.com/recaptcha/admin)
+
+### reCAPTCHA v3
+
+Invisible, score-based risk analysis (0.0 = bot, 1.0 = human).
+
+```typescript
+captcha: {
+  provider: {
+    type: "recaptcha-v3",
+    siteKey: process.env.RECAPTCHA_V3_SITE_KEY!,
+    secretKey: process.env.RECAPTCHA_V3_SECRET_KEY!,
+    scoreThreshold: 0.5  // Default: 0.5 (range: 0.0-1.0)
+  }
+}
+```
+
+**Recommended Thresholds:**
+- `0.9+` - Very likely human
+- `0.7-0.9` - Likely human
+- `0.5-0.7` - Neutral (recommended)
+- `0.3-0.5` - Suspicious
+- `<0.3` - Very likely bot
+
+### hCaptcha
+
+Privacy-focused alternative with better compliance.
+
+```typescript
+captcha: {
+  provider: {
+    type: "hcaptcha",
+    siteKey: process.env.HCAPTCHA_SITE_KEY!,
+    secretKey: process.env.HCAPTCHA_SECRET_KEY!
+  }
+}
+```
+
+**Frontend:**
+```html
+<script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+<div class="h-captcha" data-sitekey="YOUR_SITE_KEY"></div>
+```
+
+**Get Keys:** [hCaptcha Dashboard](https://dashboard.hcaptcha.com/)
+
+### Cloudflare Turnstile
+
+Lightweight, privacy-first CAPTCHA.
+
+```typescript
+captcha: {
+  provider: {
+    type: "turnstile",
+    siteKey: process.env.TURNSTILE_SITE_KEY!,
+    secretKey: process.env.TURNSTILE_SECRET_KEY!
+  }
+}
+```
+
+**Frontend:**
+```html
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<div class="cf-turnstile" data-sitekey="YOUR_SITE_KEY"></div>
+```
+
+**Get Keys:** [Cloudflare Turnstile](https://dash.cloudflare.com/turnstile)
+
+## Selective Enforcement
+
+Control which authentication flows require CAPTCHA:
+
+```typescript
+captcha: {
+  provider: { /* ... */ },
+  enforceOnEmail: true,       // Magic link sign-in
+  enforceOnTwoFactor: true,   // 2FA code requests
+  enforceOnOAuth: false       // OAuth sign-in (experimental)
+}
+```
+
+### Example: CAPTCHA Only for Email
+
+```typescript
+captcha: {
+  provider: {
+    type: "recaptcha-v2",
+    siteKey: process.env.RECAPTCHA_SITE_KEY!,
+    secretKey: process.env.RECAPTCHA_SECRET_KEY!
+  },
+  enforceOnEmail: true,
+  enforceOnTwoFactor: false,
+  enforceOnOAuth: false
+}
+```
+
+## Next.js Integration
+
+### App Router with Middleware
+
+The Next.js middleware automatically handles CAPTCHA tokens. Create a `middleware.ts` file at the root of your project:
+
+```typescript
+// middleware.ts
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { email } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: email({
+      from: "noreply@example.com",
+      service: {
+        type: "resend",
+        apiKey: process.env.RESEND_API_KEY!
+      }
+    }),
+    captcha: {
+      provider: {
+        type: "recaptcha-v2",
+        siteKey: process.env.RECAPTCHA_SITE_KEY!,
+        secretKey: process.env.RECAPTCHA_SECRET_KEY!
+      },
+      enforceOnEmail: true
+    },
+    callbacks: {
+      async user(u) {
+        // Resolve/upsert your user from database
+        return {
+          id: u.id || u.email,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+      jwt: (token) => token,
+      session: (session) => session,
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/signin",
+  }
+);
+
+export function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname.startsWith("/api/auth")) {
+    return handler(request);
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};
+```
+
+**Important:** The file must be named `middleware.ts` (not `proxy.ts`) and must export a function named `middleware()` for Next.js to recognize it.
+
+### Environment Variables
+
+Create a `.env.local` file with your CAPTCHA keys. **Critical:** The site key and secret key must match as a pair from the same CAPTCHA provider.
+
+```bash
+# .env.local
+
+# Auth configuration
+AUTH_SECRET=your-super-secret-jwt-key-change-this-in-production
+
+# Email service (Resend)
+RESEND_API_KEY=re_your_api_key_here
+
+# reCAPTCHA v2 Keys (get from https://www.google.com/recaptcha/admin)
+# IMPORTANT: Site key and secret key must be from the same reCAPTCHA project
+RECAPTCHA_SITE_KEY=your-site-key-here
+RECAPTCHA_SECRET_KEY=your-secret-key-here
+
+# Public environment variable for client-side (must match RECAPTCHA_SITE_KEY)
+NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your-site-key-here
+```
+
+**Common Error:** If you see "CAPTCHA verification failed: invalid-keys", it means your `RECAPTCHA_SITE_KEY` and `RECAPTCHA_SECRET_KEY` don't match. Ensure both keys are from the same reCAPTCHA project in the [Google reCAPTCHA Admin Console](https://www.google.com/recaptcha/admin).
+
+### Client Component
+
+```tsx
+"use client";
+import { useEffect, useState } from "react";
+
+declare global {
+  interface Window {
+    grecaptcha: any;
+  }
+}
+
+export default function SignInPage() {
+  const [email, setEmail] = useState("");
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [captchaLoaded, setCaptchaLoaded] = useState(false);
+
+  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY;
+
+  useEffect(() => {
+    if (!siteKey) {
+      setMessage({
+        text: "CAPTCHA configuration error: Missing NEXT_PUBLIC_RECAPTCHA_SITE_KEY",
+        type: "error",
+      });
+      return;
+    }
+
+    // Load reCAPTCHA script
+    const script = document.createElement("script");
+    script.src = "https://www.google.com/recaptcha/api.js";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => setCaptchaLoaded(true);
+    document.body.appendChild(script);
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, [siteKey]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setMessage(null);
+
+    try {
+      if (!window.grecaptcha) {
+        setMessage({ text: "CAPTCHA not loaded. Please refresh the page.", type: "error" });
+        return;
+      }
+
+      const captchaToken = window.grecaptcha.getResponse();
+
+      if (!captchaToken) {
+        setMessage({ text: "Please complete the CAPTCHA challenge", type: "error" });
+        return;
+      }
+
+      const response = await fetch("/api/auth/signin/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, captchaToken }),
+      });
+
+      if (response.ok) {
+        setMessage({ text: "Magic link sent! Check your email.", type: "success" });
+        setEmail("");
+        window.grecaptcha.reset();
+      } else {
+        const data = await response.json().catch(() => ({}));
+        setMessage({
+          text: data.error || "Failed to send magic link. Please try again.",
+          type: "error",
+        });
+        window.grecaptcha.reset();
+      }
+    } catch (error) {
+      console.error("Sign-in error:", error);
+      setMessage({ text: "Network error. Please try again.", type: "error" });
+      window.grecaptcha?.reset();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!siteKey) {
+    return (
+      <div className="error">
+        <p>CAPTCHA configuration error. Please set NEXT_PUBLIC_RECAPTCHA_SITE_KEY in your .env.local file.</p>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="Enter your email"
+        required
+        disabled={loading}
+      />
+
+      {captchaLoaded && (
+        <div className="g-recaptcha" data-sitekey={siteKey} />
+      )}
+
+      <button type="submit" disabled={loading || !captchaLoaded}>
+        {loading ? "Sending..." : "Sign In with Email"}
+      </button>
+
+      {message && (
+        <div className={message.type === "success" ? "success" : "error"}>
+          {message.text}
+        </div>
+      )}
+    </form>
+  );
+}
+```
+
+## Error Handling
+
+CAPTCHA verification failures return descriptive errors:
+
+```typescript
+const result = await authenticate(config, request);
+
+if (result.error) {
+  // Common errors:
+  // - "CAPTCHA token required"
+  // - "CAPTCHA verification failed: missing-input-response"
+  // - "CAPTCHA verification failed: invalid-input-response"
+  // - "CAPTCHA verification failed: score-too-low" (v3 only)
+  console.error(result.error);
+}
+```
+
+### Client-Side Validation
+
+```typescript
+const captchaToken = grecaptcha.getResponse();
+
+if (!captchaToken) {
+  alert("Please complete the CAPTCHA challenge");
+  return;
+}
+
+try {
+  const response = await fetch('/api/auth/signin/email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, captchaToken })
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    if (data.error?.includes('CAPTCHA')) {
+      grecaptcha.reset(); // Reset CAPTCHA on failure
+      alert('CAPTCHA verification failed. Please try again.');
+    }
+  }
+} catch (error) {
+  grecaptcha.reset();
+  console.error('Network error:', error);
+}
+```
+
+## Security Best Practices
+
+1. **Never expose secret keys** - Keep secret keys server-side only
+2. **Use environment variables** - Store keys in `.env` files
+3. **Reset on failure** - Call `grecaptcha.reset()` after failed attempts
+4. **Rate limiting** - Combine CAPTCHA with rate limiting for extra protection
+5. **HTTPS only** - CAPTCHA providers require HTTPS in production
+6. **Score monitoring** - Monitor v3 scores to adjust thresholds
+
+## Testing
+
+### Development Mode
+
+Most CAPTCHA providers offer test keys:
+
+**reCAPTCHA Test Keys:**
+- Site key: `6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI`
+- Secret key: `6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe`
+
+These always return success without user interaction.
+
+### Local Testing
+
+```bash
+# .env.local
+RECAPTCHA_SITE_KEY=6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI
+RECAPTCHA_SECRET_KEY=6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WifJWe
+```
+
+## Advanced Usage
+
+### Custom Verification Logic
+
+```typescript
+import { createCaptchaProvider } from "@warpy-auth-sdk/core";
+
+const captchaProvider = createCaptchaProvider({
+  type: "recaptcha-v3",
+  siteKey: process.env.RECAPTCHA_V3_SITE_KEY!,
+  secretKey: process.env.RECAPTCHA_V3_SECRET_KEY!,
+  scoreThreshold: 0.7
+});
+
+// Manual verification
+const result = await captchaProvider.verify(token, userIp);
+
+if (result.success) {
+  console.log("CAPTCHA verified!");
+  if (result.score) {
+    console.log(`Score: ${result.score}`);
+  }
+} else {
+  console.error("Verification failed:", result.errorCodes);
+}
+```
+
+### Multiple CAPTCHA Providers
+
+```typescript
+// Different providers for different flows
+const emailCaptcha = {
+  provider: {
+    type: "recaptcha-v2",
+    siteKey: process.env.RECAPTCHA_SITE_KEY!,
+    secretKey: process.env.RECAPTCHA_SECRET_KEY!
+  },
+  enforceOnEmail: true,
+  enforceOnTwoFactor: false,
+  enforceOnOAuth: false
+};
+
+const twofaCaptcha = {
+  provider: {
+    type: "turnstile",
+    siteKey: process.env.TURNSTILE_SITE_KEY!,
+    secretKey: process.env.TURNSTILE_SECRET_KEY!
+  },
+  enforceOnEmail: false,
+  enforceOnTwoFactor: true,
+  enforceOnOAuth: false
+};
+```
+
+## Troubleshooting
+
+### CAPTCHA not showing
+
+- Verify the site key is correct and matches `NEXT_PUBLIC_RECAPTCHA_SITE_KEY`
+- Check browser console for JavaScript errors
+- Ensure CAPTCHA script is loaded before rendering
+- Check for Content Security Policy (CSP) blocking scripts
+- Verify the site key is from a reCAPTCHA v2 project (not v3)
+
+### "CAPTCHA verification failed: invalid-keys"
+
+**This is the most common error!** It means your site key and secret key don't match.
+
+**Solution:**
+1. Go to [Google reCAPTCHA Admin Console](https://www.google.com/recaptcha/admin)
+2. Find your reCAPTCHA v2 project
+3. Copy both the **Site Key** and **Secret Key** from the same project
+4. Update your `.env.local`:
+   ```bash
+   RECAPTCHA_SITE_KEY=your-site-key-here
+   RECAPTCHA_SECRET_KEY=your-secret-key-here
+   NEXT_PUBLIC_RECAPTCHA_SITE_KEY=your-site-key-here  # Must match RECAPTCHA_SITE_KEY
+   ```
+5. Restart your dev server to load the new environment variables
+
+**Common Mistakes:**
+- Using site key from one project and secret key from another
+- Using test keys on server but real keys on client (or vice versa)
+- Mixing reCAPTCHA v2 and v3 keys
+
+### Verification always fails
+
+- Confirm secret key matches site key (must be from the same reCAPTCHA project)
+- Check server can reach CAPTCHA verification endpoints (`https://www.google.com/recaptcha/api/siteverify`)
+- Verify token is being sent in request body as `captchaToken`
+- Ensure HTTPS is used in production (reCAPTCHA requires secure domains)
+- Check that environment variables are loaded (restart dev server after changing `.env.local`)
+
+### reCAPTCHA v3 low scores
+
+- Score too low? Adjust `scoreThreshold` (default 0.5)
+- Monitor real user scores to find optimal threshold
+- Consider switching to v2 for stricter bot protection
+
+## Examples
+
+See [examples/nextjs-captcha-example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/nextjs-captcha-example) for a complete Next.js 16 working example with:
+
+- Beautiful UI with Tailwind CSS
+- reCAPTCHA v2 integration
+- Email magic link authentication
+- Protected dashboard route
+- Full TypeScript support
+
+## Next Steps
+
+- [Email Provider Guide](./email-provider)
+- [Two-Factor Authentication](./two-factor-authentication)
+- [Next.js Integration](../01-getting-started/nextjs-quickstart)

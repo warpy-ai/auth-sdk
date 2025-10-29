@@ -13,7 +13,7 @@ import type { Session } from "../core";
 export interface AuthContextValue {
   session: Session | null;
   loading: boolean;
-  signIn: (email: string) => Promise<void>;
+  signIn: (email: string, captchaToken?: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
 }
@@ -60,13 +60,18 @@ export function AuthProvider({
   }, [refreshSession]);
 
   const signIn = useCallback(
-    async (email: string) => {
+    async (email: string, captchaToken?: string) => {
       try {
         // Call API to initiate sign-in
+        const body: Record<string, string> = { email };
+        if (captchaToken) {
+          body.captchaToken = captchaToken;
+        }
+
         const response = await fetch("/api/auth/signin/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify(body),
         });
 
         if (response.ok) {
