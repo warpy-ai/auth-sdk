@@ -3,7 +3,7 @@
  * @module ai-mode/useAIMode
  */
 
-'use client';
+"use client";
 
 import React, {
   createContext,
@@ -13,7 +13,7 @@ import React, {
   useCallback,
   useRef,
   useMemo,
-} from 'react';
+} from "react";
 import type {
   AIProviderProps,
   AIModeContext,
@@ -22,7 +22,7 @@ import type {
   MCPNotification,
   MCPServerEvent,
   MCPToolsResponse,
-} from './types';
+} from "./types";
 
 // Create context with undefined default (will throw error if used outside provider)
 const AIContext = createContext<AIModeContext | undefined>(undefined);
@@ -52,10 +52,10 @@ function generateId(): string {
  */
 export function AIProvider({
   children,
-  mcpEndpoint = '/api/mcp',
+  mcpEndpoint = "/api/mcp",
   enabled = false,
-  position = 'bottom',
-  theme = 'auto',
+  position = "bottom",
+  theme = "auto",
   showNotifications = true,
   showRainbowBorder = true,
   maxActivities = 50,
@@ -64,25 +64,32 @@ export function AIProvider({
   // State
   const [isActive, setIsActive] = useState(enabled);
   const [availableTools, setAvailableTools] = useState<MCPToolInfo[]>([]);
+  const [loadingTools, setLoadingTools] = useState<boolean>(false);
   const [recentActivity, setRecentActivity] = useState<MCPActivity[]>([]);
   const [notifications, setNotifications] = useState<MCPNotification[]>([]);
 
   // Refs
   const eventSourceRef = useRef<EventSource | null>(null);
-  const notificationTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const notificationTimeoutsRef = useRef<Map<string, NodeJS.Timeout>>(
+    new Map()
+  );
 
   /**
    * Fetch available MCP tools from the server
    */
   const fetchTools = useCallback(async () => {
+    setLoadingTools(true);
     try {
       const response = await fetch(mcpEndpoint, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
       });
 
       if (!response.ok) {
-        console.warn('[AI Mode] Failed to fetch MCP tools:', response.statusText);
+        console.warn(
+          "[AI Mode] Failed to fetch MCP tools:",
+          response.statusText
+        );
         return;
       }
 
@@ -98,22 +105,27 @@ export function AIProvider({
         toolsList = data.tools;
       } else if (data.tools && (data.tools.public || data.tools.protected)) {
         // Format 2: public/protected split
-        toolsList = [...(data.tools.public || []), ...(data.tools.protected || [])];
+        toolsList = [
+          ...(data.tools.public || []),
+          ...(data.tools.protected || []),
+        ];
       }
 
       if (toolsList.length > 0) {
         const tools: MCPToolInfo[] = toolsList.map((tool) => ({
           name: tool.name,
           description: tool.description,
-          category: (tool.category as MCPToolInfo['category']) || 'custom',
+          category: (tool.category as MCPToolInfo["category"]) || "custom",
           requiresAuth: tool.requiresAuth !== false, // Default to true
           scopes: tool.scopes || tool.requiredScopes || [],
         }));
 
         setAvailableTools(tools);
+        setLoadingTools(false);
       }
     } catch (error) {
-      console.error('[AI Mode] Error fetching tools:', error);
+      console.error("[AI Mode] Error fetching tools:", error);
+      setLoadingTools(false);
     }
   }, [mcpEndpoint]);
 
@@ -121,7 +133,7 @@ export function AIProvider({
    * Add a notification with auto-dismiss
    */
   const addNotification = useCallback(
-    (notification: Omit<MCPNotification, 'id'>) => {
+    (notification: Omit<MCPNotification, "id">) => {
       const id = generateId();
       const fullNotification: MCPNotification = {
         ...notification,
@@ -162,7 +174,7 @@ export function AIProvider({
    * Add activity to recent activity list
    */
   const addActivity = useCallback(
-    (activity: Omit<MCPActivity, 'id'>) => {
+    (activity: Omit<MCPActivity, "id">) => {
       const fullActivity: MCPActivity = {
         ...activity,
         id: generateId(),
@@ -176,7 +188,7 @@ export function AIProvider({
       // Send to analytics if enabled
       if (enableAnalytics) {
         // TODO: Implement analytics tracking
-        console.log('[AI Mode] Analytics:', fullActivity);
+        console.log("[AI Mode] Analytics:", fullActivity);
       }
     },
     [maxActivities, enableAnalytics]
@@ -204,7 +216,11 @@ export function AIProvider({
       // Show notification
       if (showNotifications) {
         const notificationType =
-          eventType === 'error' || data.error ? 'error' : data.success === false ? 'warning' : 'success';
+          eventType === "error" || data.error
+            ? "error"
+            : data.success === false
+              ? "warning"
+              : "success";
 
         addNotification({
           type: notificationType,
@@ -228,35 +244,35 @@ export function AIProvider({
     try {
       const eventSource = new EventSource(`${mcpEndpoint}/events`);
 
-      eventSource.addEventListener('tool_execution', (event) => {
+      eventSource.addEventListener("tool_execution", (event) => {
         try {
           const data = JSON.parse(event.data);
-          handleMCPEvent({ event: 'tool_execution', data });
+          handleMCPEvent({ event: "tool_execution", data });
         } catch (error) {
-          console.error('[AI Mode] Error parsing SSE event:', error);
+          console.error("[AI Mode] Error parsing SSE event:", error);
         }
       });
 
-      eventSource.addEventListener('tool_start', (event) => {
+      eventSource.addEventListener("tool_start", (event) => {
         try {
           const data = JSON.parse(event.data);
-          handleMCPEvent({ event: 'tool_start', data });
+          handleMCPEvent({ event: "tool_start", data });
         } catch (error) {
-          console.error('[AI Mode] Error parsing SSE event:', error);
+          console.error("[AI Mode] Error parsing SSE event:", error);
         }
       });
 
-      eventSource.addEventListener('tool_end', (event) => {
+      eventSource.addEventListener("tool_end", (event) => {
         try {
           const data = JSON.parse(event.data);
-          handleMCPEvent({ event: 'tool_end', data });
+          handleMCPEvent({ event: "tool_end", data });
         } catch (error) {
-          console.error('[AI Mode] Error parsing SSE event:', error);
+          console.error("[AI Mode] Error parsing SSE event:", error);
         }
       });
 
-      eventSource.addEventListener('error', (event) => {
-        console.error('[AI Mode] SSE connection error:', event);
+      eventSource.addEventListener("error", (event) => {
+        console.error("[AI Mode] SSE connection error:", event);
         // Auto-reconnect after 5 seconds
         setTimeout(() => {
           if (eventSourceRef.current) {
@@ -271,7 +287,7 @@ export function AIProvider({
 
       eventSourceRef.current = eventSource;
     } catch (error) {
-      console.error('[AI Mode] Failed to connect to SSE:', error);
+      console.error("[AI Mode] Failed to connect to SSE:", error);
     }
   }, [mcpEndpoint, handleMCPEvent, isActive]);
 
@@ -312,7 +328,9 @@ export function AIProvider({
     return () => {
       disconnectSSE();
       // Clear all notification timeouts
-      notificationTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      notificationTimeoutsRef.current.forEach((timeout) =>
+        clearTimeout(timeout)
+      );
       notificationTimeoutsRef.current.clear();
     };
   }, [isActive, fetchTools, connectSSE, disconnectSSE]);
@@ -322,6 +340,7 @@ export function AIProvider({
     () => ({
       isActive,
       availableTools,
+      loadingTools,
       recentActivity,
       notifications,
       toggleAIMode,
@@ -335,6 +354,7 @@ export function AIProvider({
     [
       isActive,
       availableTools,
+      loadingTools,
       recentActivity,
       notifications,
       toggleAIMode,
@@ -347,7 +367,9 @@ export function AIProvider({
     ]
   );
 
-  return <AIContext.Provider value={contextValue}>{children}</AIContext.Provider>;
+  return (
+    <AIContext.Provider value={contextValue}>{children}</AIContext.Provider>
+  );
 }
 
 /**
@@ -375,7 +397,7 @@ export function useAIMode(): AIModeContext {
   const context = useContext(AIContext);
 
   if (!context) {
-    throw new Error('useAIMode must be used within an AIProvider');
+    throw new Error("useAIMode must be used within an AIProvider");
   }
 
   return context;

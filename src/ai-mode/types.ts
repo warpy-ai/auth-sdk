@@ -3,7 +3,7 @@
  * @module ai-mode/types
  */
 
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 
 /**
  * Information about an available MCP tool
@@ -11,7 +11,7 @@ import type { ReactNode } from 'react';
 export interface MCPToolInfo {
   name: string;
   description: string;
-  category: 'auth' | 'flight' | 'user' | 'payment' | 'custom';
+  category: "auth" | "flight" | "user" | "payment" | "custom";
   requiresAuth: boolean;
   scopes?: string[];
 }
@@ -36,7 +36,7 @@ export interface MCPActivity {
  */
 export interface MCPNotification {
   id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
+  type: "info" | "success" | "warning" | "error";
   message: string;
   toolName: string;
   timestamp: Date;
@@ -47,12 +47,12 @@ export interface MCPNotification {
 /**
  * Theme options for AI Mode UI
  */
-export type AIModeTheme = 'auto' | 'light' | 'dark';
+export type AIModeTheme = "auto" | "light" | "dark";
 
 /**
  * Position options for AI Mode Bar
  */
-export type AIModePosition = 'top' | 'bottom';
+export type AIModePosition = "top" | "bottom";
 
 /**
  * Configuration options for AIProvider
@@ -114,6 +114,10 @@ export interface AIModeContext {
    */
   availableTools: MCPToolInfo[];
   /**
+   * Whether tools are currently loading
+   */
+  loadingTools: boolean;
+  /**
    * Recent MCP activity (tool executions)
    */
   recentActivity: MCPActivity[];
@@ -155,7 +159,7 @@ export interface AIModeContext {
  * Server-Sent Event from MCP endpoint
  */
 export interface MCPServerEvent {
-  event: 'tool_execution' | 'tool_start' | 'tool_end' | 'error';
+  event: "tool_execution" | "tool_start" | "tool_end" | "error";
   data: {
     toolName: string;
     timestamp: string;
@@ -219,6 +223,10 @@ export interface AIModeBarProps {
    * List of available MCP tools
    */
   availableTools: MCPToolInfo[];
+  /**
+   * Whether tools are currently loading
+   */
+  loadingTools: boolean;
   /**
    * Position of the bar
    */

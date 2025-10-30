@@ -7,7 +7,11 @@
 
 "use client";
 
+/* eslint-env browser */
+
 import React from "react";
+// @ts-expect-error - react-dom types are optional for this UI helper
+import { createPortal } from "react-dom";
 import type { AIModeBarProps } from "../types";
 
 /**
@@ -39,6 +43,7 @@ import type { AIModeBarProps } from "../types";
 export function AIModeBar({
   isActive,
   availableTools,
+  loadingTools,
   position,
   theme: themeProp,
   onToggle,
@@ -47,14 +52,37 @@ export function AIModeBar({
   // Always show tools when active
   const isExpanded = isActive;
 
+  // Prevent page scroll when active (and restore on deactivate)
+  React.useEffect(() => {
+    if (!isActive) return;
+    if (typeof globalThis === "undefined") return;
+    const doc = (
+      globalThis as unknown as {
+        document?: { body: { style: { overflow: string } } };
+      }
+    ).document;
+    if (!doc) return;
+    const previousOverflow = doc.body.style.overflow;
+    doc.body.style.overflow = "hidden";
+    return () => {
+      doc.body.style.overflow = previousOverflow;
+    };
+  }, [isActive]);
+
   // Determine actual theme
+  const prefersDark =
+    typeof window !== "undefined" &&
+    // eslint-disable-next-line no-undef
+    window.matchMedia("(prefers-color-scheme: dark)").matches;
   const theme =
-    themeProp === "auto"
-      ? typeof window !== "undefined" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light"
-      : themeProp;
+    themeProp === "auto" ? (prefersDark ? "dark" : "light") : themeProp;
+
+  // Body element for portal overlay (safe on SSR)
+  const docBody = (() => {
+    if (typeof globalThis === "undefined") return null;
+    const g = globalThis as unknown as { document?: { body?: unknown } };
+    return g.document && g.document.body ? (g.document.body as any) : null;
+  })();
 
   const isDark = theme === "dark";
 
@@ -72,6 +100,9 @@ export function AIModeBar({
     position === "bottom"
       ? { bottom: 0, borderTop: `2px solid ${borderColor}` }
       : { top: 0, borderBottom: `2px solid ${borderColor}` };
+
+  // Determine whether to show the tools card (show while loading too)
+  const showToolsCard = loadingTools || availableTools.length > 0;
 
   // INACTIVE STATE: Show compact centered button
   if (!isActive) {
@@ -167,7 +198,7 @@ export function AIModeBar({
         left: 0,
         right: 0,
         ...positionStyle,
-        zIndex: 9998,
+        zIndex: 10001,
         backgroundColor: bgColor,
         backdropFilter: "blur(10px)",
         boxShadow:
@@ -177,6 +208,24 @@ export function AIModeBar({
         transition: "all 0.3s ease",
       }}
     >
+      {/* Background overlay to block interactions and dim the page (portal) */}
+      {isActive && docBody
+        ? createPortal(
+            <div
+              aria-hidden="true"
+              style={{
+                position: "fixed",
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: "rgba(0, 0, 0, 0.45)",
+                zIndex: 10000,
+              }}
+            />,
+            docBody
+          )
+        : null}
       {/* Main Bar */}
       <div
         style={{
@@ -311,7 +360,7 @@ export function AIModeBar({
       </div>
 
       {/* Floating MCP Tools Card */}
-      {isExpanded && isActive && availableTools.length > 0 && (
+      {isExpanded && isActive && showToolsCard && (
         <div
           style={{
             position: "fixed",
@@ -319,15 +368,16 @@ export function AIModeBar({
             top: position === "top" ? "90px" : undefined,
             left: "50%",
             transform: "translateX(-50%)",
-            zIndex: 9997,
+            zIndex: 10002,
             backgroundColor: "#1a1a1a",
             border: "1px solid #2a2a2a",
             borderRadius: "16px",
             padding: "20px",
-            maxWidth: "800px",
+            maxWidth: "400px",
             width: "90vw",
             maxHeight: "70vh",
             overflowY: "auto",
+            overflowX: "hidden",
             boxShadow: "0 10px 40px rgba(0, 0, 0, 0.5)",
             backdropFilter: "blur(10px)",
           }}
@@ -346,7 +396,7 @@ export function AIModeBar({
             <h3
               style={{
                 margin: 0,
-                fontSize: "24px",
+                fontSize: "16px",
                 fontWeight: 600,
                 color: "#ffffff",
               }}
@@ -362,7 +412,7 @@ export function AIModeBar({
                 background: "none",
                 border: "none",
                 color: "#3b82f6",
-                fontSize: "16px",
+                fontSize: "12px",
                 fontWeight: 600,
                 cursor: "pointer",
                 padding: "4px 8px",
@@ -380,63 +430,70 @@ export function AIModeBar({
               gap: "16px",
             }}
           >
-            {availableTools.map((tool) => (
-              <div
-                key={tool.name}
-                style={{
-                  display: "flex",
-                  alignItems: "flex-start",
-                  gap: "12px",
-                  padding: "12px",
-                  backgroundColor: "#242424",
-                  borderRadius: "8px",
-                  transition: "background-color 0.2s ease",
-                  cursor: "pointer",
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = "#2a2a2a";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = "#242424";
-                }}
-              >
-                {/* Tool Icon */}
+            {loadingTools ? (
+              <div style={{ fontSize: "12px", color: mutedColor }}>
+                <span>🔄</span>
+                <span>Loading tools...</span>
+              </div>
+            ) : (
+              availableTools.map((tool) => (
                 <div
+                  key={tool.name}
                   style={{
-                    fontSize: "24px",
-                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "12px",
+                    padding: "12px",
+                    backgroundColor: "#242424",
+                    borderRadius: "8px",
+                    transition: "background-color 0.2s ease",
+                    cursor: "pointer",
                   }}
-                  role="img"
-                  aria-label={`${tool.category} icon`}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = "#2a2a2a";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = "#242424";
+                  }}
                 >
-                  🔧
-                </div>
-
-                {/* Tool Info */}
-                <div style={{ flex: 1, minWidth: 0 }}>
+                  {/* Tool Icon */}
                   <div
                     style={{
                       fontSize: "16px",
-                      fontWeight: 600,
-                      color: "#ffffff",
-                      marginBottom: "4px",
-                      fontFamily: "monospace",
+                      flexShrink: 0,
                     }}
+                    role="img"
+                    aria-label={`${tool.category} icon`}
                   >
-                    {tool.name}
+                    🔧
                   </div>
-                  <div
-                    style={{
-                      fontSize: "14px",
-                      color: "#9ca3af",
-                      lineHeight: "1.5",
-                    }}
-                  >
-                    {tool.description}
+
+                  {/* Tool Info */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: "12px",
+                        fontWeight: 600,
+                        color: "#ffffff",
+                        marginBottom: "4px",
+                        fontFamily: "monospace",
+                      }}
+                    >
+                      {tool.name}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#9ca3af",
+                        lineHeight: "1.5",
+                      }}
+                    >
+                      {tool.description}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))
+            )}
           </div>
         </div>
       )}

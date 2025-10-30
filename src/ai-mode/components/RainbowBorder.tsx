@@ -5,10 +5,10 @@
  * Displays an animated rainbow border around the viewport when AI Mode is active
  */
 
-'use client';
+"use client";
 
-import React, { useEffect, useState } from 'react';
-import type { RainbowBorderProps } from '../types';
+import React, { useEffect, useState } from "react";
+import type { RainbowBorderProps } from "../types";
 
 /**
  * RainbowBorder component that shows an animated rainbow border when AI mode is active
@@ -33,7 +33,7 @@ export function RainbowBorder({
   isActive,
   borderWidth = 4,
   animationSpeed = 3,
-  zIndex = 9999,
+  zIndex = 99999,
 }: RainbowBorderProps) {
   const [mounted, setMounted] = useState(false);
 
@@ -48,25 +48,28 @@ export function RainbowBorder({
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{
-        __html: `
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
           @keyframes rainbow-border-animation {
             0% { filter: hue-rotate(0deg); }
             100% { filter: hue-rotate(360deg); }
           }
-        `
-      }} />
+        `,
+        }}
+      />
       <div
         style={{
-          position: 'fixed',
+          position: "fixed",
           top: 0,
           left: 0,
           right: 0,
           bottom: 0,
-          pointerEvents: 'none',
+          pointerEvents: "none",
           zIndex,
           border: `${borderWidth}px solid transparent`,
-          borderImage: 'linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet, red) 1',
+          borderImage:
+            "linear-gradient(90deg, red, orange, yellow, green, blue, indigo, violet, red) 1",
           borderImageSlice: 1,
           animation: `rainbow-border-animation ${animationSpeed}s linear infinite`,
         }}

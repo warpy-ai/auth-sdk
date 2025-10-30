@@ -1,8 +1,8 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from "react";
 export interface MCPToolInfo {
     name: string;
     description: string;
-    category: 'auth' | 'flight' | 'user' | 'payment' | 'custom';
+    category: "auth" | "flight" | "user" | "payment" | "custom";
     requiresAuth: boolean;
     scopes?: string[];
 }
@@ -19,15 +19,15 @@ export interface MCPActivity {
 }
 export interface MCPNotification {
     id: string;
-    type: 'info' | 'success' | 'warning' | 'error';
+    type: "info" | "success" | "warning" | "error";
     message: string;
     toolName: string;
     timestamp: Date;
     autoClose?: boolean;
     duration?: number;
 }
-export type AIModeTheme = 'auto' | 'light' | 'dark';
-export type AIModePosition = 'top' | 'bottom';
+export type AIModeTheme = "auto" | "light" | "dark";
+export type AIModePosition = "top" | "bottom";
 export interface AIProviderProps {
     children: ReactNode;
     mcpEndpoint?: string;
@@ -42,6 +42,7 @@ export interface AIProviderProps {
 export interface AIModeContext {
     isActive: boolean;
     availableTools: MCPToolInfo[];
+    loadingTools: boolean;
     recentActivity: MCPActivity[];
     notifications: MCPNotification[];
     toggleAIMode: () => void;
@@ -53,7 +54,7 @@ export interface AIModeContext {
     showRainbowBorder: boolean;
 }
 export interface MCPServerEvent {
-    event: 'tool_execution' | 'tool_start' | 'tool_end' | 'error';
+    event: "tool_execution" | "tool_start" | "tool_end" | "error";
     data: {
         toolName: string;
         timestamp: string;
@@ -84,6 +85,7 @@ export interface RainbowBorderProps {
 export interface AIModeBarProps {
     isActive: boolean;
     availableTools: MCPToolInfo[];
+    loadingTools: boolean;
     position: AIModePosition;
     theme: AIModeTheme;
     onToggle: () => void;

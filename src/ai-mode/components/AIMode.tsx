@@ -5,13 +5,13 @@
  * Combines all AI Mode UI components into a single convenient component
  */
 
-'use client';
+"use client";
 
-import React from 'react';
-import { useAIMode } from '../useAIMode';
-import { RainbowBorder } from './RainbowBorder';
-import { AIModeBar } from './AIModeBar';
-import { MCPNotification } from './MCPNotification';
+import React from "react";
+import { useAIMode } from "../useAIMode";
+import { RainbowBorder } from "./RainbowBorder";
+import { AIModeBar } from "./AIModeBar";
+import { MCPNotification } from "./MCPNotification";
 
 /**
  * AIMode component that renders all AI Mode UI elements
@@ -40,6 +40,7 @@ export function AIMode() {
   const {
     isActive,
     availableTools,
+    loadingTools,
     notifications,
     toggleAIMode,
     dismissNotification,
@@ -58,6 +59,7 @@ export function AIMode() {
       <AIModeBar
         isActive={isActive}
         availableTools={availableTools}
+        loadingTools={loadingTools}
         position={position}
         theme={theme}
         onToggle={toggleAIMode}
