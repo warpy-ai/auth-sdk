@@ -17,6 +17,8 @@ import type {
   TwoFactorProviderConfig,
 } from "./providers/types";
 import type { Adapter } from "./adapters/types";
+import type { CaptchaEnforcement } from "./captcha/types";
+import { createCaptchaProvider } from "./captcha";
 
 export interface AuthConfig {
   provider: Provider;
@@ -27,6 +29,7 @@ export interface AuthConfig {
     apiKey?: string;
     baseUrl?: string;
   };
+  captcha?: CaptchaEnforcement;
   callbacks?: {
     /**
      * Resolve and/or upsert the application user given an OAuth profile or verified email.
@@ -286,6 +289,7 @@ async function handleEmailAuthentication(
   const url = new URL(request.url);
   const token = url.searchParams.get("token");
   const email = url.searchParams.get("email");
+  const captchaToken = url.searchParams.get("captchaToken");
 
   // If token provided, verify magic link
   if (token) {
@@ -337,6 +341,30 @@ async function handleEmailAuthentication(
 
   // If email provided, send magic link
   if (email) {
+    // Verify CAPTCHA if configured and enforced for email
+    if (
+      config.captcha &&
+      (config.captcha.enforceOnEmail ?? true)
+    ) {
+      if (!captchaToken) {
+        return { error: "CAPTCHA token required" };
+      }
+
+      const captchaProvider = createCaptchaProvider(config.captcha.provider);
+      const remoteIp = request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") || undefined;
+      const captchaResult = await captchaProvider.verify(
+        captchaToken,
+        remoteIp
+      );
+
+      if (!captchaResult.success) {
+        return {
+          error: `CAPTCHA verification failed: ${captchaResult.errorCodes?.join(", ") || "unknown error"}`,
+        };
+      }
+    }
+
     const callbackUrl = url.origin + url.pathname;
     await provider.sendMagicLink(email, callbackUrl);
     return { session: undefined }; // No error, email sent
@@ -354,6 +382,7 @@ async function handleTwoFactorAuthentication(
   const identifier = url.searchParams.get("identifier");
   const code = url.searchParams.get("code");
   const email = url.searchParams.get("email");
+  const captchaToken = url.searchParams.get("captchaToken");
 
   // If identifier and code provided, verify the 2FA code
   if (identifier && code) {
@@ -405,6 +434,30 @@ async function handleTwoFactorAuthentication(
 
   // If email provided, send 2FA code
   if (email) {
+    // Verify CAPTCHA if configured and enforced for two-factor
+    if (
+      config.captcha &&
+      (config.captcha.enforceOnTwoFactor ?? true)
+    ) {
+      if (!captchaToken) {
+        return { error: "CAPTCHA token required" };
+      }
+
+      const captchaProvider = createCaptchaProvider(config.captcha.provider);
+      const remoteIp = request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") || undefined;
+      const captchaResult = await captchaProvider.verify(
+        captchaToken,
+        remoteIp
+      );
+
+      if (!captchaResult.success) {
+        return {
+          error: `CAPTCHA verification failed: ${captchaResult.errorCodes?.join(", ") || "unknown error"}`,
+        };
+      }
+    }
+
     const result = await provider.sendCode(email);
     // Return the identifier and expiresIn so the client can use it to verify the code
     return {
@@ -514,3 +567,16 @@ export type { Adapter } from "./adapters/types";
 
 // MCP tools will be created per-instance with the app's secret
 export { createMCPTools } from "./mcp/mcp";
+
+// Export CAPTCHA providers and types
+export { createCaptchaProvider } from "./captcha";
+export type {
+  CaptchaConfig,
+  CaptchaProvider,
+  CaptchaVerificationResult,
+  CaptchaEnforcement,
+  RecaptchaV2Config,
+  RecaptchaV3Config,
+  HCaptchaConfig,
+  TurnstileConfig,
+} from "./captcha/types";

@@ -1,0 +1,266 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+
+export const metadata = {
+  title: 'Environment Setup - @warpy-auth-sdk/core',
+  description: 'Configure environment variables for @warpy-auth-sdk/core.',
+};
+
+export default function EnvironmentSetup() {
+  return (
+    <DocsLayout
+      title="Environment Setup"
+      description="Configure environment variables for @warpy-auth-sdk/core."
+      prevPage={{ title: 'Quickstart', href: '/docs/getting-started/quickstart' }}
+      nextPage={{ title: 'First Auth Flow', href: '/docs/getting-started/first-auth-flow' }}
+    >
+      <div>
+        <h2>Required Environment Variables</h2>
+        <p>
+          @warpy-auth-sdk/core requires several environment variables to function properly. 
+          Here's a complete reference for all supported variables.
+        </p>
+
+        <h2>Core Configuration</h2>
+
+        <h3>AUTH_SECRET</h3>
+        <p>
+          <strong>Required:</strong> JWT signing secret for session tokens and CSRF protection.
+        </p>
+
+        <CodeBlock language="bash">
+{`AUTH_SECRET=your-secret-key-min-32-chars-long-replace-this-in-production`}
+        </CodeBlock>
+
+        <Callout type="warning" title="Security Requirements">
+          <ul>
+            <li>Must be at least 32 characters long</li>
+            <li>Use a cryptographically secure random string</li>
+            <li>Never commit to version control</li>
+            <li>Use different secrets for development and production</li>
+          </ul>
+        </Callout>
+
+        <h3>Generate a Secure Secret</h3>
+        <p>
+          You can generate a secure secret using Node.js:
+        </p>
+
+        <CodeBlock language="javascript">
+{`// Generate a secure secret
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`}
+        </CodeBlock>
+
+        <h2>Google OAuth Configuration</h2>
+        <p>
+          Required for Google OAuth authentication:
+        </p>
+
+        <CodeBlock language="bash">
+{`# Google OAuth credentials
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
+        </CodeBlock>
+
+        <h3>Setting Up Google OAuth</h3>
+        <ol>
+          <li>Go to the <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a></li>
+          <li>Create a new project or select an existing one</li>
+          <li>Enable the Google+ API</li>
+          <li>Go to "Credentials" → "Create Credentials" → "OAuth 2.0 Client IDs"</li>
+          <li>Set the application type to "Web application"</li>
+          <li>Add authorized redirect URIs:
+            <ul>
+              <li>Development: <code>http://localhost:3000/api/auth/callback/google</code></li>
+              <li>Production: <code>https://yourdomain.com/api/auth/callback/google</code></li>
+            </ul>
+          </li>
+          <li>Copy the Client ID and Client Secret to your environment variables</li>
+        </ol>
+
+        <h2>Email Configuration</h2>
+        <p>
+          Required for email magic link authentication:
+        </p>
+
+        <CodeBlock language="bash">
+{`# SMTP configuration for email magic links
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@yourdomain.com`}
+        </CodeBlock>
+
+        <h3>Gmail Setup</h3>
+        <ol>
+          <li>Enable 2-factor authentication on your Gmail account</li>
+          <li>Generate an App Password:
+            <ul>
+              <li>Go to Google Account settings</li>
+              <li>Security → 2-Step Verification → App passwords</li>
+              <li>Generate a password for "Mail"</li>
+            </ul>
+          </li>
+          <li>Use the app password as <code>SMTP_PASS</code></li>
+        </ol>
+
+        <h3>Custom SMTP Server</h3>
+        <p>
+          For production, consider using dedicated email services:
+        </p>
+
+        <ul>
+          <li><strong>SendGrid:</strong> <code>smtp.sendgrid.net:587</code></li>
+          <li><strong>Mailgun:</strong> <code>smtp.mailgun.org:587</code></li>
+          <li><strong>AWS SES:</strong> <code>email-smtp.us-east-1.amazonaws.com:587</code></li>
+          <li><strong>Postmark:</strong> <code>smtp.postmarkapp.com:587</code></li>
+        </ul>
+
+        <h2>Database Configuration (Optional)</h2>
+        <p>
+          For session persistence with database adapters:
+        </p>
+
+        <CodeBlock language="bash">
+{`# PostgreSQL with Prisma
+DATABASE_URL="postgresql://username:password@localhost:5432/auth_db"
+
+# MySQL with Prisma
+DATABASE_URL="mysql://username:password@localhost:3306/auth_db"
+
+# SQLite (development)
+DATABASE_URL="file:./dev.db"`}
+        </CodeBlock>
+
+        <h2>MCP Configuration (Optional)</h2>
+        <p>
+          For AI agent authentication features:
+        </p>
+
+        <CodeBlock language="bash">
+{`# Enable MCP features
+MCP_ENABLED=true
+
+# Agent token expiration (default: 15m)
+MCP_TOKEN_EXPIRES_IN=15m
+
+# Allowed agent scopes (comma-separated)
+MCP_ALLOWED_SCOPES=debug,read,write`}
+        </CodeBlock>
+
+        <h2>Production Environment Variables</h2>
+        <p>
+          For production deployment, ensure you have:
+        </p>
+
+        <CodeBlock language="bash">
+{`# Production environment
+NODE_ENV=production
+AUTH_SECRET=your-production-secret-here
+GOOGLE_CLIENT_ID=your-production-client-id
+GOOGLE_CLIENT_SECRET=your-production-client-secret
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google
+
+# Production SMTP
+SMTP_HOST=your-production-smtp-host
+SMTP_PORT=587
+SMTP_USER=your-production-email
+SMTP_PASS=your-production-password
+SMTP_FROM=noreply@yourdomain.com
+
+# Production database
+DATABASE_URL=your-production-database-url`}
+        </CodeBlock>
+
+        <Callout type="info" title="Best Practices">
+          <ul>
+            <li>Use different OAuth applications for development and production</li>
+            <li>Rotate secrets regularly in production</li>
+            <li>Use environment-specific redirect URIs</li>
+            <li>Monitor for exposed secrets in logs</li>
+            <li>Use secret management services for production</li>
+          </ul>
+        </Callout>
+
+        <h2>Environment Validation</h2>
+        <p>
+          You can validate your environment variables at startup:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// lib/env.ts
+export function validateEnv() {
+  const required = [
+    'AUTH_SECRET',
+    'GOOGLE_CLIENT_ID',
+    'GOOGLE_CLIENT_SECRET',
+    'GOOGLE_REDIRECT_URI'
+  ];
+
+  const missing = required.filter(key => !process.env[key]);
+  
+  if (missing.length > 0) {
+    throw new Error(\`Missing required environment variables: \${missing.join(', ')}\`);
+  }
+
+  if (process.env.AUTH_SECRET!.length < 32) {
+    throw new Error('AUTH_SECRET must be at least 32 characters long');
+  }
+}
+
+// Call this in your app startup
+validateEnv();`}
+        </CodeBlock>
+
+        <h2>Development vs Production</h2>
+        <p>
+          Use different configurations for development and production:
+        </p>
+
+        <h3>Development (.env.local)</h3>
+        <CodeBlock language="bash">
+{`# Development environment
+AUTH_SECRET=dev-secret-key-32-chars-minimum-length
+GOOGLE_CLIENT_ID=your-dev-client-id
+GOOGLE_CLIENT_SECRET=your-dev-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-dev-email@gmail.com
+SMTP_PASS=your-dev-app-password`}
+        </CodeBlock>
+
+        <h3>Production (Environment Variables)</h3>
+        <p>
+          In production, set environment variables through your hosting platform:
+        </p>
+
+        <ul>
+          <li><strong>Vercel:</strong> Project Settings → Environment Variables</li>
+          <li><strong>Netlify:</strong> Site Settings → Environment Variables</li>
+          <li><strong>Railway:</strong> Project → Variables</li>
+          <li><strong>Heroku:</strong> Settings → Config Vars</li>
+        </ul>
+
+        <Callout type="info" title="Best Practices">
+          <ul>
+            <li>Use different OAuth applications for development and production</li>
+            <li>Rotate secrets regularly in production</li>
+            <li>Use environment-specific redirect URIs</li>
+            <li>Monitor for exposed secrets in logs</li>
+            <li>Use secret management services for production</li>
+          </ul>
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Once you have your environment variables configured, you can proceed to 
+          implement your first authentication flow.
+        </p>
+      </div>
+    </DocsLayout>
+  );
+}

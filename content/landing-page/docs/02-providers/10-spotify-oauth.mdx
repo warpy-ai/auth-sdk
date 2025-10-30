@@ -1,0 +1,55 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Spotify OAuth - @warpy-auth-sdk/core',
+  description: 'Spotify OAuth with PKCE and user profile scopes.',
+};
+
+export default function SpotifyOAuth() {
+  return (
+    <DocsLayout
+      title="Spotify OAuth"
+      description="Spotify OAuth with PKCE and user profile scopes."
+      prevPage={{ title: 'Microsoft OAuth', href: '/docs/providers/microsoft-oauth' }}
+      nextPage={{ title: 'Discord OAuth', href: '/docs/providers/discord-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Spotify supports PKCE (S256) by default. Recommended scopes include <code>user-read-email</code>
+          and <code>user-read-private</code> for profile access.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+SPOTIFY_CLIENT_ID=your-spotify-client-id
+SPOTIFY_CLIENT_SECRET=your-spotify-client-secret
+SPOTIFY_REDIRECT_URI=http://localhost:3000/api/auth/callback/spotify`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Spotify OAuth Setup"
+          description="Minimal configuration"
+          code={`import { spotify } from '@warpy-auth-sdk/core';
+
+const provider = spotify({
+  clientId: process.env.SPOTIFY_CLIENT_ID!,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+  redirectUri: process.env.SPOTIFY_REDIRECT_URI!,
+  scope: ['user-read-email', 'user-read-private'],
+});`}
+        />
+
+        <Callout type="info" title="Profile Images">
+          The SDK maps <code>images[0].url</code> to the user picture when available.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

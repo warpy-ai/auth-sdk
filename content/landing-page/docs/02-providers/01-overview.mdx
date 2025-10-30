@@ -1,0 +1,264 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { TypeSignature } from '@/components/docs/type-signature';
+
+export const metadata = {
+  title: 'Providers Overview - @warpy-auth-sdk/core',
+  description: 'Understanding the provider architecture in @warpy-auth-sdk/core.',
+};
+
+export default function ProvidersOverview() {
+  return (
+    <DocsLayout
+      title="Providers Overview"
+      description="Understanding the provider architecture in @warpy-auth-sdk/core."
+      nextPage={{ title: 'Google OAuth', href: '/docs/providers/google-oauth' }}
+    >
+      <div>
+        <h2>What are Providers?</h2>
+        <p>
+          Providers in @warpy-auth-sdk/core are factory functions that return configuration objects 
+          for different authentication methods. They abstract the complexity of OAuth flows, 
+          email magic links, and other authentication mechanisms into simple, reusable functions.
+        </p>
+
+        <h2>Provider Architecture</h2>
+        <p>
+          The provider system is designed to be:
+        </p>
+
+        <ul>
+          <li><strong>Modular:</strong> Import only the providers you need</li>
+          <li><strong>Extensible:</strong> Easy to create custom providers</li>
+          <li><strong>Type-safe:</strong> Full TypeScript support</li>
+          <li><strong>Consistent:</strong> Unified API across all providers</li>
+        </ul>
+
+        <h2>Built-in Providers</h2>
+        <p>
+          @warpy-auth-sdk/core comes with several built-in providers:
+        </p>
+
+        <h3>OAuth Providers</h3>
+        <p>
+          All OAuth providers use PKCE by default with the S256 method and secure HttpOnly cookie storage
+          for verifiers. You can override via <code>pkce</code> option: <code>"S256" | "plain" | false</code>.
+        </p>
+        <ul>
+          <li><a href="/docs/providers/google-oauth"><strong>Google</strong></a> — OpenID Connect scopes, profile and email</li>
+          <li><a href="/docs/providers/github-oauth"><strong>GitHub</strong></a> — Handles private emails via <code>/user/emails</code></li>
+          <li><a href="/docs/providers/gitlab-oauth"><strong>GitLab</strong></a> — Supports self‑hosted via <code>domain</code> option</li>
+          <li><a href="/docs/providers/linkedin-oauth"><strong>LinkedIn</strong></a> — OpenID Connect userinfo endpoint</li>
+          <li><a href="/docs/providers/microsoft-oauth"><strong>Microsoft / Azure AD</strong></a> — Multi‑tenant via <code>tenant</code></li>
+          <li><a href="/docs/providers/spotify-oauth"><strong>Spotify</strong></a> — Email and profile scopes</li>
+          <li><a href="/docs/providers/discord-oauth"><strong>Discord</strong></a> — <code>identify</code> and <code>email</code> scopes</li>
+          <li><a href="/docs/providers/twitch-oauth"><strong>Twitch</strong></a> — Requires <code>Client-Id</code> header for user API</li>
+          <li><a href="/docs/providers/epic-games-oauth"><strong>Epic Games</strong></a> — Basic profile support</li>
+          <li><a href="/docs/providers/custom-providers"><strong>Custom OAuth</strong></a> — Any OAuth 2.0 provider</li>
+        </ul>
+
+        <h3>Email Providers</h3>
+        <ul>
+          <li><strong>Magic Links:</strong> Passwordless authentication via email</li>
+        </ul>
+
+        <h3>Custom Providers</h3>
+        <ul>
+          <li><strong>Credentials:</strong> Username/password authentication (coming soon)</li>
+          <li><strong>Custom OAuth:</strong> Any OAuth 2.0 provider</li>
+        </ul>
+
+        <h2>Provider Interface</h2>
+        <p>
+          All providers implement a common interface:
+        </p>
+
+        <TypeSignature
+          name="Provider"
+          signature={`type Provider = OAuthProvider | EmailProvider | CustomProvider`}
+          description="Base type for all authentication providers"
+        />
+
+        <h3>OAuth Provider</h3>
+        <TypeSignature
+          name="OAuthProvider"
+          signature={`interface OAuthProvider {
+  type: 'oauth';
+  clientId: string;
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scope?: string[];
+  getUser: (token: string) => Promise<User>;
+}`}
+          description="Configuration for OAuth 2.0 providers"
+        />
+
+        <h3>Email Provider</h3>
+        <TypeSignature
+          name="EmailProvider"
+          signature={`interface EmailProvider {
+  type: 'email';
+  server: string;
+  from: string;
+  auth?: {
+    user: string;
+    pass: string;
+  };
+  sendMagicLink: (email: string, token: string) => Promise<void>;
+  verifyToken: (token: string) => Promise<boolean>;
+}`}
+          description="Configuration for email magic link providers"
+        />
+
+        <h2>Using Providers</h2>
+        <p>
+          Providers are used in your authentication configuration:
+        </p>
+
+        <CodeBlock language="typescript">
+{`import { google, email } from '@warpy-auth-sdk/core';
+
+// Google OAuth provider
+const googleProvider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+});
+
+// Email magic link provider
+const emailProvider = email({
+  server: 'smtp.gmail.com:587',
+  from: 'noreply@yourdomain.com',
+  auth: {
+    user: process.env.SMTP_USER!,
+    pass: process.env.SMTP_PASS!,
+  },
+});
+
+// Use in authentication config
+const authConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: googleProvider, // or emailProvider
+};`}
+        </CodeBlock>
+
+        <h2>Provider Lifecycle</h2>
+        <p>
+          Understanding how providers work in the authentication flow:
+        </p>
+
+        <ol>
+          <li><strong>Configuration:</strong> Provider is created with configuration options</li>
+          <li><strong>Authorization:</strong> User is redirected to provider's authorization URL</li>
+          <li><strong>Callback:</strong> Provider handles the callback and exchanges code for token</li>
+          <li><strong>User Info:</strong> Provider fetches user information using the access token</li>
+          <li><strong>Session:</strong> User data is used to create a session</li>
+        </ol>
+
+        <h2>Creating Custom Providers</h2>
+        <p>
+          You can create custom providers for any OAuth 2.0 or custom authentication system:
+        </p>
+
+        <CodeBlock language="typescript">
+{`import { OAuthProvider } from '@warpy-auth-sdk/core';
+
+function customOAuth(options: {
+  clientId: string;
+  clientSecret: string;
+  redirectUri: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scope?: string[];
+}): OAuthProvider {
+  return {
+    type: 'oauth',
+    ...options,
+    async getUser(token: string) {
+      const response = await fetch(options.userInfoUrl, {
+        headers: {
+          Authorization: \`Bearer \${token}\`,
+        },
+      });
+      const user = await response.json();
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.avatar_url,
+      };
+    },
+  };
+}
+
+// Use your custom provider
+const customProvider = customOAuth({
+  clientId: process.env.CUSTOM_CLIENT_ID!,
+  clientSecret: process.env.CUSTOM_CLIENT_SECRET!,
+  redirectUri: process.env.CUSTOM_REDIRECT_URI!,
+  authorizeUrl: 'https://api.custom.com/oauth/authorize',
+  tokenUrl: 'https://api.custom.com/oauth/token',
+  userInfoUrl: 'https://api.custom.com/user',
+  scope: ['read', 'write'],
+});`}
+        </CodeBlock>
+
+        <h2>Provider Configuration</h2>
+        <p>
+          Each provider has specific configuration requirements:
+        </p>
+
+        <h3>OAuth Providers</h3>
+        <ul>
+          <li><strong>clientId:</strong> OAuth client identifier</li>
+          <li><strong>clientSecret:</strong> OAuth client secret</li>
+          <li><strong>redirectUri:</strong> Callback URL for OAuth flow</li>
+          <li><strong>scope:</strong> OAuth scopes (optional)</li>
+        </ul>
+
+        <h3>Email Providers</h3>
+        <ul>
+          <li><strong>server:</strong> SMTP server configuration</li>
+          <li><strong>from:</strong> Sender email address</li>
+          <li><strong>auth:</strong> SMTP authentication credentials</li>
+        </ul>
+
+        <Callout type="info" title="Best Practices">
+          <ul>
+            <li>Use environment variables for all sensitive configuration</li>
+            <li>Validate provider configuration at startup</li>
+            <li>Handle provider-specific errors gracefully</li>
+            <li>Test providers in development before production</li>
+          </ul>
+        </Callout>
+
+        <h2>Provider Security</h2>
+        <p>
+          Security considerations for providers:
+        </p>
+
+        <ul>
+          <li><strong>HTTPS Only:</strong> Always use HTTPS in production</li>
+          <li><strong>State Parameter:</strong> OAuth providers use CSRF protection</li>
+          <li><strong>Token Validation:</strong> All tokens are validated before use</li>
+          <li><strong>Scope Limitation:</strong> Request only necessary OAuth scopes</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you understand the provider architecture, you can explore specific providers:
+        </p>
+
+        <ul>
+          <li><a href="/docs/providers/google-oauth">Google OAuth</a> - Most popular OAuth provider</li>
+          <li><a href="/docs/providers/email-magic-links">Email Magic Links</a> - Passwordless authentication</li>
+          <li><a href="/docs/providers/custom-providers">Custom Providers</a> - Building your own providers</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

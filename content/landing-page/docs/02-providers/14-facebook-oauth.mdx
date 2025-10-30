@@ -1,0 +1,55 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Facebook OAuth - @warpy-auth-sdk/core',
+  description: 'Facebook OAuth with PKCE and picture mapping.',
+};
+
+export default function FacebookOAuth() {
+  return (
+    <DocsLayout
+      title="Facebook OAuth"
+      description="Facebook OAuth with PKCE and picture mapping."
+      prevPage={{ title: 'Custom OAuth', href: '/docs/providers/custom-providers' }}
+      nextPage={{ title: 'Providers Overview', href: '/docs/providers/overview' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Facebook OAuth supports PKCE (S256) by default. The SDK maps the profile picture whether it comes as a string
+          or as <code>picture.data.url</code> in the Graph response.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+FACEBOOK_CLIENT_ID=your-facebook-app-id
+FACEBOOK_CLIENT_SECRET=your-facebook-app-secret
+FACEBOOK_REDIRECT_URI=http://localhost:3000/api/auth/callback/facebook`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Facebook OAuth Setup"
+          description="Minimal configuration"
+          code={`import { facebook } from '@warpy-auth-sdk/core';
+
+const provider = facebook({
+  clientId: process.env.FACEBOOK_CLIENT_ID!,
+  clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+  redirectUri: process.env.FACEBOOK_REDIRECT_URI!,
+  scope: ['email', 'public_profile'],
+});`}
+        />
+
+        <Callout type="info" title="User Fields">
+          The SDK requests <code>id,name,email,picture</code> to ensure consistent mapping.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

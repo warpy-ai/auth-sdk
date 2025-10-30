@@ -5,7 +5,7 @@ import Link from "next/link";
 export function Hero() {
   return (
     <section className="relative container flex flex-col items-center gap-8 pt-32 pb-24 md:pt-40 md:pb-32">
-      <div className="absolute inset-0 -z-10 grid-background opacity-50" />
+      <div className="absolute inset-0 -z-10 grid-background opacity-80" />
 
       <div className="flex max-w-[980px] flex-col items-center gap-6 text-center">
         <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-6xl lg:text-7xl text-balance">

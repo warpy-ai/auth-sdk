@@ -1,0 +1,268 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Quickstart - @warpy-auth-sdk/core',
+  description: 'Get up and running with @warpy-auth-sdk/core in 5 minutes.',
+};
+
+export default function Quickstart() {
+  return (
+    <DocsLayout
+      title="Quickstart"
+      description="Get up and running with @warpy-auth-sdk/core in 5 minutes."
+      prevPage={{ title: 'Installation', href: '/docs/getting-started/installation' }}
+      nextPage={{ title: 'Environment Setup', href: '/docs/getting-started/environment-setup' }}
+    >
+      <div>
+        <h2>5-Minute Setup</h2>
+        <p>
+          This guide will help you set up authentication with Google OAuth in a Next.js 16 application 
+          using the new Proxy feature for Clerk-like ergonomics.
+        </p>
+
+        <h2>1. Create a Next.js Project</h2>
+        <p>
+          If you don't have a Next.js project yet, create one:
+        </p>
+
+        <CodeBlock language="bash">
+{`npx create-next-app@latest my-auth-app
+cd my-auth-app`}
+        </CodeBlock>
+
+        <h2>2. Install @warpy-auth-sdk/core</h2>
+        <CodeBlock language="bash">
+{`npm install @warpy-auth-sdk/core`}
+        </CodeBlock>
+
+        <h2>3. Set Up Environment Variables</h2>
+        <p>
+          Create a <code>.env.local</code> file in your project root:
+        </p>
+
+        <CodeBlock language="bash">
+{`# Required: Your JWT signing secret (min 32 characters)
+AUTH_SECRET=your-secret-key-min-32-chars-long-replace-this-in-production
+
+# Google OAuth credentials (get from Google Cloud Console)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
+        </CodeBlock>
+
+        <Callout type="warning" title="Security">
+          Never commit your <code>AUTH_SECRET</code> to version control. 
+          Use a strong, random secret in production.
+        </Callout>
+
+        <h2>4. Create the Proxy Handler</h2>
+        <p>
+          Create a <code>proxy.ts</code> file in your app root (Next.js 16 feature):
+        </p>
+
+        <Example
+          title="proxy.ts"
+          description="This file handles all authentication routes automatically"
+          code={`import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      // Resolve/upsert your user with smallest overhead
+      async user(u) {
+        // return { id, email, name?, picture? } from your DB
+        return { 
+          id: "1", 
+          email: u.email, 
+          name: u.name, 
+          picture: u.picture 
+        };
+      },
+      jwt: (t) => t,
+      session: (s) => s,
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};`}
+        />
+
+        <h2>5. Set Up the Auth Provider</h2>
+        <p>
+          Wrap your app with the <code>AuthProvider</code>:
+        </p>
+
+        <Example
+          title="app/layout.tsx"
+          description="Add the AuthProvider to your root layout"
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+import "./globals.css";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}`}
+        />
+
+        <h2>6. Create a Login Page</h2>
+        <p>
+          Create a simple login page:
+        </p>
+
+        <Example
+          title="app/login/page.tsx"
+          description="A simple login page with Google OAuth"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+
+export default function LoginPage() {
+  const { session, loading } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  if (session) return <div>Already signed in!</div>;
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-bold">
+            Sign in to your account
+          </h2>
+        </div>
+        <div>
+          <a
+            href="/api/auth/signin/google"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Sign in with Google
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>7. Create a Protected Dashboard</h2>
+        <p>
+          Create a dashboard that requires authentication:
+        </p>
+
+        <Example
+          title="app/dashboard/page.tsx"
+          description="A protected dashboard page"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+
+export default function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  if (!session) return <div>Please sign in</div>;
+
+  return (
+    <div className="min-h-screen p-8">
+      <div className="max-w-4xl mx-auto">
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <button
+            onClick={signOut}
+            className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+          >
+            Sign Out
+          </button>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-xl font-semibold mb-4">Welcome, {session.user.name}!</h2>
+          <p className="text-gray-600">Email: {session.user.email}</p>
+          {session.user.picture && (
+            <img 
+              src={session.user.picture} 
+              alt="Profile" 
+              className="w-16 h-16 rounded-full mt-4"
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>8. Start the Development Server</h2>
+        <CodeBlock language="bash">
+{`npm run dev`}
+        </CodeBlock>
+
+        <p>
+          Visit <code>http://localhost:3000/login</code> to test your authentication flow!
+        </p>
+
+        <Callout type="success" title="Congratulations!">
+          You've successfully set up authentication with @warpy-auth-sdk/core. 
+          The proxy automatically handles all the OAuth flow complexity.
+        </Callout>
+
+        <h2>What's Next?</h2>
+        <p>
+          Now that you have basic authentication working, you can:
+        </p>
+
+        <ul>
+          <li>Set up environment variables for production</li>
+          <li>Add email magic link authentication</li>
+          <li>Configure database adapters for session persistence</li>
+          <li>Enable MCP for AI agent authentication</li>
+          <li>Add more OAuth providers</li>
+        </ul>
+
+        <p>
+          Continue to the <a href="/docs/getting-started/environment-setup">Environment Setup</a> guide 
+          to configure your environment variables properly.
+        </p>
+      </div>
+    </DocsLayout>
+  );
+}

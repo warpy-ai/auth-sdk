@@ -1,0 +1,553 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Next.js App Router Example - @warpy-auth-sdk/core',
+  description: 'Complete Next.js App Router example with @warpy-auth-sdk/core.',
+};
+
+export default function NextJSAppRouterExample() {
+  return (
+    <DocsLayout
+      title="Next.js App Router Example"
+      description="Complete Next.js App Router example with @warpy-auth-sdk/core."
+      nextPage={{ title: 'Google OAuth Flow', href: '/docs/examples/google-oauth-flow' }}
+    >
+      <div>
+        <h2>Complete Next.js App Router Example</h2>
+        <p>
+          This example demonstrates a complete Next.js 16 application with @warpy-auth-sdk/core, 
+          including Google OAuth, email magic links, and protected routes.
+        </p>
+
+        <h2>Project Structure</h2>
+        <CodeBlock language="bash">
+{`my-auth-app/
+├── app/
+│   ├── layout.tsx              # Root layout with AuthProvider
+│   ├── page.tsx               # Home page
+│   ├── login/
+│   │   └── page.tsx           # Login page
+│   ├── dashboard/
+│   │   └── page.tsx          # Protected dashboard
+│   ├── api/
+│   │   └── auth/
+│   │       ├── session/
+│   │       │   └── route.ts   # Session API
+│   │       └── signin/
+│   │           └── email/
+│   │               └── route.ts # Email sign-in API
+│   └── globals.css
+├── proxy.ts                   # Next.js 16 Proxy
+├── .env.local                # Environment variables
+├── package.json
+└── next.config.ts`}
+        </CodeBlock>
+
+        <h2>Environment Setup</h2>
+        <p>
+          Create a <code>.env.local</code> file with your credentials:
+        </p>
+
+        <CodeBlock language="bash">
+{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+
+# Email configuration (optional)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@yourdomain.com`}
+        </CodeBlock>
+
+        <h2>Proxy Configuration</h2>
+        <p>
+          Create the Next.js 16 Proxy for authentication:
+        </p>
+
+        <Example
+          title="proxy.ts"
+          description="Main authentication proxy configuration"
+          code={`import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google, email } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      async user(u) {
+        // In a real app, save to database
+        return {
+          id: u.id || u.email,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+      jwt: (token) => token,
+      session: (session) => session,
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};`}
+        />
+
+        <h2>Root Layout</h2>
+        <p>
+          Set up the AuthProvider in your root layout:
+        </p>
+
+        <Example
+          title="app/layout.tsx"
+          description="Root layout with authentication provider"
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+import "./globals.css";
+
+export const metadata = {
+  title: "My Auth App",
+  description: "A Next.js app with authentication",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}`}
+        />
+
+        <h2>Home Page</h2>
+        <p>
+          Create a home page that shows authentication status:
+        </p>
+
+        <Example
+          title="app/page.tsx"
+          description="Home page with authentication status"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import Link from "next/link";
+
+export default function HomePage() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-16">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-8">
+              Welcome to My Auth App
+            </h1>
+            
+            {session ? (
+              <div className="space-y-4">
+                <div className="bg-white p-6 rounded-lg shadow">
+                  <h2 className="text-2xl font-semibold mb-4">
+                    Hello, {session.user.name}!
+                  </h2>
+                  <p className="text-gray-600 mb-4">
+                    Email: {session.user.email}
+                  </p>
+                  {session.user.picture && (
+                    <img 
+                      src={session.user.picture} 
+                      alt="Profile" 
+                      className="w-16 h-16 rounded-full mx-auto"
+                    />
+                  )}
+                </div>
+                <Link
+                  href="/dashboard"
+                  className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700"
+                >
+                  Go to Dashboard
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-xl text-gray-600 mb-8">
+                  Please sign in to access your dashboard
+                </p>
+                <Link
+                  href="/login"
+                  className="inline-block bg-blue-600 text-white px-6 py-3 rounded-md hover:bg-blue-700"
+                >
+                  Sign In
+                </Link>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Login Page</h2>
+        <p>
+          Create a login page with multiple authentication options:
+        </p>
+
+        <Example
+          title="app/login/page.tsx"
+          description="Login page with Google OAuth and email options"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
+export default function LoginPage() {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [emailLoading, setEmailLoading] = useState(false);
+  const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    if (session) {
+      router.push("/dashboard");
+    }
+  }, [session, router]);
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailLoading(true);
+    setMessage('');
+
+    try {
+      const response = await fetch('/api/auth/signin/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (response.ok) {
+        setMessage('Check your email for the magic link!');
+      } else {
+        setMessage('Failed to send magic link. Please try again.');
+      }
+    } catch (error) {
+      setMessage('An error occurred. Please try again.');
+    } finally {
+      setEmailLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (session) {
+    return null; // Will redirect to dashboard
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Choose your preferred sign-in method
+          </p>
+        </div>
+        
+        <div className="space-y-4">
+          {/* Google OAuth */}
+          <a
+            href="/api/auth/signin/google"
+            className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+          >
+            Continue with Google
+          </a>
+          
+          {/* Email Magic Link */}
+          <form onSubmit={handleEmailSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="email" className="sr-only">
+                Email address
+              </label>
+              <input
+                id="email"
+                name="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                placeholder="Email address"
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={emailLoading}
+              className="w-full flex justify-center py-2 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
+            >
+              {emailLoading ? 'Sending...' : 'Send Magic Link'}
+            </button>
+          </form>
+
+          {message && (
+            <div className={\`text-sm text-center \${message.includes('Check your email') ? 'text-green-600' : 'text-red-600'}\`}>
+              {message}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Protected Dashboard</h2>
+        <p>
+          Create a protected dashboard that requires authentication:
+        </p>
+
+        <Example
+          title="app/dashboard/page.tsx"
+          description="Protected dashboard page"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push("/login");
+    }
+  }, [session, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null; // Will redirect to login
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-700">
+                Welcome, {session.user.name}
+              </span>
+              <button
+                onClick={signOut}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Profile Information</h3>
+            <div className="space-y-2">
+              <p><strong>Name:</strong> {session.user.name}</p>
+              <p><strong>Email:</strong> {session.user.email}</p>
+              {session.user.picture && (
+                <div className="mt-4">
+                  <img 
+                    src={session.user.picture} 
+                    alt="Profile" 
+                    className="w-16 h-16 rounded-full"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Session Details</h3>
+            <div className="space-y-2 text-sm">
+              <p><strong>User ID:</strong> {session.user.id}</p>
+              <p><strong>Session Type:</strong> {session.type || 'standard'}</p>
+              <p><strong>Expires:</strong> {new Date(session.expires).toLocaleString()}</p>
+            </div>
+          </div>
+
+          <div className="bg-white p-6 rounded-lg shadow">
+            <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+            <div className="space-y-2">
+              <button className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                Update Profile
+              </button>
+              <button className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700">
+                Settings
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Email Sign-in API</h2>
+        <p>
+          Create an API endpoint for email magic link authentication:
+        </p>
+
+        <Example
+          title="app/api/auth/signin/email/route.ts"
+          description="Email magic link API endpoint"
+          code={`import { authenticate, email } from '@warpy-auth-sdk/core';
+import { NextRequest } from 'next/server';
+
+const emailProvider = email({
+  server: \`\${process.env.SMTP_HOST}:\${process.env.SMTP_PORT}\`,
+  from: process.env.SMTP_FROM!,
+  auth: {
+    user: process.env.SMTP_USER!,
+    pass: process.env.SMTP_PASS!,
+  },
+});
+
+export async function POST(request: NextRequest) {
+  try {
+    const { email: userEmail } = await request.json();
+
+    if (!userEmail) {
+      return Response.json(
+        { error: 'Email is required' },
+        { status: 400 }
+      );
+    }
+
+    const result = await authenticate(
+      {
+        secret: process.env.AUTH_SECRET!,
+        provider: emailProvider,
+      },
+      request,
+      { email: userEmail }
+    );
+
+    if (result.error) {
+      return Response.json(
+        { error: result.error },
+        { status: 400 }
+      );
+    }
+
+    return Response.json({ 
+      success: true,
+      message: 'Magic link sent successfully' 
+    });
+  } catch (error) {
+    console.error('Magic link error:', error);
+    return Response.json(
+      { error: 'Failed to send magic link' },
+      { status: 500 }
+    );
+  }
+}`}
+        />
+
+        <h2>Running the Example</h2>
+        <p>
+          To run this example:
+        </p>
+
+        <ol>
+          <li>Clone the repository</li>
+          <li>Install dependencies: <code>npm install</code></li>
+          <li>Set up environment variables in <code>.env.local</code></li>
+          <li>Start the development server: <code>npm run dev</code></li>
+          <li>Visit <code>http://localhost:3000</code></li>
+        </ol>
+
+        <Callout type="success" title="Example Complete">
+          You now have a complete Next.js application with authentication using @warpy-auth-sdk/core. 
+          Users can sign in with Google OAuth or email magic links.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Enhance your application with:
+        </p>
+
+        <ul>
+          <li><a href="/docs/guides/database-adapters">Database Adapters</a> for session persistence</li>
+          <li><a href="/docs/mcp/introduction">MCP Integration</a> for AI agent authentication</li>
+          <li><a href="/docs/guides/security-best-practices">Security Best Practices</a> for production</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

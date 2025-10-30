@@ -1,0 +1,110 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'MCP Introduction - @warpy-auth-sdk/core',
+  description: 'Introduction to Model Context Protocol (MCP) for AI agent authentication.',
+};
+
+export default function MCPIntroduction() {
+  return (
+    <DocsLayout
+      title="MCP Introduction"
+      description="Introduction to Model Context Protocol (MCP) for AI agent authentication."
+      nextPage={{ title: 'Agent Authentication', href: '/docs/mcp/agent-authentication' }}
+    >
+      <div>
+        <h2>What is MCP?</h2>
+        <p>
+          Model Context Protocol (MCP) is a standardized way for AI agents to interact with 
+          applications and services. @warpy-auth-sdk/core implements MCP to enable AI agents to 
+          authenticate on behalf of users with scoped, time-limited access.
+        </p>
+
+        <h2>Why MCP for Authentication?</h2>
+        <p>
+          Traditional authentication is designed for human users, but AI agents need different 
+          capabilities:
+        </p>
+
+        <ul>
+          <li><strong>Delegated Access:</strong> Agents act on behalf of users</li>
+          <li><strong>Scoped Permissions:</strong> Limited access to specific resources</li>
+          <li><strong>Time-Limited:</strong> Short-lived tokens for security</li>
+          <li><strong>Audit Trail:</strong> Track agent actions and access</li>
+        </ul>
+
+        <h2>Use Cases</h2>
+        <p>
+          MCP authentication enables AI agents to:
+        </p>
+
+        <ul>
+          <li><strong>Debug Issues:</strong> Agents can access user data to diagnose problems</li>
+          <li><strong>Automate Tasks:</strong> Perform routine operations on behalf of users</li>
+          <li><strong>Data Analysis:</strong> Analyze user data with appropriate permissions</li>
+          <li><strong>Support:</strong> Help users with account-related issues</li>
+        </ul>
+
+        <h2>Security Model</h2>
+        <p>
+          MCP authentication includes several security features:
+        </p>
+
+        <ul>
+          <li><strong>Short-lived Tokens:</strong> Default 15-minute expiration</li>
+          <li><strong>Scope-based Access:</strong> Agents can only access permitted resources</li>
+          <li><strong>Token Revocation:</strong> Immediate invalidation when needed</li>
+          <li><strong>Audit Logging:</strong> Track all agent actions</li>
+        </ul>
+
+        <h2>Basic Example</h2>
+        <p>
+          Here's a simple example of MCP agent authentication:
+        </p>
+
+        <Example
+          title="Agent Login"
+          description="AI agent logging in with scoped access"
+          code={`// AI agent requests authentication
+const response = await fetch('/api/mcp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    tool: 'agent_login',
+    args: {
+      userId: 'user-123',
+      scopes: ['debug', 'read'],
+      agentId: 'claude-assistant',
+      expiresIn: '15m'
+    }
+  })
+});
+
+const { token } = await response.json();
+
+// Use token for authenticated requests
+const userData = await fetch('/api/user/profile', {
+  headers: {
+    'Authorization': \`Bearer \${token}\`
+  }
+});`}
+        />
+
+        <h2>Next Steps</h2>
+        <p>
+          Learn more about MCP implementation:
+        </p>
+
+        <ul>
+          <li><a href="/docs/mcp/agent-authentication">Agent Authentication</a> - How agents authenticate</li>
+          <li><a href="/docs/mcp/tools-reference">Tools Reference</a> - Available MCP tools</li>
+          <li><a href="/docs/mcp/ai-sdk-integration">AI SDK Integration</a> - Using with Vercel AI SDK</li>
+          <li><a href="/docs/mcp/security-model">Security Model</a> - Security considerations</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -1,6 +1,7 @@
 import { type JWTPayload } from "./utils/jwt";
 import type { Provider } from "./providers/types";
 import type { Adapter } from "./adapters/types";
+import type { CaptchaEnforcement } from "./captcha/types";
 export interface AuthConfig {
     provider: Provider;
     secret: string;
@@ -13,6 +14,7 @@ export interface AuthConfig {
         apiKey?: string;
         baseUrl?: string;
     };
+    captcha?: CaptchaEnforcement;
     callbacks?: {
         user?: (user: {
             id?: string;
@@ -73,3 +75,5 @@ export { google } from "./providers/google";
 export { email } from "./providers/email";
 export type { Adapter } from "./adapters/types";
 export { createMCPTools } from "./mcp/mcp";
+export { createCaptchaProvider } from "./captcha";
+export type { CaptchaConfig, CaptchaProvider, CaptchaVerificationResult, CaptchaEnforcement, RecaptchaV2Config, RecaptchaV3Config, HCaptchaConfig, TurnstileConfig, } from "./captcha/types";

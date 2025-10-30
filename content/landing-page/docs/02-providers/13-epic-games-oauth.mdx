@@ -1,0 +1,54 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Epic Games OAuth - @warpy-auth-sdk/core',
+  description: 'Epic Games OAuth with PKCE.',
+};
+
+export default function EpicGamesOAuth() {
+  return (
+    <DocsLayout
+      title="Epic Games OAuth"
+      description="Epic Games OAuth with PKCE."
+      prevPage={{ title: 'Twitch OAuth', href: '/docs/providers/twitch-oauth' }}
+      nextPage={{ title: 'Custom OAuth', href: '/docs/providers/custom-providers' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Epic Games supports PKCE (S256) by default. Basic profile details are available via the user info endpoint.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+EPIC_CLIENT_ID=your-epic-client-id
+EPIC_CLIENT_SECRET=your-epic-client-secret
+EPIC_REDIRECT_URI=http://localhost:3000/api/auth/callback/epic`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Epic Games OAuth Setup"
+          description="Minimal configuration"
+          code={`import { epic } from '@warpy-auth-sdk/core';
+
+const provider = epic({
+  clientId: process.env.EPIC_CLIENT_ID!,
+  clientSecret: process.env.EPIC_CLIENT_SECRET!,
+  redirectUri: process.env.EPIC_REDIRECT_URI!,
+  scope: ['basic_profile'],
+});`}
+        />
+
+        <Callout type="info" title="Profile Pictures">
+          Epic's basic profile API does not include an avatar; the SDK leaves picture undefined.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+
