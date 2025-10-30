@@ -5,6 +5,7 @@ import Link from "next/link";
 
 export default function MCPDemoPage() {
   const [tool, setTool] = useState("search_flights");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -30,6 +31,7 @@ export default function MCPDemoPage() {
     setResult(null);
 
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let args: any = {};
 
       switch (tool) {
@@ -98,8 +100,8 @@ export default function MCPDemoPage() {
           </h2>
           <p className="text-blue-800">
             This page demonstrates the MCP tools available for AI agents. These
-            tools are protected by auth-sdk's MCP Shield and can be called by AI
-            assistants like Claude or ChatGPT.
+            tools are protected by auth-sdk&apos;s MCP Shield and can be called
+            by AI assistants like Claude or ChatGPT.
           </p>
         </div>
 

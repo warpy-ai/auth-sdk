@@ -45,6 +45,11 @@
       "types": "./typings/next/index.d.ts",
       "import": "./dist/next/index.js",
       "default": "./dist/next/index.js"
+    },
+    "./ai-mode": {
+      "types": "./typings/ai-mode/index.d.ts",
+      "import": "./dist/ai-mode/index.js",
+      "default": "./dist/ai-mode/index.js"
     }
   },
   "scripts": {
@@ -116,6 +121,9 @@
       ],
       "next": [
         "typings/next/index.d.ts"
+      ],
+      "ai-mode": [
+        "typings/ai-mode/index.d.ts"
       ],
       "*": [
         "typings/index.d.ts"

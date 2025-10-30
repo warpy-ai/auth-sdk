@@ -1,21 +1,21 @@
 // Get current user information
 // GET /api/user/me
 
-import { getSession } from '@warpy-auth-sdk/core/hooks/server';
+import { getServerSession } from '@warpy-auth-sdk/core/hooks/server';
 import { db } from '@/lib/database';
 
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   try {
-    const session = await getSession(request, process.env.AUTH_SECRET!);
+    const session = await getServerSession(request, process.env.AUTH_SECRET!);
 
     if (!session) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get full user info from database
-    const user = db.getUser(session.userId);
+    const user = db.getUser(session.user.id);
 
     if (!user) {
       return Response.json({ error: 'User not found' }, { status: 404 });

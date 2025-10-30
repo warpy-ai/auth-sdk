@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { AIProvider, AIMode } from "@warpy-auth-sdk/core/ai-mode";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -27,7 +28,17 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AIProvider
+          enabled={false}
+          mcpEndpoint="/api/mcp"
+          position="bottom"
+          theme="auto"
+          showNotifications={true}
+          showRainbowBorder={true}
+        >
+          <AIMode />
+          {children}
+        </AIProvider>
       </body>
     </html>
   );
