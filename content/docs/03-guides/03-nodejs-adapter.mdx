@@ -1,30 +1,42 @@
----
-title: Node.js HTTP Adapter
-description: Using @warpy-auth-sdk/core with pure Node.js HTTP
----
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
 
-# Node.js HTTP Adapter
+export const metadata = {
+  title: 'Node.js HTTP Adapter - @warpy-auth-sdk/core',
+  description: 'Using @warpy-auth-sdk/core with pure Node.js HTTP',
+};
 
-The Node.js HTTP adapter provides integration of `@warpy-auth-sdk/core` with the native Node.js `http` module. This adapter has zero framework dependencies and gives you maximum control and flexibility.
+export default function NodejsAdapter() {
+  return (
+    <DocsLayout
+      title="Node.js HTTP Adapter"
+      description="Using @warpy-auth-sdk/core with pure Node.js HTTP"
+      prevPage={{ title: 'Hono Adapter', href: '/docs/guides/hono-adapter' }}
+      nextPage={{ title: 'Two-Factor Authentication', href: '/docs/guides/two-factor-authentication' }}
+    >
+      <div>
+        <h2>Node.js HTTP Adapter</h2>
 
-## Installation
+        <p>
+          The Node.js HTTP adapter provides integration of <code>@warpy-auth-sdk/core</code> with the native Node.js <code>http</code> module. This adapter has zero framework dependencies and gives you maximum control and flexibility.
+        </p>
 
-```bash
-npm install @warpy-auth-sdk/core
+        <h2>Installation</h2>
+
+        <CodeBlock language="bash">{`npm install @warpy-auth-sdk/core
 # or
 yarn add @warpy-auth-sdk/core
 # or
-pnpm add @warpy-auth-sdk/core
-```
+pnpm add @warpy-auth-sdk/core`}</CodeBlock>
 
-No additional dependencies required!
+        <p>No additional dependencies required!</p>
 
-## Quick Start
+        <h2>Quick Start</h2>
 
-### Basic Setup
+        <h3>Basic Setup</h3>
 
-```typescript
-import { createServer } from "http";
+        <CodeBlock language="typescript">{`import { createServer } from "http";
 import { createAuthHandler } from "@warpy-auth-sdk/core/adapters/node";
 import { google } from "@warpy-auth-sdk/core";
 
@@ -65,50 +77,60 @@ const server = createServer(async (req, res) => {
 
 server.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
-});
-```
+});`}</CodeBlock>
 
-## API Reference
+        <h2>API Reference</h2>
 
-### `createAuthHandler(config, options)`
+        <h3>createAuthHandler(config, options)</h3>
 
-Creates an authentication handler and middleware for Node.js HTTP servers.
+        <p>Creates an authentication handler and middleware for Node.js HTTP servers.</p>
 
-#### Parameters
+        <h4>Parameters</h4>
 
-- **`config`** (`AuthConfig`): Authentication configuration
-  - `secret`: JWT signing secret (min 32 characters)
-  - `provider`: OAuth provider (Google, GitHub, etc.)
-  - `adapter`: Optional database adapter
-  - `callbacks`: Optional callbacks
-- **`options`** (`NodeAuthOptions`): Optional configuration
-  - `basePath`: Base path for auth routes (default: `/auth`)
-  - `successRedirect`: Redirect after successful auth (default: `/`)
-  - `errorRedirect`: Redirect after auth failure (default: `/login`)
-  - `mcp`: MCP configuration
+        <ul>
+          <li><strong>config</strong> (<code>AuthConfig</code>): Authentication configuration
+            <ul>
+              <li><code>secret</code>: JWT signing secret (min 32 characters)</li>
+              <li><code>provider</code>: OAuth provider (Google, GitHub, etc.)</li>
+              <li><code>adapter</code>: Optional database adapter</li>
+              <li><code>callbacks</code>: Optional callbacks</li>
+            </ul>
+          </li>
+          <li><strong>options</strong> (<code>NodeAuthOptions</code>): Optional configuration
+            <ul>
+              <li><code>basePath</code>: Base path for auth routes (default: <code>/auth</code>)</li>
+              <li><code>successRedirect</code>: Redirect after successful auth (default: <code>/</code>)</li>
+              <li><code>errorRedirect</code>: Redirect after auth failure (default: <code>/login</code>)</li>
+              <li><code>mcp</code>: MCP configuration</li>
+            </ul>
+          </li>
+        </ul>
 
-#### Returns
+        <h4>Returns</h4>
 
-An object with:
-- `handler`: Async function to handle auth routes
-- `requireAuth`: Middleware function to protect routes
+        <p>An object with:</p>
+        <ul>
+          <li><code>handler</code>: Async function to handle auth routes</li>
+          <li><code>requireAuth</code>: Middleware function to protect routes</li>
+        </ul>
 
-### Handler Routes
+        <h3>Handler Routes</h3>
 
-When a request matches these routes, the handler returns `true`:
+        <p>When a request matches these routes, the handler returns <code>true</code>:</p>
 
-- `GET {basePath}/session` - Get current session
-- `POST {basePath}/signout` - Sign out user
-- `GET {basePath}/signin/:provider` - Provider-specific sign-in
-- `GET {basePath}/callback/:provider` - Provider-specific callback
-- `POST {basePath}/mcp` - MCP tools endpoint (if enabled)
+        <ul>
+          <li><code>GET {`{basePath}`}/session</code> - Get current session</li>
+          <li><code>POST {`{basePath}`}/signout</code> - Sign out user</li>
+          <li><code>GET {`{basePath}`}/signin/:provider</code> - Provider-specific sign-in</li>
+          <li><code>GET {`{basePath}`}/callback/:provider</code> - Provider-specific callback</li>
+          <li><code>POST {`{basePath}`}/mcp</code> - MCP tools endpoint (if enabled)</li>
+        </ul>
 
-## Usage Examples
+        <h2>Usage Examples</h2>
 
-### Protecting Routes
+        <h3>Protecting Routes</h3>
 
-```typescript
-const server = createServer(async (req, res) => {
+        <CodeBlock language="typescript">{`const server = createServer(async (req, res) => {
   const handled = await handler(req, res);
   if (handled) return;
 
@@ -132,20 +154,18 @@ const server = createServer(async (req, res) => {
 
   res.writeHead(404);
   res.end("Not Found");
-});
-```
+});`}</CodeBlock>
 
-### Serving Static Files
+        <h3>Serving Static Files</h3>
 
-```typescript
-import { readFileSync } from "fs";
+        <CodeBlock language="typescript">{`import { readFileSync } from "fs";
 import { join } from "path";
 
 const server = createServer(async (req, res) => {
   const handled = await handler(req, res);
   if (handled) return;
 
-  const url = new URL(req.url!, `http://${req.headers.host}`);
+  const url = new URL(req.url!, \`http://\${req.headers.host}\`);
 
   // Serve HTML
   if (url.pathname === "/") {
@@ -167,13 +187,11 @@ const server = createServer(async (req, res) => {
       res.end("Not Found");
     }
   }
-});
-```
+});`}</CodeBlock>
 
-### Custom Callbacks
+        <h3>Custom Callbacks</h3>
 
-```typescript
-const { handler, requireAuth } = createAuthHandler({
+        <CodeBlock language="typescript">{`const { handler, requireAuth } = createAuthHandler({
   secret: process.env.AUTH_SECRET!,
   provider: google({ /* config */ }),
   callbacks: {
@@ -196,13 +214,11 @@ const { handler, requireAuth } = createAuthHandler({
       return session;
     },
   },
-});
-```
+});`}</CodeBlock>
 
-### With Database Adapter
+        <h3>With Database Adapter</h3>
 
-```typescript
-import { PrismaAdapter } from "@warpy-auth-sdk/core";
+        <CodeBlock language="typescript">{`import { PrismaAdapter } from "@warpy-auth-sdk/core";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -211,13 +227,11 @@ const { handler, requireAuth } = createAuthHandler({
   secret: process.env.AUTH_SECRET!,
   provider: google({ /* config */ }),
   adapter: PrismaAdapter(prisma),
-});
-```
+});`}</CodeBlock>
 
-### MCP (AI Agent) Support
+        <h3>MCP (AI Agent) Support</h3>
 
-```typescript
-const { handler, requireAuth } = createAuthHandler({
+        <CodeBlock language="typescript">{`const { handler, requireAuth } = createAuthHandler({
   secret: process.env.AUTH_SECRET!,
   provider: google({ /* config */ }),
 }, {
@@ -234,13 +248,11 @@ const { handler, requireAuth } = createAuthHandler({
   },
 });
 
-// MCP tools now available at POST /api/mcp
-```
+// MCP tools now available at POST /api/mcp`}</CodeBlock>
 
-### URL Routing
+        <h3>URL Routing</h3>
 
-```typescript
-import { parse } from "url";
+        <CodeBlock language="typescript">{`import { parse } from "url";
 
 const server = createServer(async (req, res) => {
   const handled = await handler(req, res);
@@ -262,13 +274,11 @@ const server = createServer(async (req, res) => {
       res.writeHead(404);
       res.end("Not Found");
   }
-});
-```
+});`}</CodeBlock>
 
-### Request Body Parsing
+        <h3>Request Body Parsing</h3>
 
-```typescript
-async function parseJSON(req: IncomingMessage): Promise<any> {
+        <CodeBlock language="typescript">{`async function parseJSON(req: IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let body = "";
     req.on("data", (chunk) => {
@@ -298,15 +308,13 @@ const server = createServer(async (req, res) => {
       res.end("Invalid JSON");
     }
   }
-});
-```
+});`}</CodeBlock>
 
-## TypeScript Support
+        <h2>TypeScript Support</h2>
 
-The adapter includes full TypeScript support:
+        <p>The adapter includes full TypeScript support:</p>
 
-```typescript
-import type {
+        <CodeBlock language="typescript">{`import type {
   IncomingMessage,
   ServerResponse,
   NodeAuthOptions,
@@ -326,97 +334,150 @@ const server = createServer(
   async (req: IncomingMessage, res: ServerResponse) => {
     // ...
   }
-);
-```
+);`}</CodeBlock>
 
-## Complete Example
+        <h2>Complete Example</h2>
 
-See the [complete Node.js example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/node-example) in the repository.
+        <p>
+          See the <a href="https://github.com/warpy-ai/auth-sdk/tree/main/examples/node-example" target="_blank">complete Node.js example</a> in the repository.
+        </p>
 
-## Comparison with Other Adapters
+        <h2>Comparison with Other Adapters</h2>
 
-| Feature | Node.js | Express | Fastify | Hono |
-|---------|---------|---------|---------|------|
-| Framework Dependency | None | Yes | Yes | Yes |
-| Bundle Size | Smallest | Medium | Medium | Small |
-| Learning Curve | Steep | Easy | Easy | Easy |
-| Flexibility | Maximum | High | High | High |
-| TypeScript Support | ✓ | ✓ | ✓ | ✓ |
-| MCP Support | ✓ | ✓ | ✓ | ✓ |
-| Best For | Microservices, Serverless | Traditional apps | High performance | Multi-runtime |
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Node.js</th>
+              <th>Express</th>
+              <th>Fastify</th>
+              <th>Hono</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Framework Dependency</td>
+              <td>None</td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <td>Bundle Size</td>
+              <td>Smallest</td>
+              <td>Medium</td>
+              <td>Medium</td>
+              <td>Small</td>
+            </tr>
+            <tr>
+              <td>Learning Curve</td>
+              <td>Steep</td>
+              <td>Easy</td>
+              <td>Easy</td>
+              <td>Easy</td>
+            </tr>
+            <tr>
+              <td>Flexibility</td>
+              <td>Maximum</td>
+              <td>High</td>
+              <td>High</td>
+              <td>High</td>
+            </tr>
+            <tr>
+              <td>TypeScript Support</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>MCP Support</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Best For</td>
+              <td>Microservices, Serverless</td>
+              <td>Traditional apps</td>
+              <td>High performance</td>
+              <td>Multi-runtime</td>
+            </tr>
+          </tbody>
+        </table>
 
-## Benefits of Pure Node.js
+        <h2>Benefits of Pure Node.js</h2>
 
-1. **Zero Dependencies**: No framework overhead
-2. **Maximum Control**: Full control over request/response handling
-3. **Smallest Bundle**: Minimal production footprint
-4. **Learning**: Understand HTTP fundamentals
-5. **Flexibility**: Easy to integrate with any HTTP server
+        <ol>
+          <li><strong>Zero Dependencies</strong>: No framework overhead</li>
+          <li><strong>Maximum Control</strong>: Full control over request/response handling</li>
+          <li><strong>Smallest Bundle</strong>: Minimal production footprint</li>
+          <li><strong>Learning</strong>: Understand HTTP fundamentals</li>
+          <li><strong>Flexibility</strong>: Easy to integrate with any HTTP server</li>
+        </ol>
 
-## When to Use
+        <h2>When to Use</h2>
 
-Choose the Node.js adapter when:
+        <p>Choose the Node.js adapter when:</p>
 
-- Building microservices with minimal dependencies
-- Deploying to serverless/edge environments
-- Need maximum performance
-- Want full control over HTTP handling
-- Learning HTTP fundamentals
+        <ul>
+          <li>Building microservices with minimal dependencies</li>
+          <li>Deploying to serverless/edge environments</li>
+          <li>Need maximum performance</li>
+          <li>Want full control over HTTP handling</li>
+          <li>Learning HTTP fundamentals</li>
+        </ul>
 
-Choose a framework adapter when:
+        <p>Choose a framework adapter when:</p>
 
-- Building traditional web applications
-- Need rich middleware ecosystem
-- Want faster development
-- Team is familiar with the framework
+        <ul>
+          <li>Building traditional web applications</li>
+          <li>Need rich middleware ecosystem</li>
+          <li>Want faster development</li>
+          <li>Team is familiar with the framework</li>
+        </ul>
 
-## Troubleshooting
+        <h2>Troubleshooting</h2>
 
-### Session not persisting
+        <h3>Session not persisting</h3>
 
-The adapter automatically handles cookies. Ensure your client sends cookies:
+        <p>The adapter automatically handles cookies. Ensure your client sends cookies:</p>
 
-```typescript
-fetch("/api/user", {
+        <CodeBlock language="typescript">{`fetch("/api/user", {
   credentials: "include", // Important!
-});
-```
+});`}</CodeBlock>
 
-### Handler not catching routes
+        <h3>Handler not catching routes</h3>
 
-Make sure you call the handler before your custom routes:
+        <p>Make sure you call the handler before your custom routes:</p>
 
-```typescript
-const server = createServer(async (req, res) => {
+        <CodeBlock language="typescript">{`const server = createServer(async (req, res) => {
   // Call handler FIRST
   const handled = await handler(req, res);
   if (handled) return;
 
   // Then your routes
   // ...
-});
-```
+});`}</CodeBlock>
 
-### Request body issues
+        <h3>Request body issues</h3>
 
-The adapter handles body parsing for MCP endpoints. For custom endpoints, parse manually:
+        <p>The adapter handles body parsing for MCP endpoints. For custom endpoints, parse manually:</p>
 
-```typescript
-async function readBody(req): Promise<string> {
+        <CodeBlock language="typescript">{`async function readBody(req): Promise<string> {
   return new Promise((resolve) => {
     let body = "";
     req.on("data", (chunk) => body += chunk);
     req.on("end", () => resolve(body));
   });
-}
-```
+}`}</CodeBlock>
 
-### CORS issues
+        <h3>CORS issues</h3>
 
-Add CORS headers manually:
+        <p>Add CORS headers manually:</p>
 
-```typescript
-const server = createServer(async (req, res) => {
+        <CodeBlock language="typescript">{`const server = createServer(async (req, res) => {
   // CORS headers
   res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
   res.setHeader("Access-Control-Allow-Credentials", "true");
@@ -431,12 +492,17 @@ const server = createServer(async (req, res) => {
 
   const handled = await handler(req, res);
   // ...
-});
-```
+});`}</CodeBlock>
 
-## Next Steps
+        <h2>Next Steps</h2>
 
-- [Two-Factor Authentication](/docs/guides/two-factor-authentication)
-- [Database Adapters](/docs/adapters)
-- [MCP Integration](/docs/mcp)
-- [API Reference](/docs/api-reference)
+        <ul>
+          <li><a href="/docs/guides/two-factor-authentication">Two-Factor Authentication</a></li>
+          <li><a href="/docs/adapters">Database Adapters</a></li>
+          <li><a href="/docs/mcp">MCP Integration</a></li>
+          <li><a href="/docs/api-reference">API Reference</a></li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -2,21 +2,25 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 // Import all MDX files from the local docs directory (copied during build)
-import Installation from "@/docs/01-getting-started/01-installation.mdx";
-import Quickstart from "@/docs/01-getting-started/02-quickstart.mdx";
-import EnvironmentSetup from "@/docs/01-getting-started/03-environment-setup.mdx";
-import FirstAuthFlow from "@/docs/01-getting-started/04-first-auth-flow.mdx";
+import Installation from "../../../../docs/01-getting-started/01-installation.mdx";
+import Quickstart from "../../../../docs/01-getting-started/02-quickstart.mdx";
+import EnvironmentSetup from "../../../../docs/01-getting-started/03-environment-setup.mdx";
+import FirstAuthFlow from "../../../../docs/01-getting-started/04-first-auth-flow.mdx";
 
-import ProvidersOverview from "@/docs/02-providers/01-overview.mdx";
-import GoogleOAuth from "@/docs/02-providers/02-google-oauth.mdx";
-import EmailMagicLinks from "@/docs/02-providers/03-email-magic-links.mdx";
-import CustomProviders from "@/docs/02-providers/04-custom-providers.mdx";
+import ProvidersOverview from "../../../../docs/02-providers/01-overview.mdx";
+import GoogleOAuth from "../../../../docs/02-providers/02-google-oauth.mdx";
+import EmailMagicLinks from "../../../../docs/02-providers/03-email-magic-links.mdx";
+import CustomProviders from "../../../../docs/02-providers/04-custom-providers.mdx";
 
-import CaptchaIntegration from "@/docs/03-guides/05-captcha-integration.mdx";
+import ExpressAdapter from "../../../../docs/03-guides/01-express-adapter.mdx";
+import HonoAdapter from "../../../../docs/03-guides/02-hono-adapter.mdx";
+import NodejsAdapter from "../../../../docs/03-guides/03-nodejs-adapter.mdx";
+import TwoFactorAuthentication from "../../../../docs/03-guides/04-two-factor-authentication.mdx";
+import CaptchaIntegration from "../../../../docs/03-guides/05-captcha-integration.mdx";
 
-import MCPIntroduction from "@/docs/04-mcp/01-introduction.mdx";
-import CoreFunctions from "@/docs/05-api-reference/01-core-functions.mdx";
-import NextJSAppRouter from "@/docs/06-examples/01-nextjs-app-router.mdx";
+import MCPIntroduction from "../../../../docs/04-mcp/01-introduction.mdx";
+import CoreFunctions from "../../../../docs/05-api-reference/01-core-functions.mdx";
+import NextJSAppRouter from "../../../../docs/06-examples/01-nextjs-app-router.mdx";
 
 // Route mapping
 const routes: Record<string, React.ComponentType> = {
@@ -28,6 +32,10 @@ const routes: Record<string, React.ComponentType> = {
   "providers/google-oauth": GoogleOAuth,
   "providers/email-magic-links": EmailMagicLinks,
   "providers/custom-providers": CustomProviders,
+  "guides/express-adapter": ExpressAdapter,
+  "guides/hono-adapter": HonoAdapter,
+  "guides/nodejs-adapter": NodejsAdapter,
+  "guides/two-factor-authentication": TwoFactorAuthentication,
   "guides/captcha-integration": CaptchaIntegration,
   "mcp/introduction": MCPIntroduction,
   "api/core-functions": CoreFunctions,
@@ -63,20 +71,17 @@ const navigation = [
   {
     title: "Guides",
     items: [
-      { title: "Next.js Integration", href: "/docs/guides/nextjs-integration" },
-      { title: "Next.js Proxy", href: "/docs/guides/nextjs-proxy" },
-      { title: "React Hooks", href: "/docs/guides/react-hooks" },
-      { title: "Session Management", href: "/docs/guides/session-management" },
-      { title: "Database Adapters", href: "/docs/guides/database-adapters" },
+      { title: "Express Adapter", href: "/docs/guides/express-adapter" },
+      { title: "Hono Adapter", href: "/docs/guides/hono-adapter" },
+      { title: "Node.js Adapter", href: "/docs/guides/nodejs-adapter" },
+      {
+        title: "Two-Factor Authentication",
+        href: "/docs/guides/two-factor-authentication",
+      },
       {
         title: "CAPTCHA Integration",
         href: "/docs/guides/captcha-integration",
       },
-      {
-        title: "Security Best Practices",
-        href: "/docs/guides/security-best-practices",
-      },
-      { title: "Deployment", href: "/docs/guides/deployment" },
     ],
   },
   {
@@ -168,6 +173,22 @@ const getPageMetadata = (slug: string) => {
       title: "Custom Providers",
       description:
         "Building custom authentication providers for @warpy-auth-sdk/core.",
+    },
+    "guides/express-adapter": {
+      title: "Express Adapter",
+      description: "Using @warpy-auth-sdk/core with Express applications.",
+    },
+    "guides/hono-adapter": {
+      title: "Hono Adapter",
+      description: "Using @warpy-auth-sdk/core with Hono applications.",
+    },
+    "guides/nodejs-adapter": {
+      title: "Node.js Adapter",
+      description: "Using @warpy-auth-sdk/core with pure Node.js HTTP.",
+    },
+    "guides/two-factor-authentication": {
+      title: "Two-Factor Authentication",
+      description: "Implementing 2FA using email verification codes.",
     },
     "guides/captcha-integration": {
       title: "CAPTCHA Integration",

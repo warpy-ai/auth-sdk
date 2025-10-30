@@ -1,28 +1,39 @@
----
-title: Express Adapter
-description: Using @warpy-auth-sdk/core with Express
----
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
 
-# Express Adapter
+export const metadata = {
+  title: 'Express Adapter - @warpy-auth-sdk/core',
+  description: 'Using @warpy-auth-sdk/core with Express',
+};
 
-The Express adapter provides seamless integration of `@warpy-auth-sdk/core` with Express applications. It handles all authentication routes and provides middleware for protecting your API endpoints.
+export default function ExpressAdapter() {
+  return (
+    <DocsLayout
+      title="Express Adapter"
+      description="Using @warpy-auth-sdk/core with Express"
+      nextPage={{ title: 'Hono Adapter', href: '/docs/guides/hono-adapter' }}
+    >
+      <div>
+        <h2>Express Adapter</h2>
 
-## Installation
+        <p>
+          The Express adapter provides seamless integration of <code>@warpy-auth-sdk/core</code> with Express applications. It handles all authentication routes and provides middleware for protecting your API endpoints.
+        </p>
 
-```bash
-npm install @warpy-auth-sdk/core express cookie-parser
+        <h2>Installation</h2>
+
+        <CodeBlock language="bash">{`npm install @warpy-auth-sdk/core express cookie-parser
 # or
 yarn add @warpy-auth-sdk/core express cookie-parser
 # or
-pnpm add @warpy-auth-sdk/core express cookie-parser
-```
+pnpm add @warpy-auth-sdk/core express cookie-parser`}</CodeBlock>
 
-## Quick Start
+        <h2>Quick Start</h2>
 
-### 1. Basic Setup
+        <h3>1. Basic Setup</h3>
 
-```typescript
-import express from "express";
+        <CodeBlock language="typescript">{`import express from "express";
 import cookieParser from "cookie-parser";
 import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/express";
 import { google } from "@warpy-auth-sdk/core";
@@ -54,62 +65,70 @@ app.get("/api/user", requireAuth, (req, res) => {
 
 app.listen(3000, () => {
   console.log("Server running on http://localhost:3000");
-});
-```
+});`}</CodeBlock>
 
-### 2. Environment Variables
+        <h3>2. Environment Variables</h3>
 
-Create a `.env` file:
+        <p>Create a <code>.env</code> file:</p>
 
-```bash
-AUTH_SECRET=your-secret-key-min-32-chars
+        <CodeBlock language="bash">{`AUTH_SECRET=your-secret-key-min-32-chars
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
-```
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}</CodeBlock>
 
-## API Reference
+        <h2>API Reference</h2>
 
-### `registerAuthRoutes(app, config, options)`
+        <h3>registerAuthRoutes(app, config, options)</h3>
 
-Registers authentication routes on your Express application.
+        <p>Registers authentication routes on your Express application.</p>
 
-#### Parameters
+        <h4>Parameters</h4>
 
-- **`app`** (`express.Application`): Your Express app instance
-- **`config`** (`AuthConfig`): Authentication configuration
-  - `secret`: JWT signing secret (min 32 characters)
-  - `provider`: OAuth provider (Google, GitHub, etc.)
-  - `adapter`: Optional database adapter for session persistence
-  - `callbacks`: Optional callbacks for customization
-- **`options`** (`ExpressAuthOptions`): Optional configuration
-  - `basePath`: Base path for auth routes (default: `/auth`)
-  - `successRedirect`: Redirect after successful auth (default: `/`)
-  - `errorRedirect`: Redirect after auth failure (default: `/login`)
-  - `mcp`: MCP (AI agent) configuration
+        <ul>
+          <li><strong>app</strong> (<code>express.Application</code>): Your Express app instance</li>
+          <li><strong>config</strong> (<code>AuthConfig</code>): Authentication configuration
+            <ul>
+              <li><code>secret</code>: JWT signing secret (min 32 characters)</li>
+              <li><code>provider</code>: OAuth provider (Google, GitHub, etc.)</li>
+              <li><code>adapter</code>: Optional database adapter for session persistence</li>
+              <li><code>callbacks</code>: Optional callbacks for customization</li>
+            </ul>
+          </li>
+          <li><strong>options</strong> (<code>ExpressAuthOptions</code>): Optional configuration
+            <ul>
+              <li><code>basePath</code>: Base path for auth routes (default: <code>/auth</code>)</li>
+              <li><code>successRedirect</code>: Redirect after successful auth (default: <code>/</code>)</li>
+              <li><code>errorRedirect</code>: Redirect after auth failure (default: <code>/login</code>)</li>
+              <li><code>mcp</code>: MCP (AI agent) configuration</li>
+            </ul>
+          </li>
+        </ul>
 
-#### Returns
+        <h4>Returns</h4>
 
-An object with:
-- `requireAuth`: Middleware function to protect routes
+        <p>An object with:</p>
+        <ul>
+          <li><code>requireAuth</code>: Middleware function to protect routes</li>
+        </ul>
 
-### Registered Routes
+        <h3>Registered Routes</h3>
 
-When you call `registerAuthRoutes()`, the following routes are automatically registered:
+        <p>When you call <code>registerAuthRoutes()</code>, the following routes are automatically registered:</p>
 
-- `GET {basePath}/session` - Get current session
-- `POST {basePath}/signout` - Sign out user
-- `GET {basePath}/signin` - Generic sign-in
-- `GET {basePath}/signin/:provider` - Provider-specific sign-in (e.g., `/signin/google`)
-- `GET {basePath}/callback` - Generic OAuth callback
-- `GET {basePath}/callback/:provider` - Provider-specific callback
+        <ul>
+          <li><code>GET {`{basePath}`}/session</code> - Get current session</li>
+          <li><code>POST {`{basePath}`}/signout</code> - Sign out user</li>
+          <li><code>GET {`{basePath}`}/signin</code> - Generic sign-in</li>
+          <li><code>GET {`{basePath}`}/signin/:provider</code> - Provider-specific sign-in (e.g., <code>/signin/google</code>)</li>
+          <li><code>GET {`{basePath}`}/callback</code> - Generic OAuth callback</li>
+          <li><code>GET {`{basePath}`}/callback/:provider</code> - Provider-specific callback</li>
+        </ul>
 
-## Usage Examples
+        <h2>Usage Examples</h2>
 
-### Protecting Routes
+        <h3>Protecting Routes</h3>
 
-```typescript
-// Single protected route
+        <CodeBlock language="typescript">{`// Single protected route
 app.get("/api/user", requireAuth, (req, res) => {
   res.json({ user: req.session.user });
 });
@@ -127,13 +146,11 @@ app.get("/api/admin",
 app.use("/api/protected", requireAuth);
 app.get("/api/protected/data", (req, res) => {
   res.json({ data: "Secret data" });
-});
-```
+});`}</CodeBlock>
 
-### Multiple Providers
+        <h3>Multiple Providers</h3>
 
-```typescript
-import { google, github, facebook } from "@warpy-auth-sdk/core";
+        <CodeBlock language="typescript">{`import { google, github, facebook } from "@warpy-auth-sdk/core";
 
 // Register auth for multiple providers
 const providers = [
@@ -143,13 +160,11 @@ const providers = [
 ];
 
 // You'll need to register routes for each provider separately
-// or use a dynamic provider selection approach
-```
+// or use a dynamic provider selection approach`}</CodeBlock>
 
-### Custom Callbacks
+        <h3>Custom Callbacks</h3>
 
-```typescript
-registerAuthRoutes(app, {
+        <CodeBlock language="typescript">{`registerAuthRoutes(app, {
   secret: process.env.AUTH_SECRET!,
   provider: google({ /* config */ }),
   callbacks: {
@@ -175,13 +190,11 @@ registerAuthRoutes(app, {
       return session;
     },
   },
-});
-```
+});`}</CodeBlock>
 
-### With Database Adapter
+        <h3>With Database Adapter</h3>
 
-```typescript
-import { PrismaAdapter } from "@warpy-auth-sdk/core";
+        <CodeBlock language="typescript">{`import { PrismaAdapter } from "@warpy-auth-sdk/core";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -190,13 +203,11 @@ registerAuthRoutes(app, {
   secret: process.env.AUTH_SECRET!,
   provider: google({ /* config */ }),
   adapter: PrismaAdapter(prisma),
-});
-```
+});`}</CodeBlock>
 
-### MCP (AI Agent) Support
+        <h3>MCP (AI Agent) Support</h3>
 
-```typescript
-registerAuthRoutes(app, {
+        <CodeBlock language="typescript">{`registerAuthRoutes(app, {
   secret: process.env.AUTH_SECRET!,
   provider: google({ /* config */ }),
 }, {
@@ -213,15 +224,13 @@ registerAuthRoutes(app, {
   },
 });
 
-// Now AI agents can call POST /api/mcp with tool requests
-```
+// Now AI agents can call POST /api/mcp with tool requests`}</CodeBlock>
 
-## TypeScript Support
+        <h2>TypeScript Support</h2>
 
-The adapter includes full TypeScript support with type definitions:
+        <p>The adapter includes full TypeScript support with type definitions:</p>
 
-```typescript
-import type {
+        <CodeBlock language="typescript">{`import type {
   ExpressApplication,
   ExpressRequest,
   ExpressResponse,
@@ -233,62 +242,104 @@ import type {
 app.get("/api/user", requireAuth, (req: ExpressRequest, res: ExpressResponse) => {
   const session = req.session; // Fully typed
   res.json({ user: session.user });
-});
-```
+});`}</CodeBlock>
 
-## Complete Example
+        <h2>Complete Example</h2>
 
-See the [complete Express example](https://github.com/warpy-ai/auth-sdk/tree/main/examples/express-example) in the repository for a full working application.
+        <p>
+          See the <a href="https://github.com/warpy-ai/auth-sdk/tree/main/examples/express-example" target="_blank">complete Express example</a> in the repository for a full working application.
+        </p>
 
-## Comparison with Other Adapters
+        <h2>Comparison with Other Adapters</h2>
 
-| Feature | Express | Fastify | Hono | Node.js |
-|---------|---------|---------|------|---------|
-| Framework Dependency | Yes | Yes | Yes | No |
-| Middleware Pattern | Yes | preHandler | Yes | Manual |
-| TypeScript Support | ✓ | ✓ | ✓ | ✓ |
-| MCP Support | ✓ | ✓ | ✓ | ✓ |
-| Multi-runtime | Node only | Node only | Node/Deno/Bun/CF | Node only |
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Express</th>
+              <th>Fastify</th>
+              <th>Hono</th>
+              <th>Node.js</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Framework Dependency</td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>Middleware Pattern</td>
+              <td>Yes</td>
+              <td>preHandler</td>
+              <td>Yes</td>
+              <td>Manual</td>
+            </tr>
+            <tr>
+              <td>TypeScript Support</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>MCP Support</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Multi-runtime</td>
+              <td>Node only</td>
+              <td>Node only</td>
+              <td>Node/Deno/Bun/CF</td>
+              <td>Node only</td>
+            </tr>
+          </tbody>
+        </table>
 
-## Troubleshooting
+        <h2>Troubleshooting</h2>
 
-### Session not persisting
+        <h3>Session not persisting</h3>
 
-Make sure you've registered the `cookie-parser` middleware:
+        <p>Make sure you've registered the <code>cookie-parser</code> middleware:</p>
 
-```typescript
-import cookieParser from "cookie-parser";
-app.use(cookieParser());
-```
+        <CodeBlock language="typescript">{`import cookieParser from "cookie-parser";
+app.use(cookieParser());`}</CodeBlock>
 
-### 401 Unauthorized on protected routes
+        <h3>401 Unauthorized on protected routes</h3>
 
-Ensure the user is authenticated before accessing protected routes:
+        <p>Ensure the user is authenticated before accessing protected routes:</p>
 
-```typescript
-// Check if user is authenticated
+        <CodeBlock language="typescript">{`// Check if user is authenticated
 app.get("/api/auth/session", async (req, res) => {
   const session = await getSession(req, config.secret);
   res.json({ session });
-});
-```
+});`}</CodeBlock>
 
-### CORS issues
+        <h3>CORS issues</h3>
 
-If your frontend is on a different domain, configure CORS:
+        <p>If your frontend is on a different domain, configure CORS:</p>
 
-```typescript
-import cors from "cors";
+        <CodeBlock language="typescript">{`import cors from "cors";
 
 app.use(cors({
   origin: "http://localhost:5173",
   credentials: true,
-}));
-```
+}));`}</CodeBlock>
 
-## Next Steps
+        <h2>Next Steps</h2>
 
-- [Two-Factor Authentication](/docs/guides/two-factor-authentication)
-- [Database Adapters](/docs/adapters)
-- [MCP Integration](/docs/mcp)
-- [API Reference](/docs/api-reference)
+        <ul>
+          <li><a href="/docs/guides/two-factor-authentication">Two-Factor Authentication</a></li>
+          <li><a href="/docs/adapters">Database Adapters</a></li>
+          <li><a href="/docs/mcp">MCP Integration</a></li>
+          <li><a href="/docs/api-reference">API Reference</a></li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}
