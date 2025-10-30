@@ -2,25 +2,25 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 // Import all MDX files from the local docs directory (copied during build)
-import Installation from "../../../../docs/01-getting-started/01-installation.mdx";
-import Quickstart from "../../../../docs/01-getting-started/02-quickstart.mdx";
-import EnvironmentSetup from "../../../../docs/01-getting-started/03-environment-setup.mdx";
-import FirstAuthFlow from "../../../../docs/01-getting-started/04-first-auth-flow.mdx";
+import Installation from "../../../docs/01-getting-started/01-installation.mdx";
+import Quickstart from "../../../docs/01-getting-started/02-quickstart.mdx";
+import EnvironmentSetup from "../../../docs/01-getting-started/03-environment-setup.mdx";
+import FirstAuthFlow from "../../../docs/01-getting-started/04-first-auth-flow.mdx";
 
-import ProvidersOverview from "../../../../docs/02-providers/01-overview.mdx";
-import GoogleOAuth from "../../../../docs/02-providers/02-google-oauth.mdx";
-import EmailMagicLinks from "../../../../docs/02-providers/03-email-magic-links.mdx";
-import CustomProviders from "../../../../docs/02-providers/04-custom-providers.mdx";
+import ProvidersOverview from "../../../docs/02-providers/01-overview.mdx";
+import GoogleOAuth from "../../../docs/02-providers/02-google-oauth.mdx";
+import EmailMagicLinks from "../../../docs/02-providers/03-email-magic-links.mdx";
+import CustomProviders from "../../../docs/02-providers/04-custom-providers.mdx";
 
-import ExpressAdapter from "../../../../docs/03-guides/01-express-adapter.mdx";
-import HonoAdapter from "../../../../docs/03-guides/02-hono-adapter.mdx";
-import NodejsAdapter from "../../../../docs/03-guides/03-nodejs-adapter.mdx";
-import TwoFactorAuthentication from "../../../../docs/03-guides/04-two-factor-authentication.mdx";
-import CaptchaIntegration from "../../../../docs/03-guides/05-captcha-integration.mdx";
+import ExpressAdapter from "../../../docs/03-guides/01-express-adapter.mdx";
+import HonoAdapter from "../../../docs/03-guides/02-hono-adapter.mdx";
+import NodejsAdapter from "../../../docs/03-guides/03-nodejs-adapter.mdx";
+import TwoFactorAuthentication from "../../../docs/03-guides/04-two-factor-authentication.mdx";
+import CaptchaIntegration from "../../../docs/03-guides/05-captcha-integration.mdx";
 
-import MCPIntroduction from "../../../../docs/04-mcp/01-introduction.mdx";
-import CoreFunctions from "../../../../docs/05-api-reference/01-core-functions.mdx";
-import NextJSAppRouter from "../../../../docs/06-examples/01-nextjs-app-router.mdx";
+import MCPIntroduction from "../../../docs/04-mcp/01-introduction.mdx";
+import CoreFunctions from "../../../docs/05-api-reference/01-core-functions.mdx";
+import NextJSAppRouter from "../../../docs/06-examples/01-nextjs-app-router.mdx";
 
 // Route mapping
 const routes: Record<string, React.ComponentType> = {
