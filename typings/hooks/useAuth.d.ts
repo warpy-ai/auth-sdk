@@ -4,7 +4,7 @@ import type { Session } from "../core";
 export interface AuthContextValue {
     session: Session | null;
     loading: boolean;
-    signIn: (email: string) => Promise<void>;
+    signIn: (email: string, captchaToken?: string) => Promise<void>;
     signOut: () => Promise<void>;
     refreshSession: () => Promise<void>;
 }

@@ -61,6 +61,7 @@ const navigation = [
       { title: "React Hooks", href: "/docs/guides/react-hooks" },
       { title: "Session Management", href: "/docs/guides/session-management" },
       { title: "Database Adapters", href: "/docs/guides/database-adapters" },
+      { title: "CAPTCHA Integration", href: "/docs/guides/captcha-integration" },
       {
         title: "Security Best Practices",
         href: "/docs/guides/security-best-practices",

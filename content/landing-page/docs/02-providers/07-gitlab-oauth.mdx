@@ -1,0 +1,66 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'GitLab OAuth - @warpy-auth-sdk/core',
+  description: 'GitLab OAuth with PKCE and self-hosted instance support.',
+};
+
+export default function GitLabOAuth() {
+  return (
+    <DocsLayout
+      title="GitLab OAuth"
+      description="GitLab OAuth with PKCE and self-hosted instance support."
+      prevPage={{ title: 'GitHub OAuth', href: '/docs/providers/github-oauth' }}
+      nextPage={{ title: 'LinkedIn OAuth', href: '/docs/providers/linkedin-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          GitLab OAuth supports PKCE (S256) by default. For self-hosted GitLab, pass your base URL via the
+          <code>domain</code> option (defaults to <code>https://gitlab.com</code>).
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+GITLAB_CLIENT_ID=your-gitlab-client-id
+GITLAB_CLIENT_SECRET=your-gitlab-client-secret
+GITLAB_REDIRECT_URI=http://localhost:3000/api/auth/callback/gitlab`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic GitLab OAuth Setup"
+          description="Hosted on gitlab.com"
+          code={`import { gitlab } from '@warpy-auth-sdk/core';
+
+const provider = gitlab({
+  clientId: process.env.GITLAB_CLIENT_ID!,
+  clientSecret: process.env.GITLAB_CLIENT_SECRET!,
+  redirectUri: process.env.GITLAB_REDIRECT_URI!,
+  scope: ['read_user', 'email'],
+});`}
+        />
+
+        <Example
+          title="Self-hosted GitLab"
+          description="Using a custom domain"
+          code={`const provider = gitlab({
+  clientId: process.env.GITLAB_CLIENT_ID!,
+  clientSecret: process.env.GITLAB_CLIENT_SECRET!,
+  redirectUri: process.env.GITLAB_REDIRECT_URI!,
+  domain: 'https://gitlab.mycompany.com',
+});`}
+        />
+
+        <Callout type="info" title="Scopes">
+          Use <code>read_user</code> for basic profile and <code>email</code> for the user's email.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

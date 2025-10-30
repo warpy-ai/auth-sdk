@@ -1,0 +1,125 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+
+export const metadata = {
+  title: 'Installation - @warpy-auth-sdk/core',
+  description: 'Install @warpy-auth-sdk/core and set up your first authentication flow in minutes.',
+};
+
+export default function Installation() {
+  return (
+    <DocsLayout
+      title="Installation"
+      description="Install @warpy-auth-sdk/core and set up your first authentication flow in minutes."
+      nextPage={{ title: 'Quickstart', href: '/docs/getting-started/quickstart' }}
+    >
+      <div>
+        <h2>Install the Package</h2>
+        <p>
+          Install @warpy-auth-sdk/core using your preferred package manager:
+        </p>
+
+        <CodeBlock language="bash">
+{`npm install @warpy-auth-sdk/core`}
+        </CodeBlock>
+
+        <CodeBlock language="bash">
+{`yarn add @warpy-auth-sdk/core`}
+        </CodeBlock>
+
+        <CodeBlock language="bash">
+{`pnpm add @warpy-auth-sdk/core`}
+        </CodeBlock>
+
+        <CodeBlock language="bash">
+{`bun add @warpy-auth-sdk/core`}
+        </CodeBlock>
+
+        <h2>Peer Dependencies</h2>
+        <p>
+          @warpy-auth-sdk/core requires the following peer dependencies for full functionality:
+        </p>
+
+        <h3>Required Dependencies</h3>
+        <ul>
+          <li><code>react</code> - For React hooks and components</li>
+          <li><code>next</code> - For Next.js integration (if using Next.js)</li>
+        </ul>
+
+        <h3>Optional Dependencies</h3>
+        <ul>
+          <li><code>@prisma/client</code> - For database adapter support</li>
+          <li><code>nodemailer</code> - For email magic link functionality</li>
+          <li><code>ai</code> - For MCP (Model Context Protocol) integration</li>
+        </ul>
+
+        <Callout type="info" title="Note">
+          The package is designed to work with minimal dependencies. Optional features like email magic links and database adapters require additional packages.
+        </Callout>
+
+        <h2>Package Structure</h2>
+        <p>
+          @warpy-auth-sdk/core uses subpath exports for optimal tree-shaking:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Core authentication functions
+import { authenticate, getSession, signOut } from '@warpy-auth-sdk/core';
+
+// React hooks and components
+import { useAuth, AuthProvider } from '@warpy-auth-sdk/core/hooks';
+
+// Server-side session helpers
+import { getServerSession } from '@warpy-auth-sdk/core/hooks/server';
+
+// Next.js integration
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+
+// MCP tools for AI agents
+import { createMCPTools } from '@warpy-auth-sdk/core/mcp';`}
+        </CodeBlock>
+
+        <h2>TypeScript Support</h2>
+        <p>
+          @warpy-auth-sdk/core is built with TypeScript and includes comprehensive type definitions. 
+          No additional type packages are required.
+        </p>
+
+        <CodeBlock language="typescript">
+{`import type {
+  AuthConfig,
+  Session,
+  Provider,
+  Adapter,
+  MCPLoginPayload,
+  AuthenticateResult,
+} from '@warpy-auth-sdk/core';`}
+        </CodeBlock>
+
+        <h2>Environment Requirements</h2>
+        <p>
+          @warpy-auth-sdk/core works with the following environments:
+        </p>
+
+        <ul>
+          <li><strong>Node.js:</strong> 18.0.0 or higher</li>
+          <li><strong>React:</strong> 18.0.0 or higher</li>
+          <li><strong>Next.js:</strong> 13.0.0 or higher (App Router recommended)</li>
+          <li><strong>TypeScript:</strong> 4.9.0 or higher</li>
+        </ul>
+
+        <Callout type="warning" title="Important">
+          For Next.js 16 Proxy integration, you need Next.js 16.0.0 or higher. 
+          The package is optimized for Next.js 16's new features.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Once you've installed the package, you can proceed to the Quickstart guide 
+          to set up your first authentication flow.
+        </p>
+      </div>
+    </DocsLayout>
+  );
+}

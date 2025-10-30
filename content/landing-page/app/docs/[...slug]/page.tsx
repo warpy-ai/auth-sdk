@@ -2,15 +2,24 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
 // Import all MDX files from the local docs directory (copied during build)
-import Installation from "@/docs/01-getting-started/01-installation.mdx";
-import Quickstart from "@/docs/01-getting-started/02-quickstart.mdx";
-import EnvironmentSetup from "@/docs/01-getting-started/03-environment-setup.mdx";
-import FirstAuthFlow from "@/docs/01-getting-started/04-first-auth-flow.mdx";
+import Installation from "../../../docs/01-getting-started/01-installation.mdx";
+import Quickstart from "../../../docs/01-getting-started/02-quickstart.mdx";
+import EnvironmentSetup from "../../../docs/01-getting-started/03-environment-setup.mdx";
+import FirstAuthFlow from "../../../docs/01-getting-started/04-first-auth-flow.mdx";
 
-import ProvidersOverview from "@/docs/02-providers/01-overview.mdx";
-import GoogleOAuth from "@/docs/02-providers/02-google-oauth.mdx";
-import EmailMagicLinks from "@/docs/02-providers/03-email-magic-links.mdx";
-import CustomProviders from "@/docs/02-providers/04-custom-providers.mdx";
+import ProvidersOverview from "../../../docs/02-providers/01-overview.mdx";
+import GoogleOAuth from "../../../docs/02-providers/02-google-oauth.mdx";
+import EmailMagicLinks from "../../../docs/02-providers/03-email-magic-links.mdx";
+import CustomProviders from "../../../docs/02-providers/04-custom-providers.mdx";
+import TwoFactorEmail from "../../../docs/02-providers/05-two-factor-email.mdx";
+import GitHubOAuth from "../../../docs/02-providers/06-github-oauth.mdx";
+import GitLabOAuth from "../../../docs/02-providers/07-gitlab-oauth.mdx";
+import LinkedInOAuth from "../../../docs/02-providers/08-linkedin-oauth.mdx";
+import MicrosoftOAuth from "../../../docs/02-providers/09-microsoft-oauth.mdx";
+import SpotifyOAuth from "../../../docs/02-providers/10-spotify-oauth.mdx";
+import DiscordOAuth from "../../../docs/02-providers/11-discord-oauth.mdx";
+import TwitchOAuth from "../../../docs/02-providers/12-twitch-oauth.mdx";
+import EpicGamesOAuth from "../../../docs/02-providers/13-epic-games-oauth.mdx";
 
 // import MCPIntroduction from "@/docs/04-mcp/01-introduction.mdx";
 import CoreFunctions from "@/docs/05-api-reference/01-core-functions.mdx";
@@ -60,16 +69,17 @@ const navigation = [
   {
     title: "Guides",
     items: [
-      { title: "Next.js Integration", href: "/docs/guides/nextjs-integration" },
-      { title: "Next.js Proxy", href: "/docs/guides/nextjs-proxy" },
-      { title: "React Hooks", href: "/docs/guides/react-hooks" },
-      { title: "Session Management", href: "/docs/guides/session-management" },
-      { title: "Database Adapters", href: "/docs/guides/database-adapters" },
+      { title: "Express Adapter", href: "/docs/guides/express-adapter" },
+      { title: "Hono Adapter", href: "/docs/guides/hono-adapter" },
+      { title: "Node.js Adapter", href: "/docs/guides/nodejs-adapter" },
       {
-        title: "Security Best Practices",
-        href: "/docs/guides/security-best-practices",
+        title: "Two-Factor Authentication",
+        href: "/docs/guides/two-factor-authentication",
       },
-      { title: "Deployment", href: "/docs/guides/deployment" },
+      {
+        title: "CAPTCHA Integration",
+        href: "/docs/guides/captcha-integration",
+      },
     ],
   },
   {
@@ -161,6 +171,65 @@ const getPageMetadata = (slug: string) => {
       title: "Custom Providers",
       description:
         "Building custom authentication providers for @warpy-auth-sdk/core.",
+    },
+    "providers/two-factor-email": {
+      title: "Two-Factor Email",
+      description:
+        "Email-based two-factor authentication with verification codes.",
+    },
+    "providers/github-oauth": {
+      title: "GitHub OAuth",
+      description: "Complete setup guide for GitHub OAuth authentication.",
+    },
+    "providers/gitlab-oauth": {
+      title: "GitLab OAuth",
+      description: "Complete setup guide for GitLab OAuth authentication.",
+    },
+    "providers/linkedin-oauth": {
+      title: "LinkedIn OAuth",
+      description: "Complete setup guide for LinkedIn OAuth authentication.",
+    },
+    "providers/microsoft-oauth": {
+      title: "Microsoft OAuth",
+      description:
+        "Complete setup guide for Microsoft/Azure AD OAuth authentication.",
+    },
+    "providers/spotify-oauth": {
+      title: "Spotify OAuth",
+      description: "Complete setup guide for Spotify OAuth authentication.",
+    },
+    "providers/discord-oauth": {
+      title: "Discord OAuth",
+      description: "Complete setup guide for Discord OAuth authentication.",
+    },
+    "providers/twitch-oauth": {
+      title: "Twitch OAuth",
+      description: "Complete setup guide for Twitch OAuth authentication.",
+    },
+    "providers/epic-games-oauth": {
+      title: "Epic Games OAuth",
+      description: "Complete setup guide for Epic Games OAuth authentication.",
+    },
+    "guides/express-adapter": {
+      title: "Express Adapter",
+      description: "Using @warpy-auth-sdk/core with Express applications.",
+    },
+    "guides/hono-adapter": {
+      title: "Hono Adapter",
+      description: "Using @warpy-auth-sdk/core with Hono applications.",
+    },
+    "guides/nodejs-adapter": {
+      title: "Node.js Adapter",
+      description: "Using @warpy-auth-sdk/core with pure Node.js HTTP.",
+    },
+    "guides/two-factor-authentication": {
+      title: "Two-Factor Authentication",
+      description: "Implementing 2FA using email verification codes.",
+    },
+    "guides/captcha-integration": {
+      title: "CAPTCHA Integration",
+      description:
+        "Add bot protection to your authentication flows with reCAPTCHA, hCaptcha, and Cloudflare Turnstile.",
     },
     "mcp/introduction": {
       title: "MCP Introduction",

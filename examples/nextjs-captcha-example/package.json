@@ -1,0 +1,33 @@
+{
+  "name": "nextjs-captcha-example",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@warpy-auth-sdk/core": "*",
+    "next": "16.0.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "resend": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2",
+    "autoprefixer": "^10.4.14",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.1",
+    "postcss": "^8.4.24",
+    "tailwindcss": "^3.3.2",
+    "typescript": "^5.0.0"
+  },
+  "overrides": {
+    "@types/react": "19.2.2",
+    "@types/react-dom": "19.2.2"
+  }
+}
