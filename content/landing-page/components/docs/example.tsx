@@ -1,3 +1,5 @@
+"use client";
+
 import { CodeBlock } from "./code-block";
 import { Callout } from "./callout";
 

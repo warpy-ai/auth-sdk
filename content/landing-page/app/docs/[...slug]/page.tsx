@@ -11,6 +11,15 @@ import ProvidersOverview from "../../../docs/02-providers/01-overview.mdx";
 import GoogleOAuth from "../../../docs/02-providers/02-google-oauth.mdx";
 import EmailMagicLinks from "../../../docs/02-providers/03-email-magic-links.mdx";
 import CustomProviders from "../../../docs/02-providers/04-custom-providers.mdx";
+import TwoFactorEmail from "../../../docs/02-providers/05-two-factor-email.mdx";
+import GitHubOAuth from "../../../docs/02-providers/06-github-oauth.mdx";
+import GitLabOAuth from "../../../docs/02-providers/07-gitlab-oauth.mdx";
+import LinkedInOAuth from "../../../docs/02-providers/08-linkedin-oauth.mdx";
+import MicrosoftOAuth from "../../../docs/02-providers/09-microsoft-oauth.mdx";
+import SpotifyOAuth from "../../../docs/02-providers/10-spotify-oauth.mdx";
+import DiscordOAuth from "../../../docs/02-providers/11-discord-oauth.mdx";
+import TwitchOAuth from "../../../docs/02-providers/12-twitch-oauth.mdx";
+import EpicGamesOAuth from "../../../docs/02-providers/13-epic-games-oauth.mdx";
 
 import ExpressAdapter from "../../../docs/03-guides/01-express-adapter.mdx";
 import HonoAdapter from "../../../docs/03-guides/02-hono-adapter.mdx";
@@ -32,6 +41,15 @@ const routes: Record<string, React.ComponentType> = {
   "providers/google-oauth": GoogleOAuth,
   "providers/email-magic-links": EmailMagicLinks,
   "providers/custom-providers": CustomProviders,
+  "providers/two-factor-email": TwoFactorEmail,
+  "providers/github-oauth": GitHubOAuth,
+  "providers/gitlab-oauth": GitLabOAuth,
+  "providers/linkedin-oauth": LinkedInOAuth,
+  "providers/microsoft-oauth": MicrosoftOAuth,
+  "providers/spotify-oauth": SpotifyOAuth,
+  "providers/discord-oauth": DiscordOAuth,
+  "providers/twitch-oauth": TwitchOAuth,
+  "providers/epic-games-oauth": EpicGamesOAuth,
   "guides/express-adapter": ExpressAdapter,
   "guides/hono-adapter": HonoAdapter,
   "guides/nodejs-adapter": NodejsAdapter,
@@ -173,6 +191,42 @@ const getPageMetadata = (slug: string) => {
       title: "Custom Providers",
       description:
         "Building custom authentication providers for @warpy-auth-sdk/core.",
+    },
+    "providers/two-factor-email": {
+      title: "Two-Factor Email",
+      description: "Email-based two-factor authentication with verification codes.",
+    },
+    "providers/github-oauth": {
+      title: "GitHub OAuth",
+      description: "Complete setup guide for GitHub OAuth authentication.",
+    },
+    "providers/gitlab-oauth": {
+      title: "GitLab OAuth",
+      description: "Complete setup guide for GitLab OAuth authentication.",
+    },
+    "providers/linkedin-oauth": {
+      title: "LinkedIn OAuth",
+      description: "Complete setup guide for LinkedIn OAuth authentication.",
+    },
+    "providers/microsoft-oauth": {
+      title: "Microsoft OAuth",
+      description: "Complete setup guide for Microsoft/Azure AD OAuth authentication.",
+    },
+    "providers/spotify-oauth": {
+      title: "Spotify OAuth",
+      description: "Complete setup guide for Spotify OAuth authentication.",
+    },
+    "providers/discord-oauth": {
+      title: "Discord OAuth",
+      description: "Complete setup guide for Discord OAuth authentication.",
+    },
+    "providers/twitch-oauth": {
+      title: "Twitch OAuth",
+      description: "Complete setup guide for Twitch OAuth authentication.",
+    },
+    "providers/epic-games-oauth": {
+      title: "Epic Games OAuth",
+      description: "Complete setup guide for Epic Games OAuth authentication.",
     },
     "guides/express-adapter": {
       title: "Express Adapter",
