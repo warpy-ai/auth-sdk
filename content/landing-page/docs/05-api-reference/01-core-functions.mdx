@@ -1,0 +1,233 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { ApiMethod } from '@/components/docs/api-method';
+
+export const metadata = {
+  title: 'Core Functions - @warpy-auth-sdk/core',
+  description: 'Core authentication functions in @warpy-auth-sdk/core.',
+};
+
+export default function CoreFunctions() {
+  return (
+    <DocsLayout
+      title="Core Functions"
+      description="Core authentication functions in @warpy-auth-sdk/core."
+      nextPage={{ title: 'Provider API', href: '/docs/api/provider-api' }}
+    >
+      <div>
+        <h2>Core Authentication Functions</h2>
+        <p>
+          @warpy-auth-sdk/core provides several core functions for authentication. 
+          These are the main functions you'll use in your application.
+        </p>
+
+        <ApiMethod
+          name="authenticate"
+          description="Main authentication function that handles OAuth, email, and MCP agent login flows"
+          signature="authenticate(config: AuthConfig, request?: Request, payload?: MCPLoginPayload): Promise<AuthenticateResult>"
+          parameters={[
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration with provider and secret',
+              required: true,
+            },
+            {
+              name: 'request',
+              type: 'Request',
+              description: 'HTTP request object (for OAuth/email flows)',
+              required: false,
+            },
+            {
+              name: 'payload',
+              type: 'MCPLoginPayload',
+              description: 'MCP agent login payload (for agent authentication)',
+              required: false,
+            },
+          ]}
+          returns="Promise<AuthenticateResult>"
+          example={`import { authenticate, google } from '@warpy-auth-sdk/core';
+
+// OAuth authentication
+const result = await authenticate(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+  },
+  request
+);
+
+if (result.session) {
+  // User is authenticated
+  console.log('User:', result.session.user);
+} else if (result.redirectUrl) {
+  // Redirect to OAuth provider
+  return Response.redirect(result.redirectUrl);
+}`}
+        />
+
+        <ApiMethod
+          name="getSession"
+          description="Retrieve the current session from request cookies"
+          signature="getSession(request: Request, secret: string): Promise<Session | null>"
+          parameters={[
+            {
+              name: 'request',
+              type: 'Request',
+              description: 'HTTP request with cookies',
+              required: true,
+            },
+            {
+              name: 'secret',
+              type: 'string',
+              description: 'JWT signing secret',
+              required: true,
+            },
+          ]}
+          returns="Promise<Session | null>"
+          example={`import { getSession } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+  
+  if (!session) {
+    return Response.json({ error: 'Not authenticated' }, { status: 401 });
+  }
+  
+  return Response.json({ user: session.user });
+}`}
+        />
+
+        <ApiMethod
+          name="signOut"
+          description="Sign out the user and clear session cookies"
+          signature="signOut(request: Request, config: AuthConfig): Promise<void>"
+          parameters={[
+            {
+              name: 'request',
+              type: 'Request',
+              description: 'HTTP request',
+              required: true,
+            },
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration',
+              required: true,
+            },
+          ]}
+          returns="Promise<void>"
+          example={`import { signOut } from '@warpy-auth-sdk/core';
+
+export async function POST(request: Request) {
+  await signOut(request, {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({ /* ... */ }),
+  });
+  
+  return Response.json({ success: true });
+}`}
+        />
+
+        <ApiMethod
+          name="verifyAgentToken"
+          description="Verify MCP agent token from Authorization header"
+          signature="verifyAgentToken(request: Request, secret: string): Promise<Session | null>"
+          parameters={[
+            {
+              name: 'request',
+              type: 'Request',
+              description: 'HTTP request with Authorization header',
+              required: true,
+            },
+            {
+              name: 'secret',
+              type: 'string',
+              description: 'JWT signing secret',
+              required: true,
+            },
+          ]}
+          returns="Promise<Session | null>"
+          example={`import { verifyAgentToken } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const session = await verifyAgentToken(request, process.env.AUTH_SECRET!);
+  
+  if (!session || !session.scopes?.includes('read')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  
+  return Response.json({ data: 'Protected data' });
+}`}
+        />
+
+        <h2>Type Definitions</h2>
+        <p>
+          Core types used throughout @warpy-auth-sdk/core:
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface AuthConfig {
+  secret: string;
+  provider: Provider;
+  adapter?: Adapter;
+  callbacks?: {
+    user?: (user: User, context: { provider: string }) => Promise<User>;
+    jwt?: (token: JWT) => JWT;
+    session?: (session: Session) => Session;
+  };
+}
+
+interface Session {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+  expires: Date;
+  token?: string;
+  type?: 'standard' | 'mcp-agent';
+  scopes?: string[];
+  agentId?: string;
+}
+
+interface AuthenticateResult {
+  session?: Session;
+  error?: string;
+  redirectUrl?: string;
+}`}
+        </CodeBlock>
+
+        <h2>Error Handling</h2>
+        <p>
+          All core functions can throw errors. Handle them appropriately:
+        </p>
+
+        <CodeBlock language="typescript">
+{`try {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+  // Handle session
+} catch (error) {
+  console.error('Authentication error:', error);
+  return Response.json({ error: 'Authentication failed' }, { status: 500 });
+}`}
+        </CodeBlock>
+
+        <Callout type="info" title="Best Practices">
+          <ul>
+            <li>Always handle authentication errors gracefully</li>
+            <li>Use try-catch blocks around authentication calls</li>
+            <li>Validate environment variables at startup</li>
+            <li>Log authentication events for debugging</li>
+          </ul>
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -1,0 +1,55 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Discord OAuth - @warpy-auth-sdk/core',
+  description: 'Discord OAuth with PKCE and avatar mapping.',
+};
+
+export default function DiscordOAuth() {
+  return (
+    <DocsLayout
+      title="Discord OAuth"
+      description="Discord OAuth with PKCE and avatar mapping."
+      prevPage={{ title: 'Spotify OAuth', href: '/docs/providers/spotify-oauth' }}
+      nextPage={{ title: 'Twitch OAuth', href: '/docs/providers/twitch-oauth' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Discord uses scopes like <code>identify</code> and <code>email</code>. PKCE (S256) is enabled by default.
+          The SDK maps the avatar URL using the <code>id</code> and <code>avatar</code> fields when available.
+        </p>
+
+        <h2>Environment</h2>
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+DISCORD_CLIENT_ID=your-discord-client-id
+DISCORD_CLIENT_SECRET=your-discord-client-secret
+DISCORD_REDIRECT_URI=http://localhost:3000/api/auth/callback/discord`}</CodeBlock>
+
+        <h2>Configuration</h2>
+        <Example
+          title="Basic Discord OAuth Setup"
+          description="Minimal configuration"
+          code={`import { discord } from '@warpy-auth-sdk/core';
+
+const provider = discord({
+  clientId: process.env.DISCORD_CLIENT_ID!,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+  redirectUri: process.env.DISCORD_REDIRECT_URI!,
+  scope: ['identify', 'email'],
+});`}
+        />
+
+        <Callout type="info" title="Avatars">
+          If the user has no avatar, the SDK omits the picture field.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
+
+

@@ -1,0 +1,432 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+
+export const metadata = {
+  title: 'Hono Adapter - @warpy-auth-sdk/core',
+  description: 'Using @warpy-auth-sdk/core with Hono',
+};
+
+export default function HonoAdapter() {
+  return (
+    <DocsLayout
+      title="Hono Adapter"
+      description="Using @warpy-auth-sdk/core with Hono"
+      prevPage={{ title: 'Express Adapter', href: '/docs/guides/express-adapter' }}
+      nextPage={{ title: 'Node.js HTTP Adapter', href: '/docs/guides/nodejs-adapter' }}
+    >
+      <div>
+        <h2>Hono Adapter</h2>
+
+        <p>
+          The Hono adapter provides seamless integration of <code>@warpy-auth-sdk/core</code> with Hono applications. Hono is a fast, lightweight web framework that works on Node.js, Deno, Bun, and Cloudflare Workers.
+        </p>
+
+        <h2>Installation</h2>
+
+        <CodeBlock language="bash">{`npm install @warpy-auth-sdk/core hono
+# or
+yarn add @warpy-auth-sdk/core hono
+# or
+pnpm add @warpy-auth-sdk/core hono`}</CodeBlock>
+
+        <h2>Quick Start</h2>
+
+        <h3>1. Basic Setup (Node.js)</h3>
+
+        <CodeBlock language="typescript">{`import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+// Configure authentication
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Protected route
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+// Start server
+serve({
+  fetch: app.fetch,
+  port: 3000,
+});`}</CodeBlock>
+
+        <h3>2. Cloudflare Workers</h3>
+
+        <CodeBlock language="typescript">{`import { Hono } from "hono";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "https://your-worker.workers.dev/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+});
+
+export default app;`}</CodeBlock>
+
+        <h3>3. Deno</h3>
+
+        <CodeBlock language="typescript">{`import { Hono } from "https://deno.land/x/hono/mod.ts";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+registerAuthRoutes(app, {
+  secret: Deno.env.get("AUTH_SECRET")!,
+  provider: google({
+    clientId: Deno.env.get("GOOGLE_CLIENT_ID")!,
+    clientSecret: Deno.env.get("GOOGLE_CLIENT_SECRET")!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+});
+
+Deno.serve(app.fetch);`}</CodeBlock>
+
+        <h2>API Reference</h2>
+
+        <h3>registerAuthRoutes(app, config, options)</h3>
+
+        <p>Registers authentication routes on your Hono application.</p>
+
+        <h4>Parameters</h4>
+
+        <ul>
+          <li><strong>app</strong> (<code>HonoApp</code>): Your Hono app instance</li>
+          <li><strong>config</strong> (<code>AuthConfig</code>): Authentication configuration
+            <ul>
+              <li><code>secret</code>: JWT signing secret (min 32 characters)</li>
+              <li><code>provider</code>: OAuth provider (Google, GitHub, etc.)</li>
+              <li><code>adapter</code>: Optional database adapter</li>
+              <li><code>callbacks</code>: Optional callbacks</li>
+            </ul>
+          </li>
+          <li><strong>options</strong> (<code>HonoAuthOptions</code>): Optional configuration
+            <ul>
+              <li><code>basePath</code>: Base path for auth routes (default: <code>/auth</code>)</li>
+              <li><code>successRedirect</code>: Redirect after successful auth (default: <code>/</code>)</li>
+              <li><code>errorRedirect</code>: Redirect after auth failure (default: <code>/login</code>)</li>
+              <li><code>mcp</code>: MCP configuration</li>
+            </ul>
+          </li>
+        </ul>
+
+        <h4>Returns</h4>
+
+        <p>An object with:</p>
+        <ul>
+          <li><code>requireAuth</code>: Middleware function to protect routes</li>
+        </ul>
+
+        <h3>Registered Routes</h3>
+
+        <ul>
+          <li><code>GET {`{basePath}`}/session</code> - Get current session</li>
+          <li><code>POST {`{basePath}`}/signout</code> - Sign out user</li>
+          <li><code>GET {`{basePath}`}/signin/:provider</code> - Provider-specific sign-in</li>
+          <li><code>GET {`{basePath}`}/callback/:provider</code> - Provider-specific callback</li>
+        </ul>
+
+        <h2>Usage Examples</h2>
+
+        <h3>Protecting Routes</h3>
+
+        <CodeBlock language="typescript">{`// Single protected route
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+// Chain middleware
+app.get("/api/admin",
+  requireAuth,
+  checkAdminRole,
+  (c) => {
+    return c.json({ message: "Admin only" });
+  }
+);
+
+// Protect route group
+const api = new Hono();
+api.use("*", requireAuth);
+api.get("/data", (c) => c.json({ data: "Protected" }));
+
+app.route("/api/protected", api);`}</CodeBlock>
+
+        <h3>Custom Callbacks</h3>
+
+        <CodeBlock language="typescript">{`registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  callbacks: {
+    async user(oauthUser) {
+      // Create or update user in database
+      return await db.user.upsert({
+        where: { email: oauthUser.email },
+        update: { lastLogin: new Date() },
+        create: {
+          email: oauthUser.email,
+          name: oauthUser.name,
+          picture: oauthUser.picture,
+        },
+      });
+    },
+    jwt(token) {
+      token.role = "user";
+      return token;
+    },
+    session(session) {
+      session.customField = "value";
+      return session;
+    },
+  },
+});`}</CodeBlock>
+
+        <h3>Environment-specific Configuration</h3>
+
+        <CodeBlock language="typescript">{`import { Hono } from "hono";
+
+const app = new Hono<{
+  Bindings: {
+    AUTH_SECRET: string;
+    GOOGLE_CLIENT_ID: string;
+    GOOGLE_CLIENT_SECRET: string;
+  };
+}>();
+
+// Cloudflare Workers with env bindings
+app.get("/", (c) => {
+  const config = {
+    secret: c.env.AUTH_SECRET,
+    provider: google({
+      clientId: c.env.GOOGLE_CLIENT_ID,
+      clientSecret: c.env.GOOGLE_CLIENT_SECRET,
+      redirectUri: "https://worker.dev/api/auth/callback/google",
+    }),
+  };
+  // ...
+});`}</CodeBlock>
+
+        <h3>With Database Adapter</h3>
+
+        <CodeBlock language="typescript">{`import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  adapter: PrismaAdapter(prisma),
+});`}</CodeBlock>
+
+        <h3>Error Handling</h3>
+
+        <CodeBlock language="typescript">{`app.onError((err, c) => {
+  console.error("Error:", err);
+  return c.json({ error: "Internal Server Error" }, 500);
+});
+
+// Handle auth-specific errors
+app.get("/login", (c) => {
+  const error = c.req.query("error");
+  if (error) {
+    return c.html(\`<div>Authentication failed: \${error}</div>\`);
+  }
+  return c.html("<div>Login page</div>");
+});`}</CodeBlock>
+
+        <h3>MCP (AI Agent) Support</h3>
+
+        <CodeBlock language="typescript">{`registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/api/auth",
+  mcp: {
+    enabled: true,
+    path: "/api/mcp",
+    shield: {
+      secret: process.env.AUTH_SECRET!,
+      warpy: {
+        apiKey: process.env.WARPY_API_KEY,
+      },
+    },
+  },
+});`}</CodeBlock>
+
+        <h2>TypeScript Support</h2>
+
+        <p>The adapter includes full TypeScript support:</p>
+
+        <CodeBlock language="typescript">{`import type {
+  HonoApp,
+  HonoContext,
+  HonoMiddleware,
+  HonoAuthOptions,
+  Session,
+} from "@warpy-auth-sdk/core/adapters/hono";
+
+// Typed context with session
+app.get("/api/user", requireAuth, (c: HonoContext) => {
+  const session = c.get("session") as Session;
+  return c.json({ user: session.user });
+});`}</CodeBlock>
+
+        <h2>Multi-Runtime Support</h2>
+
+        <p>Hono works across multiple JavaScript runtimes:</p>
+
+        <h3>Node.js</h3>
+
+        <CodeBlock language="typescript">{`import { serve } from "@hono/node-server";
+
+serve({
+  fetch: app.fetch,
+  port: 3000,
+});`}</CodeBlock>
+
+        <h3>Bun</h3>
+
+        <CodeBlock language="typescript">{`// Just run: bun run index.ts
+export default app;`}</CodeBlock>
+
+        <h3>Deno</h3>
+
+        <CodeBlock language="typescript">{`Deno.serve({ port: 3000 }, app.fetch);`}</CodeBlock>
+
+        <h3>Cloudflare Workers</h3>
+
+        <CodeBlock language="typescript">{`// wrangler.toml required
+export default app;`}</CodeBlock>
+
+        <h2>Complete Example</h2>
+
+        <p>
+          See the <a href="https://github.com/warpy-ai/auth-sdk/tree/main/examples/hono-example" target="_blank">complete Hono example</a> in the repository.
+        </p>
+
+        <h2>Comparison with Other Adapters</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Hono</th>
+              <th>Express</th>
+              <th>Fastify</th>
+              <th>Node.js</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Framework Dependency</td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td>Yes</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>Multi-runtime</td>
+              <td>✓</td>
+              <td>✗</td>
+              <td>✗</td>
+              <td>✗</td>
+            </tr>
+            <tr>
+              <td>Edge Compatible</td>
+              <td>✓</td>
+              <td>✗</td>
+              <td>✗</td>
+              <td>✗</td>
+            </tr>
+            <tr>
+              <td>TypeScript First</td>
+              <td>✓</td>
+              <td>✗</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+            <tr>
+              <td>Performance</td>
+              <td>Excellent</td>
+              <td>Good</td>
+              <td>Excellent</td>
+              <td>Excellent</td>
+            </tr>
+            <tr>
+              <td>MCP Support</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+              <td>✓</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>Session not available in context</h3>
+
+        <p>Make sure you're using the <code>requireAuth</code> middleware:</p>
+
+        <CodeBlock language="typescript">{`app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session"); // Available after requireAuth
+  return c.json({ user: session.user });
+});`}</CodeBlock>
+
+        <h3>Environment variables not working (Cloudflare)</h3>
+
+        <p>Use env bindings instead of <code>process.env</code>:</p>
+
+        <CodeBlock language="typescript">{`app.get("/", (c) => {
+  const secret = c.env.AUTH_SECRET; // Not process.env
+});`}</CodeBlock>
+
+        <h3>CORS issues</h3>
+
+        <p>Configure CORS middleware:</p>
+
+        <CodeBlock language="typescript">{`import { cors } from "hono/cors";
+
+app.use("*", cors({
+  origin: "http://localhost:5173",
+  credentials: true,
+}));`}</CodeBlock>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/two-factor-authentication">Two-Factor Authentication</a></li>
+          <li><a href="/docs/adapters">Database Adapters</a></li>
+          <li><a href="/docs/mcp">MCP Integration</a></li>
+          <li><a href="/docs/api-reference">API Reference</a></li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}
