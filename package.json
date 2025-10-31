@@ -31,6 +31,11 @@
       "import": "./dist/adapters/node.js",
       "default": "./dist/adapters/node.js"
     },
+    "./adapters/remix": {
+      "types": "./typings/adapters/remix.d.ts",
+      "import": "./dist/adapters/remix.js",
+      "default": "./dist/adapters/remix.js"
+    },
     "./hooks": {
       "types": "./typings/hooks/index.d.ts",
       "import": "./dist/hooks/index.js",
@@ -108,6 +113,9 @@
       ],
       "adapters/node": [
         "typings/adapters/node.d.ts"
+      ],
+      "adapters/remix": [
+        "typings/adapters/remix.d.ts"
       ],
       "hooks": [
         "typings/hooks/index.d.ts"
