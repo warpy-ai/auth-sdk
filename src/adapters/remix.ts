@@ -29,15 +29,6 @@ export interface RemixAuthOptions {
 }
 
 /**
- * Build a Web Request from Remix loader/action args
- */
-function buildWebRequest(request: Request): Request {
-  // Remix already provides a Web Request, so we can use it directly
-  // But we ensure it has proper URL construction for relative paths
-  return request;
-}
-
-/**
  * Set cookies on a Response object
  */
 function setCookies(response: Response, cookies?: string[]): Response {
@@ -62,7 +53,8 @@ export async function getSession(
   request: Request,
   config: AuthConfig
 ): Promise<Session | null> {
-  return await coreGetSession(request, config.secret);
+  const session = await coreGetSession(request, config.secret);
+  return session;
 }
 
 /**
@@ -122,7 +114,7 @@ export function createAuthHandlers(
   /**
    * OAuth sign-in loader (initiates OAuth flow)
    */
-  async function signInLoader({ request, params }: RemixLoaderArgs) {
+  async function signInLoader({ request }: RemixLoaderArgs) {
     const url = new URL(request.url);
     const pathname = url.pathname;
 
@@ -149,7 +141,7 @@ export function createAuthHandlers(
   /**
    * OAuth callback loader
    */
-  async function callbackLoader({ request, params }: RemixLoaderArgs) {
+  async function callbackLoader({ request }: RemixLoaderArgs) {
     const url = new URL(request.url);
     const pathname = url.pathname;
 

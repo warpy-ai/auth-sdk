@@ -29,8 +29,8 @@ export declare function createAuthHandlers(config: AuthConfig, options?: RemixAu
     authAction: (args: RemixActionArgs) => Promise<Response | null>;
     sessionLoader: ({ request }: RemixLoaderArgs) => Promise<Response | null>;
     signOutAction: ({ request }: RemixActionArgs) => Promise<Response | null>;
-    signInLoader: ({ request, params }: RemixLoaderArgs) => Promise<Response | null>;
-    callbackLoader: ({ request, params }: RemixLoaderArgs) => Promise<Response | null>;
+    signInLoader: ({ request }: RemixLoaderArgs) => Promise<Response | null>;
+    callbackLoader: ({ request }: RemixLoaderArgs) => Promise<Response | null>;
     emailSignInAction: ({ request }: RemixActionArgs) => Promise<Response | null>;
     twoFactorAction: ({ request }: RemixActionArgs) => Promise<Response | null>;
     mcpAction: ({ request }: RemixActionArgs) => Promise<Response | null>;
