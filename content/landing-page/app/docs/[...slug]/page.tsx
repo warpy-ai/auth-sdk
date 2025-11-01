@@ -21,15 +21,9 @@ import DiscordOAuth from "../../../docs/02-providers/11-discord-oauth.mdx";
 import TwitchOAuth from "../../../docs/02-providers/12-twitch-oauth.mdx";
 import EpicGamesOAuth from "../../../docs/02-providers/13-epic-games-oauth.mdx";
 
-import ExpressAdapter from "../../../docs/03-guides/01-express-adapter.mdx";
-import HonoAdapter from "../../../docs/03-guides/02-hono-adapter.mdx";
-import NodejsAdapter from "../../../docs/03-guides/03-nodejs-adapter.mdx";
-import TwoFactorAuthentication from "../../../docs/03-guides/04-two-factor-authentication.mdx";
-import CaptchaIntegration from "../../../docs/03-guides/05-captcha-integration.mdx";
-
-import MCPIntroduction from "../../../docs/04-mcp/01-introduction.mdx";
-import CoreFunctions from "../../../docs/05-api-reference/01-core-functions.mdx";
-import NextJSAppRouter from "../../../docs/06-examples/01-nextjs-app-router.mdx";
+// import MCPIntroduction from "@/docs/04-mcp/01-introduction.mdx";
+import CoreFunctions from "@/docs/05-api-reference/01-core-functions.mdx";
+import NextJSAppRouter from "@/docs/06-examples/01-nextjs-app-router.mdx";
 
 // Route mapping
 const routes: Record<string, React.ComponentType> = {
@@ -41,21 +35,7 @@ const routes: Record<string, React.ComponentType> = {
   "providers/google-oauth": GoogleOAuth,
   "providers/email-magic-links": EmailMagicLinks,
   "providers/custom-providers": CustomProviders,
-  "providers/two-factor-email": TwoFactorEmail,
-  "providers/github-oauth": GitHubOAuth,
-  "providers/gitlab-oauth": GitLabOAuth,
-  "providers/linkedin-oauth": LinkedInOAuth,
-  "providers/microsoft-oauth": MicrosoftOAuth,
-  "providers/spotify-oauth": SpotifyOAuth,
-  "providers/discord-oauth": DiscordOAuth,
-  "providers/twitch-oauth": TwitchOAuth,
-  "providers/epic-games-oauth": EpicGamesOAuth,
-  "guides/express-adapter": ExpressAdapter,
-  "guides/hono-adapter": HonoAdapter,
-  "guides/nodejs-adapter": NodejsAdapter,
-  "guides/two-factor-authentication": TwoFactorAuthentication,
-  "guides/captcha-integration": CaptchaIntegration,
-  "mcp/introduction": MCPIntroduction,
+  // "mcp/introduction": MCPIntroduction,
   "api/core-functions": CoreFunctions,
   "examples/nextjs-app-router": NextJSAppRouter,
 };
@@ -194,7 +174,8 @@ const getPageMetadata = (slug: string) => {
     },
     "providers/two-factor-email": {
       title: "Two-Factor Email",
-      description: "Email-based two-factor authentication with verification codes.",
+      description:
+        "Email-based two-factor authentication with verification codes.",
     },
     "providers/github-oauth": {
       title: "GitHub OAuth",
@@ -210,7 +191,8 @@ const getPageMetadata = (slug: string) => {
     },
     "providers/microsoft-oauth": {
       title: "Microsoft OAuth",
-      description: "Complete setup guide for Microsoft/Azure AD OAuth authentication.",
+      description:
+        "Complete setup guide for Microsoft/Azure AD OAuth authentication.",
     },
     "providers/spotify-oauth": {
       title: "Spotify OAuth",
