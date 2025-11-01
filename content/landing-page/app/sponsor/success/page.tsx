@@ -12,9 +12,10 @@ function SuccessContent() {
   const sessionId = searchParams.get('session_id')
   const [showModal, setShowModal] = useState(false)
   const [isVerifying, setIsVerifying] = useState(true)
+  const [hasSubmitted, setHasSubmitted] = useState(false)
 
   useEffect(() => {
-    if (sessionId) {
+    if (sessionId && !hasSubmitted) {
       // Give webhook a moment to process
       setTimeout(() => {
         setIsVerifying(false)
@@ -23,7 +24,7 @@ function SuccessContent() {
     } else {
       setIsVerifying(false)
     }
-  }, [sessionId])
+  }, [sessionId, hasSubmitted])
 
   if (!sessionId) {
     return (

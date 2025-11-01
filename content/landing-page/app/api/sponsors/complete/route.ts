@@ -2,9 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/mongodb'
 import { Sponsor } from '@/lib/models/Sponsor'
 import { SponsorCheckout } from '@/lib/models/SponsorCheckout'
-import { writeFile, mkdir } from 'fs/promises'
-import path from 'path'
-import { randomBytes } from 'crypto'
+import { put } from '@vercel/blob'
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,21 +61,13 @@ export async function POST(request: NextRequest) {
         )
       }
 
-      // Generate unique filename
-      const ext = path.extname(logoFile.name)
-      const filename = `${randomBytes(16).toString('hex')}${ext}`
-      const uploadDir = path.join(process.cwd(), 'public', 'sponsors')
-      const filepath = path.join(uploadDir, filename)
+      // Upload to Vercel Blob
+      const blob = await put(`sponsors/${logoFile.name}`, logoFile, {
+        access: 'public',
+        addRandomSuffix: true, // Adds random suffix to prevent collisions
+      })
 
-      // Ensure upload directory exists
-      await mkdir(uploadDir, { recursive: true })
-
-      // Save file
-      const bytes = await logoFile.arrayBuffer()
-      const buffer = Buffer.from(bytes)
-      await writeFile(filepath, buffer)
-
-      logoUrl = `/sponsors/${filename}`
+      logoUrl = blob.url
     }
 
     // Update sponsor with details

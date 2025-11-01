@@ -1,22 +1,19 @@
-import { NextResponse } from 'next/server'
-import { connectDB } from '@/lib/mongodb'
-import { Sponsor } from '@/lib/models/Sponsor'
+import { NextResponse } from "next/server";
+import { connectDB } from "@/lib/mongodb";
+import { Sponsor } from "@/lib/models/Sponsor";
 
 export async function GET() {
   try {
-    await connectDB()
+    console.log("connecting to db");
+    await connectDB();
 
-    // Fetch all active sponsors
     const sponsors = await Sponsor.find({
-      stripeStatus: { $in: ['active', 'trialing'] },
-      $or: [
-        { expiresAt: null },
-        { expiresAt: { $gt: new Date() } },
-      ],
+      stripeStatus: { $in: ["active", "trialing"] },
+      $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
     })
-      .select('_id gridPosition name logoUrl websiteUrl monthlyAmount')
+      .select("_id gridPosition name logoUrl websiteUrl monthlyAmount")
       .sort({ gridPosition: 1 })
-      .lean()
+      .lean();
 
     // Transform _id to id for frontend compatibility
     const formattedSponsors = sponsors.map((sponsor) => ({
@@ -26,14 +23,14 @@ export async function GET() {
       logoUrl: sponsor.logoUrl,
       websiteUrl: sponsor.websiteUrl,
       monthlyAmount: sponsor.monthlyAmount,
-    }))
+    }));
 
-    return NextResponse.json({ sponsors: formattedSponsors })
+    return NextResponse.json({ sponsors: formattedSponsors });
   } catch (error) {
-    console.error('Fetch sponsors error:', error)
+    console.error("Fetch sponsors error:", error);
     return NextResponse.json(
-      { error: 'Failed to fetch sponsors' },
+      { error: "Failed to fetch sponsors" },
       { status: 500 }
-    )
+    );
   }
 }

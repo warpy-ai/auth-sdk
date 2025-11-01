@@ -96,9 +96,8 @@ export function SponsorDetailsModal({
         throw new Error(data.error || 'Failed to save sponsor details')
       }
 
-      // Success! Close modal and refresh page
-      onClose()
-      window.location.reload()
+      // Success! Redirect to home page
+      window.location.href = '/'
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
       setIsLoading(false)

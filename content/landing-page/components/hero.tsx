@@ -21,34 +21,23 @@ interface Sponsor {
 export function Hero() {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [selectedPosition, setSelectedPosition] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [showSponsorGrid, setShowSponsorGrid] = useState(false);
 
   useEffect(() => {
+    console.log("fetching sponsors");
     fetch("/api/sponsors")
       .then((res) => res.json())
       .then((data) => {
+        console.log("data", data);
         setSponsors(data.sponsors || []);
-        setIsLoading(false);
       })
       .catch((error) => {
         console.error("Failed to fetch sponsors:", error);
-        setIsLoading(false);
       });
   }, []);
   const [pkgManager, setPkgManager] = useState<"pnpm" | "npm" | "yarn" | "bun">(
     "npm"
   );
-
-  const handleCopy = useCallback(async () => {
-    try {
-      const cmd = "$ npm i @warpy-auth-sdk/core";
-      await navigator.clipboard.writeText(cmd);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (_) {
-      // no-op: clipboard may be unavailable; avoid throwing
-    }
-  }, []);
 
   const installCommand = useMemo(() => {
     switch (pkgManager) {
@@ -73,13 +62,14 @@ export function Hero() {
   }, [installCommand]);
 
   return (
-    <section className="relative container flex flex-col items-center gap-8 pt-32 pb-24 md:pt-40 md:pb-32">
-      {!isLoading && (
+    <section className="relative container flex flex-col items-center gap-8 pt-32 pb-24 md:pt-40 md:pb-32 min-h-screen">
+      {/* Grid - either in background or foreground based on toggle */}
+      <div className={`absolute inset-0 overflow-hidden transition-all ${showSponsorGrid ? 'z-0 bg-black/20' : '-z-10'}`}>
         <SponsorGrid
           sponsors={sponsors}
           onCellClick={(position) => setSelectedPosition(position)}
         />
-      )}
+      </div>
 
       {selectedPosition !== null && (
         <SponsorCheckoutModal
@@ -89,10 +79,23 @@ export function Hero() {
         />
       )}
 
-      <div className="flex max-w-[980px] flex-col items-center gap-6 text-center">
-        <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-6xl lg:text-7xl text-balance">
-          The Authentication Toolkit for TypeScript
-        </h1>
+      {/* Toggle button */}
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setShowSponsorGrid(!showSponsorGrid)}
+        className="absolute top-4 right-4 z-10 bg-background/80 backdrop-blur-sm"
+      >
+        {showSponsorGrid ? "Hide" : "View"} Sponsor Grid
+      </Button>
+
+      {/* Conditional content based on toggle */}
+      {!showSponsorGrid ? (
+        <>
+          <div className="flex max-w-[980px] flex-col items-center gap-6 text-center">
+            <h1 className="text-5xl font-bold leading-tight tracking-tight md:text-6xl lg:text-7xl text-balance">
+              The Authentication Toolkit for TypeScript
+            </h1>
         <p className="max-w-[750px] text-lg text-muted-foreground/80 sm:text-xl text-balance leading-relaxed">
           @warpy-auth-sdk/core is a free open-source library that gives you the
           tools you need to build secure authentication with AI agent
@@ -159,15 +162,24 @@ export function Hero() {
         </Card>
       </div>
 
-      <div className="mt-16 text-center">
-        <p className="text-sm text-muted-foreground/60 mb-6">
-          Trusted by builders at
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-12 opacity-40">
-          <div className="text-base font-medium tracking-wide">LERIO</div>
-          <div className="text-base font-medium tracking-wide">SOURCEPILOT</div>
+          <div className="mt-16 text-center">
+            <p className="text-sm text-muted-foreground/60 mb-6">
+              Trusted by builders at
+            </p>
+            <div className="flex flex-wrap items-center justify-center gap-12 opacity-40">
+              <div className="text-base font-medium tracking-wide">LERIO</div>
+              <div className="text-base font-medium tracking-wide">SOURCEPILOT</div>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div className="flex flex-col items-center justify-center flex-1 w-full">
+          <h2 className="text-3xl font-bold mb-4">Sponsor Grid</h2>
+          <p className="text-muted-foreground mb-8">
+            Click on an empty cell to become a sponsor
+          </p>
         </div>
-      </div>
+      )}
     </section>
   );
 }
