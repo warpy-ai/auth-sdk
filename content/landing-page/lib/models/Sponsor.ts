@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose'
 export interface ISponsor extends Document {
   gridPosition: number
   name: string
+  slogan?: string
   logoUrl?: string
   websiteUrl?: string
   monthlyAmount: number
@@ -26,6 +27,11 @@ const SponsorSchema = new Schema<ISponsor>(
       type: String,
       required: true,
       maxlength: 100,
+    },
+    slogan: {
+      type: String,
+      maxlength: 200,
+      default: null,
     },
     logoUrl: {
       type: String,

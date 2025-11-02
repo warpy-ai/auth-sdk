@@ -11,6 +11,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData()
     const sessionId = formData.get('sessionId') as string
     const name = formData.get('name') as string
+    const slogan = formData.get('slogan') as string | null
     const websiteUrl = formData.get('websiteUrl') as string | null
     const logoFile = formData.get('logo') as File | null
 
@@ -73,6 +74,7 @@ export async function POST(request: NextRequest) {
     // Update sponsor with details
     await Sponsor.findByIdAndUpdate(sponsor._id, {
       name,
+      slogan: slogan || null,
       websiteUrl: websiteUrl || null,
       logoUrl,
     })

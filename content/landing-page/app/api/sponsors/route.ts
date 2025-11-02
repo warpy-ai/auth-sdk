@@ -11,15 +11,16 @@ export async function GET() {
       stripeStatus: { $in: ["active", "trialing"] },
       $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
     })
-      .select("_id gridPosition name logoUrl websiteUrl monthlyAmount")
+      .select("_id gridPosition name slogan logoUrl websiteUrl monthlyAmount")
       .sort({ gridPosition: 1 })
       .lean();
 
     // Transform _id to id for frontend compatibility
-    const formattedSponsors = sponsors.map((sponsor) => ({
+    const formattedSponsors = sponsors.map((sponsor: any) => ({
       id: sponsor._id.toString(),
       gridPosition: sponsor.gridPosition,
       name: sponsor.name,
+      slogan: sponsor.slogan || null,
       logoUrl: sponsor.logoUrl,
       websiteUrl: sponsor.websiteUrl,
       monthlyAmount: sponsor.monthlyAmount,

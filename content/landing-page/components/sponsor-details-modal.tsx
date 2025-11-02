@@ -26,6 +26,7 @@ export function SponsorDetailsModal({
   sessionId,
 }: SponsorDetailsModalProps) {
   const [name, setName] = useState('')
+  const [slogan, setSlogan] = useState('')
   const [websiteUrl, setWebsiteUrl] = useState('')
   const [logoFile, setLogoFile] = useState<File | null>(null)
   const [logoPreview, setLogoPreview] = useState<string | null>(null)
@@ -78,6 +79,9 @@ export function SponsorDetailsModal({
       const formData = new FormData()
       formData.append('sessionId', sessionId)
       formData.append('name', name.trim())
+      if (slogan.trim()) {
+        formData.append('slogan', slogan.trim())
+      }
       if (websiteUrl.trim()) {
         formData.append('websiteUrl', websiteUrl.trim())
       }
@@ -123,10 +127,25 @@ export function SponsorDetailsModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="Your Name or Company"
               disabled={isLoading}
-              maxLength={50}
+              maxLength={100}
             />
             <p className="text-xs text-muted-foreground">
               This will be displayed on the grid
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="slogan">Slogan (Optional)</Label>
+            <Input
+              id="slogan"
+              value={slogan}
+              onChange={(e) => setSlogan(e.target.value)}
+              placeholder="Your tagline or slogan"
+              disabled={isLoading}
+              maxLength={200}
+            />
+            <p className="text-xs text-muted-foreground">
+              A short tagline to display with your logo
             </p>
           </div>
 

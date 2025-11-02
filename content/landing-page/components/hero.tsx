@@ -13,6 +13,7 @@ interface Sponsor {
   id: string;
   gridPosition: number;
   name: string;
+  slogan?: string | null;
   logoUrl: string | null;
   websiteUrl: string | null;
   monthlyAmount: number;
@@ -68,6 +69,7 @@ export function Hero() {
         <SponsorGrid
           sponsors={sponsors}
           onCellClick={(position) => setSelectedPosition(position)}
+          showGrayscale={!showSponsorGrid}
         />
       </div>
 

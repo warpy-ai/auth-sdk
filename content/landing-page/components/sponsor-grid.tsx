@@ -9,6 +9,7 @@ interface Sponsor {
   id: string;
   gridPosition: number;
   name: string;
+  slogan?: string | null;
   logoUrl: string | null;
   websiteUrl: string | null;
   monthlyAmount: number;
@@ -18,12 +19,14 @@ interface SponsorGridProps {
   sponsors: Sponsor[];
   totalCells?: number;
   onCellClick: (position: number) => void;
+  showGrayscale?: boolean;
 }
 
 export function SponsorGrid({
   sponsors,
   totalCells = 315,
   onCellClick,
+  showGrayscale = false,
 }: SponsorGridProps) {
   const [hoveredCell, setHoveredCell] = useState<number | null>(null);
 
@@ -76,9 +79,9 @@ export function SponsorGrid({
             }
           >
             {sponsor ? (
-              <div className="flex items-center justify-center w-full h-full p-2">
+              <div className="flex flex-col items-center justify-center w-full h-full p-1 gap-0.5">
                 {sponsor.logoUrl ? (
-                  <div className="relative w-full h-full">
+                  <div className={cn("relative w-full h-8 shrink-0", showGrayscale && "grayscale")}>
                     <Image
                       src={sponsor.logoUrl}
                       alt={sponsor.name}
@@ -87,9 +90,13 @@ export function SponsorGrid({
                       sizes="60px"
                     />
                   </div>
-                ) : (
-                  <span className="text-[10px] font-medium text-white/60 text-center break-all line-clamp-2">
-                    {sponsor.name}
+                ) : null}
+                <span className="text-[8px] font-semibold text-white/80 text-center line-clamp-1 w-full px-0.5">
+                  {sponsor.name}
+                </span>
+                {sponsor.slogan && (
+                  <span className="text-[7px] text-white/50 text-center line-clamp-1 w-full px-0.5">
+                    {sponsor.slogan}
                   </span>
                 )}
               </div>
