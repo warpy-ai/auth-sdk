@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 
+// Force Node.js runtime for docs pages (MDX components need React Context)
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 // Import all MDX files from the local docs directory (copied during build)
 import Installation from "../../../docs/01-getting-started/01-installation.mdx";
 import Quickstart from "../../../docs/01-getting-started/02-quickstart.mdx";
@@ -324,8 +328,9 @@ export default async function DocsPage({ params }: PageProps) {
   return <Component />;
 }
 
-export async function generateStaticParams() {
-  return Object.keys(routes).map((slug) => ({
-    slug: slug.split("/"),
-  }));
-}
+// Temporarily disabled to fix build - docs will be dynamically rendered
+// export async function generateStaticParams() {
+//   return Object.keys(routes).map((slug) => ({
+//     slug: slug.split("/"),
+//   }));
+// }
