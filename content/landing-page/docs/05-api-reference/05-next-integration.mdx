@@ -1,0 +1,562 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { ApiMethod } from '@/components/docs/api-method';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Next.js Integration API - @warpy-auth-sdk/core',
+  description: 'Next.js 16 Proxy (middleware) and handler API reference for @warpy-auth-sdk/core.',
+};
+
+export default function NextIntegrationAPI() {
+  return (
+    <DocsLayout
+      title="Next.js Integration API"
+      description="Next.js 16 Proxy (middleware) and handler API reference."
+      previousPage={{ title: 'React Hooks', href: '/docs/api-reference/react-hooks' }}
+      nextPage={{ title: 'TypeScript Types', href: '/docs/api-reference/typescript-types' }}
+    >
+      <div>
+        <h2>Next.js 16 Proxy Integration</h2>
+        <p>
+          The Next.js integration provides zero-config authentication for Next.js 16+ applications
+          using the new Proxy system (formerly Middleware). Import from <code>@warpy-auth-sdk/core/next</code>.
+        </p>
+
+        <ApiMethod
+          name="authMiddleware"
+          description="Zero-config authentication proxy for Next.js 16 (Clerk-like ergonomics)"
+          signature="authMiddleware(configOrOptions?: AuthConfig | AuthMiddlewareOptions, maybeOptions?: AuthMiddlewareOptions): (request: NextRequest) => Promise<Response>"
+          parameters={[
+            {
+              name: 'configOrOptions',
+              type: 'AuthConfig | AuthMiddlewareOptions',
+              description: 'AuthConfig or middleware options (auto-detects from env if omitted)',
+              required: false,
+            },
+            {
+              name: 'maybeOptions',
+              type: 'AuthMiddlewareOptions',
+              description: 'Middleware options (when first param is AuthConfig)',
+              required: false,
+            },
+          ]}
+          returns="(request: NextRequest) => Promise<Response>"
+          example={`// proxy.ts (Next.js 16 Proxy file at app root)
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
+
+// With explicit config
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      async user(u) {
+        // Resolve/upsert user from your DB
+        return { id: '1', email: u.email, name: u.name, picture: u.picture };
+      },
+      jwt: (t) => t,
+      session: (s) => s,
+    },
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+    errorRedirect: '/login',
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith('/api/auth')) {
+    return handler(request);
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next|[^?]*\\\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+  ],
+};`}
+        />
+
+        <ApiMethod
+          name="createNextAuthHandler"
+          description="Create Next.js route handler for manual route setup"
+          signature="createNextAuthHandler(config: AuthConfig, options?: NextAuthHandlerOptions): (request: Request) => Promise<Response>"
+          parameters={[
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration',
+              required: true,
+            },
+            {
+              name: 'options',
+              type: 'NextAuthHandlerOptions',
+              description: 'Handler options',
+              required: false,
+            },
+          ]}
+          returns="(request: Request) => Promise<Response>"
+          example={`// app/api/auth/[...nextauth]/route.ts
+import { createNextAuthHandler } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
+
+const handler = createNextAuthHandler(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+    errorRedirect: '/login',
+  }
+);
+
+export { handler as GET, handler as POST };`}
+        />
+
+        <h2>Configuration Options</h2>
+
+        <h3>AuthMiddlewareOptions</h3>
+        <CodeBlock language="typescript">
+{`interface AuthMiddlewareOptions extends NextAuthHandlerOptions {
+  // Base path for auth routes (default: "/auth")
+  basePath?: string;
+
+  // Redirect after successful auth (default: "/")
+  successRedirect?: string;
+
+  // Redirect on auth error (default: "/login")
+  errorRedirect?: string;
+
+  // Public routes (always accessible)
+  publicRoutes?: string[];
+
+  // Protected routes (require authentication)
+  protectedRoutes?: string[];
+}`}
+        </CodeBlock>
+
+        <h3>NextAuthHandlerOptions</h3>
+        <CodeBlock language="typescript">
+{`interface NextAuthHandlerOptions {
+  // Base path for auth routes (default: "/auth")
+  basePath?: string;
+
+  // Redirect after successful auth (default: "/dashboard")
+  successRedirect?: string;
+
+  // Redirect on auth error (default: "/login")
+  errorRedirect?: string;
+}`}
+        </CodeBlock>
+
+        <h2>Zero-Config Setup</h2>
+        <p>
+          The middleware can auto-detect configuration from environment variables:
+        </p>
+
+        <CodeBlock language="bash">
+{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}
+        </CodeBlock>
+
+        <CodeBlock language="typescript">
+{`// proxy.ts (minimal setup)
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+
+// Zero-config: auto-detects from env
+const handler = authMiddleware({
+  basePath: '/api/auth',
+  successRedirect: '/dashboard',
+  errorRedirect: '/login',
+});
+
+export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith('/api/auth')) {
+    return handler(request);
+  }
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next|[^?]*\\\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+  ],
+};`}
+        </CodeBlock>
+
+        <h2>Registered Routes</h2>
+        <p>
+          The middleware/handler automatically creates the following routes under <code>basePath</code>:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Session management
+GET  {basePath}/session              // Get current session JSON
+POST {basePath}/signout              // Sign out user
+
+// OAuth flows
+GET  {basePath}/signin/:provider     // Start OAuth (redirects to provider)
+GET  {basePath}/callback/:provider   // OAuth callback (sets session cookie)
+
+// Email magic links
+POST {basePath}/signin/email         // Send magic link
+Body: { email: string, captchaToken?: string }
+
+GET  {basePath}/callback/email       // Verify magic link token
+Query: ?token=<jwt>&email=<email>
+
+// Two-factor authentication
+GET  {basePath}/signin/twofa         // Send/verify 2FA code
+Query: ?email=<email> (send) or ?code=<code>&identifier=<id> (verify)`}
+        </CodeBlock>
+
+        <Example title="Complete Next.js 16 Setup">
+{`// proxy.ts
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google, email } from '@warpy-auth-sdk/core';
+import { PrismaClient } from '@prisma/client';
+import { prismaAdapter } from '@warpy-auth-sdk/core';
+
+const prisma = new PrismaClient();
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    adapter: prismaAdapter(prisma),
+    callbacks: {
+      async user(profile) {
+        // Upsert user in database
+        let user = await prisma.user.findUnique({
+          where: { email: profile.email },
+        });
+
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email: profile.email,
+              name: profile.name,
+              picture: profile.picture,
+            },
+          });
+        }
+
+        return user;
+      },
+      jwt: (token) => {
+        // Add custom claims
+        token.customClaim = 'value';
+        return token;
+      },
+      session: (session) => {
+        // Customize session
+        return session;
+      },
+    },
+    captcha: {
+      provider: {
+        type: 'recaptcha-v3',
+        secretKey: process.env.RECAPTCHA_SECRET_KEY!,
+      },
+      enforce: {
+        email: true,
+        twofa: true,
+        oauth: false,
+      },
+    },
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+    errorRedirect: '/login',
+    publicRoutes: ['/', '/about', '/pricing'],
+    protectedRoutes: ['/dashboard/:path*', '/settings/:path*'],
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Handle auth routes
+  if (pathname.startsWith('/api/auth')) {
+    return handler(request);
+  }
+
+  // Let other requests pass through
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next|[^?]*\\\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)',
+    '/(api|trpc)(.*)',
+  ],
+};`}
+        </Example>
+
+        <Example title="Client-Side Usage">
+{`'use client';
+
+import { AuthProvider, useAuth } from '@warpy-auth-sdk/core/hooks';
+
+// Root layout
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider secret={process.env.NEXT_PUBLIC_AUTH_SECRET!}>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+
+// Login page
+function LoginPage() {
+  const { signIn } = useAuth();
+  const [email, setEmail] = useState('');
+
+  return (
+    <div>
+      <h1>Sign In</h1>
+
+      {/* OAuth */}
+      <a href="/api/auth/signin/google">
+        <button>Sign in with Google</button>
+      </a>
+
+      {/* Email magic link */}
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        signIn(email);
+      }}>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+        />
+        <button type="submit">Send Magic Link</button>
+      </form>
+    </div>
+  );
+}
+
+// Protected page
+function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  if (!session) return <LoginPage />;
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome, {session.user.name}!</p>
+      <button onClick={signOut}>Sign Out</button>
+    </div>
+  );
+}`}
+        </Example>
+
+        <Example title="Server Component with Session">
+{`import { getServerSession } from '@warpy-auth-sdk/core/hooks/server';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
+
+export default async function ServerPage() {
+  // Get session in Server Component
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
+  const request = new Request('http://localhost', {
+    headers: { cookie: cookieHeader },
+  });
+
+  const session = await getServerSession(
+    request,
+    process.env.AUTH_SECRET!
+  );
+
+  // Redirect if not authenticated
+  if (!session) {
+    redirect('/login');
+  }
+
+  // Fetch user data
+  const userData = await fetch(\`/api/users/\${session.user.id}\`);
+
+  return (
+    <div>
+      <h1>Server Component</h1>
+      <p>User: {session.user.email}</p>
+      <pre>{JSON.stringify(userData, null, 2)}</pre>
+    </div>
+  );
+}`}
+        </Example>
+
+        <Callout type="info" title="Next.js 16 Proxy">
+          <p>
+            The <code>proxy.ts</code> file is Next.js 16's replacement for <code>middleware.ts</code>:
+          </p>
+          <ul>
+            <li>Always runs on Node runtime (no edge runtime support)</li>
+            <li>Supports all Node.js features (database connections, email sending, etc.)</li>
+            <li>Export a <code>proxy</code> function that returns a Response</li>
+            <li>Use <code>matcher</code> config to specify which routes to handle</li>
+            <li>Cannot use <code>export const runtime</code> (always Node)</li>
+          </ul>
+        </Callout>
+
+        <Callout type="warning" title="Important Notes">
+          <ul>
+            <li>The <code>basePath</code> must match your OAuth callback URLs</li>
+            <li>Email magic links require Node runtime for email sending</li>
+            <li>PKCE verifiers are stored in HttpOnly cookies automatically</li>
+            <li>OAuth CSRF uses in-memory state + cookie fallback for dev reloads</li>
+            <li>Session cookies are HttpOnly and Secure in production</li>
+            <li>The <code>secret</code> must be at least 32 characters for security</li>
+          </ul>
+        </Callout>
+
+        <h2>Advanced Configuration</h2>
+
+        <h3>Multiple Providers</h3>
+        <p>
+          To support multiple authentication providers, you'll need to handle provider selection
+          in your UI and use separate route handlers or conditional logic:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// For multiple providers, use separate instances or conditional logic
+// This is a limitation - consider using multiple route handlers instead
+
+// app/api/auth/google/[...nextauth]/route.ts
+const googleHandler = createNextAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+});
+export { googleHandler as GET, googleHandler as POST };
+
+// app/api/auth/github/[...nextauth]/route.ts
+const githubHandler = createNextAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: github({ /* ... */ }),
+});
+export { githubHandler as GET, githubHandler as POST };`}
+        </CodeBlock>
+
+        <h3>Custom Callbacks</h3>
+        <CodeBlock language="typescript">
+{`const handler = authMiddleware({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+  callbacks: {
+    // Resolve user (called after OAuth or email verification)
+    async user(profile, context) {
+      console.log('Provider:', context?.provider);
+
+      // Upsert user in your database
+      const user = await db.user.upsert({
+        where: { email: profile.email },
+        create: {
+          email: profile.email,
+          name: profile.name,
+          picture: profile.picture,
+        },
+        update: {
+          name: profile.name,
+          picture: profile.picture,
+          lastLogin: new Date(),
+        },
+      });
+
+      return user;
+    },
+
+    // Modify JWT claims before signing
+    jwt(token) {
+      token.role = 'admin';
+      token.tenantId = 'tenant-123';
+      return token;
+    },
+
+    // Modify session before returning to client
+    session(session) {
+      session.customField = 'value';
+      return session;
+    },
+  },
+});`}
+        </CodeBlock>
+
+        <h3>CAPTCHA Protection</h3>
+        <CodeBlock language="typescript">
+{`import { createCaptchaProvider } from '@warpy-auth-sdk/core/captcha';
+
+const handler = authMiddleware({
+  secret: process.env.AUTH_SECRET!,
+  provider: email({ /* ... */ }),
+  captcha: {
+    provider: createCaptchaProvider({
+      type: 'recaptcha-v3',
+      secretKey: process.env.RECAPTCHA_SECRET_KEY!,
+      minimumScore: 0.5, // reCAPTCHA v3 score threshold
+    }),
+    enforce: {
+      email: true,   // Require CAPTCHA for email sign-in
+      twofa: true,   // Require CAPTCHA for 2FA
+      oauth: false,  // Don't require for OAuth (handled by provider)
+    },
+  },
+});`}
+        </CodeBlock>
+
+        <Callout type="tip" title="Best Practices">
+          <ul>
+            <li>Use environment variables for all secrets</li>
+            <li>Enable CAPTCHA for email and 2FA endpoints</li>
+            <li>Implement rate limiting for auth endpoints</li>
+            <li>Use database adapters for session persistence</li>
+            <li>Set appropriate session expiration times</li>
+            <li>Monitor authentication events and errors</li>
+            <li>Test OAuth flows in production-like environments</li>
+          </ul>
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}

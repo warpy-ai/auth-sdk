@@ -1,10 +1,10 @@
 "use client";
 
-import { AlertTriangle, Info, CheckCircle, XCircle } from "lucide-react";
+import { AlertTriangle, Info, CheckCircle, XCircle, Lightbulb } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface CalloutProps {
-  type?: "info" | "warning" | "success" | "error";
+  type?: "info" | "warning" | "success" | "error" | "danger" | "tip";
   title?: string;
   children: React.ReactNode;
 }
@@ -14,6 +14,8 @@ const icons = {
   warning: AlertTriangle,
   success: CheckCircle,
   error: XCircle,
+  danger: XCircle,
+  tip: Lightbulb,
 };
 
 const styles = {
@@ -21,13 +23,16 @@ const styles = {
   warning: "border-yellow-500/30 bg-yellow-500/10 [&_svg]:text-yellow-500",
   success: "border-green-500/30 bg-green-500/10 [&_svg]:text-green-500",
   error: "border-red-500/30 bg-red-500/10 [&_svg]:text-red-500",
+  danger: "border-red-500/30 bg-red-500/10 [&_svg]:text-red-500",
+  tip: "border-purple-500/30 bg-purple-500/10 [&_svg]:text-purple-500",
 };
 
 export function Callout({ type = "info", title, children }: CalloutProps) {
-  const Icon = icons[type];
+  const normalizedType = type in icons ? type : "info";
+  const Icon = icons[normalizedType];
 
   return (
-    <div className={cn("rounded-lg border p-4 my-6 not-prose", styles[type])}>
+    <div className={cn("rounded-lg border p-4 my-6 not-prose", styles[normalizedType])}>
       <div className="flex items-start gap-3">
         <Icon className="h-5 w-5 mt-0.5 shrink-0" />
         <div className="flex-1">

@@ -1,0 +1,802 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Database Adapters - @warpy-auth-sdk/core',
+  description: 'Using database adapters for session persistence and creating custom adapters',
+};
+
+export default function DatabaseAdapters() {
+  return (
+    <DocsLayout
+      title="Database Adapters"
+      description="Using database adapters for session persistence and creating custom adapters"
+      prevPage={{ title: 'Session Management', href: '/docs/guides/session-management' }}
+      nextPage={{ title: 'Security Best Practices', href: '/docs/guides/security-best-practices' }}
+    >
+      <div>
+        <h2>Database Adapters</h2>
+
+        <p>
+          Database adapters enable stateful session management by persisting sessions, users, and accounts to a database. This allows for features like session revocation, multi-device tracking, and user management.
+        </p>
+
+        <h2>Why Use an Adapter?</h2>
+
+        <h3>Without Adapter (Stateless)</h3>
+
+        <ul>
+          <li>✓ Fast and scalable</li>
+          <li>✓ No database required</li>
+          <li>✓ Zero infrastructure overhead</li>
+          <li>✗ Cannot revoke sessions before expiration</li>
+          <li>✗ No user persistence across sessions</li>
+          <li>✗ Cannot track active sessions</li>
+        </ul>
+
+        <h3>With Adapter (Stateful)</h3>
+
+        <ul>
+          <li>✓ Revoke sessions immediately</li>
+          <li>✓ Track active sessions per user</li>
+          <li>✓ Persist user data across sessions</li>
+          <li>✓ Link multiple OAuth accounts to one user</li>
+          <li>✗ Requires database infrastructure</li>
+          <li>✗ Slight performance overhead</li>
+        </ul>
+
+        <h2>Prisma Adapter</h2>
+
+        <p>
+          The SDK includes a built-in Prisma adapter that works with any Prisma-supported database (PostgreSQL, MySQL, SQLite, MongoDB, etc.).
+        </p>
+
+        <h3>Installation</h3>
+
+        <CodeBlock language="bash">{`npm install @warpy-auth-sdk/core @prisma/client
+npm install -D prisma
+
+# Initialize Prisma
+npx prisma init`}</CodeBlock>
+
+        <h3>Database Schema</h3>
+
+        <p>Add the required models to your <code>schema.prisma</code>:</p>
+
+        <Example
+          title="schema.prisma"
+          description="Prisma schema for authentication"
+          code={`// schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or mysql, sqlite, mongodb, etc.
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  picture   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  sessions  Session[]
+  accounts  Account[]
+}
+
+model Account {
+  id                String   @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?  @db.Text
+  refreshToken      String?  @db.Text
+  expiresAt         DateTime?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expires])
+}`}
+        />
+
+        <h3>Run Migrations</h3>
+
+        <CodeBlock language="bash">{`# Generate Prisma Client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate dev --name init
+
+# (Optional) Open Prisma Studio to view data
+npx prisma studio`}</CodeBlock>
+
+        <h3>Configuration</h3>
+
+        <Example
+          title="Using Prisma Adapter"
+          description="Configure authentication with Prisma"
+          code={`import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+import { google } from "@warpy-auth-sdk/core";
+
+const prisma = new PrismaClient();
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+  adapter: PrismaAdapter(prisma),
+  callbacks: {
+    async user(oauthUser) {
+      // Adapter will handle user creation/update
+      return {
+        id: oauthUser.id || oauthUser.email,
+        email: oauthUser.email,
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      };
+    },
+  },
+};`}
+        />
+
+        <h3>What the Adapter Does</h3>
+
+        <p>The Prisma adapter automatically:</p>
+
+        <ul>
+          <li><strong>Creates Users</strong> - On first login, creates user record</li>
+          <li><strong>Links Accounts</strong> - Associates OAuth accounts with users</li>
+          <li><strong>Creates Sessions</strong> - Stores session tokens in database</li>
+          <li><strong>Validates Sessions</strong> - Checks database on each request</li>
+          <li><strong>Cleans Up</strong> - Deletes expired sessions on signout</li>
+        </ul>
+
+        <h2>Adapter Methods</h2>
+
+        <p>All adapters must implement these methods:</p>
+
+        <CodeBlock language="typescript">{`interface Adapter {
+  // Create a new session
+  createSession(session: CreateSessionData): Promise<Session>;
+
+  // Get session by token
+  getSession(token: string): Promise<Session | null>;
+
+  // Delete a session
+  deleteSession(token: string): Promise<void>;
+
+  // Delete all sessions for a user
+  deleteUserSessions(userId: string): Promise<void>;
+
+  // Create or update a user
+  upsertUser(user: UserData): Promise<User>;
+
+  // Get user by ID
+  getUser(id: string): Promise<User | null>;
+
+  // Create or update an account (OAuth link)
+  upsertAccount(account: AccountData): Promise<Account>;
+
+  // Get account by provider and provider account ID
+  getAccount(provider: string, providerAccountId: string): Promise<Account | null>;
+}`}</CodeBlock>
+
+        <h2>Creating a Custom Adapter</h2>
+
+        <p>You can create adapters for any database or storage system:</p>
+
+        <h3>MongoDB Example</h3>
+
+        <Example
+          title="MongoDB Adapter"
+          description="Custom adapter for MongoDB"
+          code={`import { MongoClient, Db } from "mongodb";
+import type { Adapter } from "@warpy-auth-sdk/core/adapters/types";
+
+export function MongoDBAdapter(client: MongoClient, dbName: string): Adapter {
+  const db: Db = client.db(dbName);
+
+  return {
+    async createSession(session) {
+      const result = await db.collection("sessions").insertOne({
+        userId: session.userId,
+        token: session.token,
+        expires: new Date(session.expires),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
+
+      return {
+        id: result.insertedId.toString(),
+        userId: session.userId,
+        token: session.token,
+        expires: session.expires,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+
+    async getSession(token) {
+      const session = await db.collection("sessions").findOne({
+        token,
+        expires: { $gt: new Date() },
+      });
+
+      if (!session) return null;
+
+      return {
+        id: session._id.toString(),
+        userId: session.userId,
+        token: session.token,
+        expires: session.expires.toISOString(),
+        createdAt: session.createdAt.toISOString(),
+        updatedAt: session.updatedAt.toISOString(),
+      };
+    },
+
+    async deleteSession(token) {
+      await db.collection("sessions").deleteOne({ token });
+    },
+
+    async deleteUserSessions(userId) {
+      await db.collection("sessions").deleteMany({ userId });
+    },
+
+    async upsertUser(user) {
+      const result = await db.collection("users").findOneAndUpdate(
+        { email: user.email },
+        {
+          $set: {
+            name: user.name,
+            picture: user.picture,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            email: user.email,
+            createdAt: new Date(),
+          },
+        },
+        { upsert: true, returnDocument: "after" }
+      );
+
+      return {
+        id: result._id.toString(),
+        email: result.email,
+        name: result.name,
+        picture: result.picture,
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+      };
+    },
+
+    async getUser(id) {
+      const user = await db.collection("users").findOne({ _id: id });
+      if (!user) return null;
+
+      return {
+        id: user._id.toString(),
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      };
+    },
+
+    async upsertAccount(account) {
+      const result = await db.collection("accounts").findOneAndUpdate(
+        {
+          provider: account.provider,
+          providerAccountId: account.providerAccountId,
+        },
+        {
+          $set: {
+            userId: account.userId,
+            accessToken: account.accessToken,
+            refreshToken: account.refreshToken,
+            expiresAt: account.expiresAt ? new Date(account.expiresAt) : null,
+            updatedAt: new Date(),
+          },
+          $setOnInsert: {
+            createdAt: new Date(),
+          },
+        },
+        { upsert: true, returnDocument: "after" }
+      );
+
+      return {
+        id: result._id.toString(),
+        userId: result.userId,
+        provider: result.provider,
+        providerAccountId: result.providerAccountId,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt?.toISOString(),
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+      };
+    },
+
+    async getAccount(provider, providerAccountId) {
+      const account = await db.collection("accounts").findOne({
+        provider,
+        providerAccountId,
+      });
+
+      if (!account) return null;
+
+      return {
+        id: account._id.toString(),
+        userId: account.userId,
+        provider: account.provider,
+        providerAccountId: account.providerAccountId,
+        accessToken: account.accessToken,
+        refreshToken: account.refreshToken,
+        expiresAt: account.expiresAt?.toISOString(),
+        createdAt: account.createdAt.toISOString(),
+        updatedAt: account.updatedAt.toISOString(),
+      };
+    },
+  };
+}`}
+        />
+
+        <h3>Redis Example</h3>
+
+        <Example
+          title="Redis Adapter"
+          description="Session-only adapter using Redis"
+          code={`import { createClient } from "redis";
+import type { Adapter } from "@warpy-auth-sdk/core/adapters/types";
+
+export function RedisAdapter(redisUrl: string): Adapter {
+  const client = createClient({ url: redisUrl });
+  client.connect();
+
+  return {
+    async createSession(session) {
+      const key = \`session:\${session.token}\`;
+      const ttl = Math.floor((new Date(session.expires).getTime() - Date.now()) / 1000);
+
+      await client.setEx(
+        key,
+        ttl,
+        JSON.stringify({
+          userId: session.userId,
+          token: session.token,
+          expires: session.expires,
+        })
+      );
+
+      return {
+        id: session.token,
+        userId: session.userId,
+        token: session.token,
+        expires: session.expires,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+
+    async getSession(token) {
+      const key = \`session:\${token}\`;
+      const data = await client.get(key);
+
+      if (!data) return null;
+
+      const session = JSON.parse(data);
+
+      return {
+        id: token,
+        userId: session.userId,
+        token: session.token,
+        expires: session.expires,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+
+    async deleteSession(token) {
+      const key = \`session:\${token}\`;
+      await client.del(key);
+    },
+
+    async deleteUserSessions(userId) {
+      // Find all sessions for user
+      const keys = await client.keys(\`session:*\`);
+
+      for (const key of keys) {
+        const data = await client.get(key);
+        if (data) {
+          const session = JSON.parse(data);
+          if (session.userId === userId) {
+            await client.del(key);
+          }
+        }
+      }
+    },
+
+    // For Redis, you might want to use a separate database for users
+    // Or implement a hybrid approach with both Redis and a SQL database
+    async upsertUser(user) {
+      // Implementation depends on your architecture
+      throw new Error("User operations not supported in Redis-only adapter");
+    },
+
+    async getUser(id) {
+      throw new Error("User operations not supported in Redis-only adapter");
+    },
+
+    async upsertAccount(account) {
+      throw new Error("Account operations not supported in Redis-only adapter");
+    },
+
+    async getAccount(provider, providerAccountId) {
+      throw new Error("Account operations not supported in Redis-only adapter");
+    },
+  };
+}`}
+        />
+
+        <h2>Hybrid Approach</h2>
+
+        <p>Combine Redis for sessions with a SQL database for users:</p>
+
+        <Example
+          title="Hybrid Adapter"
+          description="Redis sessions + Prisma users"
+          code={`import { createClient } from "redis";
+import { PrismaClient } from "@prisma/client";
+import type { Adapter } from "@warpy-auth-sdk/core/adapters/types";
+
+export function HybridAdapter(redisUrl: string): Adapter {
+  const redis = createClient({ url: redisUrl });
+  const prisma = new PrismaClient();
+
+  redis.connect();
+
+  return {
+    // Sessions in Redis (fast)
+    async createSession(session) {
+      const key = \`session:\${session.token}\`;
+      const ttl = Math.floor((new Date(session.expires).getTime() - Date.now()) / 1000);
+
+      await redis.setEx(key, ttl, JSON.stringify(session));
+
+      return {
+        id: session.token,
+        ...session,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+    },
+
+    async getSession(token) {
+      const data = await redis.get(\`session:\${token}\`);
+      if (!data) return null;
+      return JSON.parse(data);
+    },
+
+    async deleteSession(token) {
+      await redis.del(\`session:\${token}\`);
+    },
+
+    async deleteUserSessions(userId) {
+      const keys = await redis.keys(\`session:*\`);
+      for (const key of keys) {
+        const data = await redis.get(key);
+        if (data && JSON.parse(data).userId === userId) {
+          await redis.del(key);
+        }
+      }
+    },
+
+    // Users in Prisma (persistent)
+    async upsertUser(user) {
+      const result = await prisma.user.upsert({
+        where: { email: user.email },
+        create: user,
+        update: { name: user.name, picture: user.picture },
+      });
+
+      return {
+        id: result.id,
+        email: result.email,
+        name: result.name,
+        picture: result.picture,
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+      };
+    },
+
+    async getUser(id) {
+      const user = await prisma.user.findUnique({ where: { id } });
+      if (!user) return null;
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        picture: user.picture,
+        createdAt: user.createdAt.toISOString(),
+        updatedAt: user.updatedAt.toISOString(),
+      };
+    },
+
+    async upsertAccount(account) {
+      const result = await prisma.account.upsert({
+        where: {
+          provider_providerAccountId: {
+            provider: account.provider,
+            providerAccountId: account.providerAccountId,
+          },
+        },
+        create: account,
+        update: account,
+      });
+
+      return {
+        id: result.id,
+        userId: result.userId,
+        provider: result.provider,
+        providerAccountId: result.providerAccountId,
+        accessToken: result.accessToken,
+        refreshToken: result.refreshToken,
+        expiresAt: result.expiresAt?.toISOString(),
+        createdAt: result.createdAt.toISOString(),
+        updatedAt: result.updatedAt.toISOString(),
+      };
+    },
+
+    async getAccount(provider, providerAccountId) {
+      const account = await prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: { provider, providerAccountId },
+        },
+      });
+
+      if (!account) return null;
+
+      return {
+        id: account.id,
+        userId: account.userId,
+        provider: account.provider,
+        providerAccountId: account.providerAccountId,
+        accessToken: account.accessToken,
+        refreshToken: account.refreshToken,
+        expiresAt: account.expiresAt?.toISOString(),
+        createdAt: account.createdAt.toISOString(),
+        updatedAt: account.updatedAt.toISOString(),
+      };
+    },
+  };
+}`}
+        />
+
+        <h2>Usage Patterns</h2>
+
+        <h3>Session Revocation</h3>
+
+        <Example
+          title="Revoke All User Sessions"
+          description="Sign out user from all devices"
+          code={`import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+// Revoke all sessions for a user
+await prisma.session.deleteMany({
+  where: { userId: "user-123" },
+});
+
+// Or use the adapter directly
+await adapter.deleteUserSessions("user-123");`}
+        />
+
+        <h3>Active Session List</h3>
+
+        <Example
+          title="List Active Sessions"
+          description="Show user their active sessions"
+          code={`import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+// Get all active sessions for user
+const sessions = await prisma.session.findMany({
+  where: {
+    userId: session.user.id,
+    expires: { gt: new Date() },
+  },
+  orderBy: { createdAt: "desc" },
+});
+
+// Display to user
+return (
+  <div>
+    <h2>Active Sessions</h2>
+    {sessions.map((s) => (
+      <div key={s.id}>
+        <p>Created: {s.createdAt.toLocaleString()}</p>
+        <p>Expires: {s.expires.toLocaleString()}</p>
+        <button onClick={() => revokeSession(s.token)}>Revoke</button>
+      </div>
+    ))}
+  </div>
+);`}
+        />
+
+        <h3>Linking Multiple OAuth Accounts</h3>
+
+        <Example
+          title="Link Multiple Providers"
+          description="Allow users to link Google and GitHub"
+          code={`// User signs in with Google first
+// Adapter creates user and Google account
+
+// Later, user links GitHub
+// Adapter creates GitHub account linked to same user
+
+const accounts = await prisma.account.findMany({
+  where: { userId: session.user.id },
+});
+
+// User now has multiple linked accounts
+// [
+//   { provider: "google", providerAccountId: "123" },
+//   { provider: "github", providerAccountId: "456" }
+// ]`}
+        />
+
+        <h2>Performance Considerations</h2>
+
+        <h3>Database Indexes</h3>
+
+        <p>Ensure proper indexes for optimal performance:</p>
+
+        <CodeBlock language="prisma">{`model Session {
+  // ...
+  @@index([userId])     // Fast lookup by user
+  @@index([expires])    // Fast cleanup of expired sessions
+}
+
+model Account {
+  // ...
+  @@unique([provider, providerAccountId])  // Fast OAuth lookup
+  @@index([userId])     // Fast user account lookup
+}`}</CodeBlock>
+
+        <h3>Session Cleanup</h3>
+
+        <p>Periodically clean up expired sessions:</p>
+
+        <Example
+          title="Cleanup Cron Job"
+          description="Delete expired sessions"
+          code={`import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+// Run daily via cron
+async function cleanupExpiredSessions() {
+  const result = await prisma.session.deleteMany({
+    where: {
+      expires: { lt: new Date() },
+    },
+  });
+
+  console.log(\`Deleted \${result.count} expired sessions\`);
+}
+
+// Example: Run every day at 3 AM
+// 0 3 * * * node cleanup.js`}
+        />
+
+        <h3>Connection Pooling</h3>
+
+        <p>Use connection pooling for better performance:</p>
+
+        <CodeBlock language="typescript">{`// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+
+  // Connection pool settings
+  pool_size     = 10
+  pool_timeout  = 20
+}`}</CodeBlock>
+
+        <h2>Testing Adapters</h2>
+
+        <Example
+          title="Test Your Adapter"
+          description="Ensure adapter implements all methods correctly"
+          code={`import { describe, it, expect } from "vitest";
+import { MyCustomAdapter } from "./my-adapter";
+
+describe("MyCustomAdapter", () => {
+  const adapter = MyCustomAdapter();
+
+  it("should create and retrieve session", async () => {
+    const session = await adapter.createSession({
+      userId: "user-123",
+      token: "token-123",
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    expect(session.userId).toBe("user-123");
+
+    const retrieved = await adapter.getSession("token-123");
+    expect(retrieved?.userId).toBe("user-123");
+  });
+
+  it("should delete session", async () => {
+    await adapter.createSession({
+      userId: "user-123",
+      token: "token-456",
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    });
+
+    await adapter.deleteSession("token-456");
+
+    const retrieved = await adapter.getSession("token-456");
+    expect(retrieved).toBeNull();
+  });
+
+  // Test other methods...
+});`}
+        />
+
+        <h2>Best Practices</h2>
+
+        <ul>
+          <li><strong>Use Transactions</strong>: Ensure atomic operations for user/account creation</li>
+          <li><strong>Handle Errors</strong>: Gracefully handle database errors and connection issues</li>
+          <li><strong>Clean Up</strong>: Regularly delete expired sessions to avoid bloat</li>
+          <li><strong>Index Properly</strong>: Add database indexes for frequently queried fields</li>
+          <li><strong>Pool Connections</strong>: Use connection pooling for better performance</li>
+          <li><strong>Monitor Performance</strong>: Track slow queries and optimize as needed</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/security-best-practices">Security Best Practices</a> - Production security</li>
+          <li><a href="/docs/guides/deployment">Deployment Guide</a> - Deploy with database</li>
+          <li><a href="/docs/api-reference/core-functions">API Reference</a> - Full API documentation</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -1,0 +1,653 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'MCP Agent Login Example - @warpy-auth-sdk/core',
+  description: 'Complete example of implementing AI agent authentication using Model Context Protocol (MCP) for delegated user access.',
+};
+
+export default function MCPAgentLoginExample() {
+  return (
+    <DocsLayout
+      title="MCP Agent Login Example"
+      description="Learn how to implement AI agent authentication with MCP for secure, scoped, and time-limited delegated access."
+      prevPage={{ title: 'Fastify Adapter', href: '/docs/examples/fastify-adapter' }}
+      nextPage={{ title: 'Protected Routes', href: '/docs/examples/protected-routes' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          This example demonstrates how to implement AI agent authentication using the Model Context Protocol (MCP).
+          You'll learn how to create agent tokens, verify sessions, and manage token lifecycles for secure
+          AI-delegated operations.
+        </p>
+
+        <Callout type="info">
+          <strong>What is MCP Agent Login?</strong> MCP allows AI agents (like Claude, ChatGPT, or custom LLMs)
+          to authenticate on behalf of users with scoped, time-limited access. This is ideal for debugging,
+          automation, read-only analysis, and customer support scenarios.
+        </Callout>
+
+        <h2>Project Setup</h2>
+
+        <h3>Installation</h3>
+
+        <CodeBlock language="bash">
+{`npm install @warpy-auth-sdk/core ai zod`}
+        </CodeBlock>
+
+        <h3>Environment Variables</h3>
+
+        <CodeBlock language="bash">
+{`# .env.local
+AUTH_SECRET=your-secret-key-min-32-chars-long
+
+# Optional: Warpy Cloud Shield for production
+WARPY_API_KEY=your-warpy-api-key`}
+        </CodeBlock>
+
+        <h2>Complete Next.js Example</h2>
+
+        <h3>Step 1: Create MCP Tools</h3>
+
+        <Example
+          title="lib/mcp.ts"
+          description="Initialize MCP tools"
+          code={`import { createMCPTools, createMCPShield } from '@warpy-auth-sdk/core';
+
+// Self-hosted mode (local JWT verification)
+export const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!,
+  // Optional: Add database adapter for persistent token revocation
+  // adapter: PrismaAdapter(prisma)
+});
+
+// Or use Cloud Shield for production (auto-enabled with WARPY_API_KEY)
+export const mcpShield = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  warpy: {
+    apiKey: process.env.WARPY_API_KEY
+  },
+  metrics: { enabled: true }
+});
+
+// Use mcpShield in production, mcpTools for development
+export const mcp = process.env.WARPY_API_KEY ? mcpShield : mcpTools;`}
+        />
+
+        <h3>Step 2: Expose MCP HTTP Endpoint</h3>
+
+        <Example
+          title="app/api/mcp/route.ts"
+          description="API endpoint for agent authentication"
+          code={`import { NextRequest, NextResponse } from 'next/server';
+import { mcp } from '@/lib/mcp';
+
+export async function POST(request: NextRequest) {
+  try {
+    const { tool, args } = await request.json();
+
+    // Route to the appropriate MCP tool
+    switch (tool) {
+      case 'agent_login': {
+        const result = await mcp.agent_login.execute(args);
+        return NextResponse.json(result);
+      }
+
+      case 'get_session': {
+        const result = await mcp.get_session.execute(args);
+        return NextResponse.json(result);
+      }
+
+      case 'revoke_token': {
+        const result = await mcp.revoke_token.execute(args);
+        return NextResponse.json(result);
+      }
+
+      default:
+        return NextResponse.json(
+          { error: 'Unknown tool' },
+          { status: 400 }
+        );
+    }
+  } catch (error) {
+    console.error('MCP error:', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// Optional: Add GET endpoint for tool discovery
+export async function GET() {
+  return NextResponse.json({
+    tools: [
+      {
+        name: 'agent_login',
+        description: 'Create short-lived authentication tokens for agents',
+        parameters: mcp.agent_login.parameters.shape
+      },
+      {
+        name: 'get_session',
+        description: 'Verify tokens and retrieve session information',
+        parameters: mcp.get_session.parameters.shape
+      },
+      {
+        name: 'revoke_token',
+        description: 'Immediately invalidate agent tokens',
+        parameters: mcp.revoke_token.parameters.shape
+      }
+    ]
+  });
+}`}
+        />
+
+        <h3>Step 3: Create Agent-Protected API Route</h3>
+
+        <Example
+          title="app/api/agent/profile/route.ts"
+          description="API endpoint protected by agent authentication"
+          code={`import { NextRequest, NextResponse } from 'next/server';
+import { mcp } from '@/lib/mcp';
+
+export async function GET(request: NextRequest) {
+  // Extract token from Authorization header
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json(
+      { error: 'Missing or invalid authorization header' },
+      { status: 401 }
+    );
+  }
+
+  const token = authHeader.substring(7);
+
+  // Verify token using MCP get_session tool
+  const verification = await mcp.get_session.execute({ token });
+
+  if (!verification.success || !verification.session) {
+    return NextResponse.json(
+      { error: 'Invalid or expired token' },
+      { status: 401 }
+    );
+  }
+
+  const { session } = verification;
+
+  // Check if agent has required scope
+  if (!session.scopes.includes('read:profile')) {
+    return NextResponse.json(
+      {
+        error: 'Insufficient permissions',
+        required: ['read:profile'],
+        granted: session.scopes
+      },
+      { status: 403 }
+    );
+  }
+
+  // Fetch and return user profile
+  // In production, fetch from database
+  const profile = {
+    id: session.userId,
+    email: session.email,
+    name: session.name,
+    // Add more profile fields as needed
+  };
+
+  return NextResponse.json({
+    profile,
+    agent: {
+      id: session.agentId,
+      scopes: session.scopes
+    }
+  });
+}`}
+        />
+
+        <h3>Step 4: Client-Side Agent Authentication</h3>
+
+        <Example
+          title="app/agent-demo/page.tsx"
+          description="Interactive demo page for agent authentication"
+          code={`"use client";
+
+import { useState } from "react";
+
+export default function AgentDemo() {
+  const [userId, setUserId] = useState('user-123');
+  const [agentId, setAgentId] = useState('debug-assistant');
+  const [scopes, setScopes] = useState('read:profile,debug');
+  const [expiresIn, setExpiresIn] = useState('15m');
+  const [token, setToken] = useState<string>('');
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string>('');
+
+  // Step 1: Login agent
+  const handleAgentLogin = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tool: 'agent_login',
+          args: {
+            userId,
+            agentId,
+            scopes: scopes.split(',').map(s => s.trim()),
+            expiresIn
+          }
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setToken(result.token);
+        setError('');
+      } else {
+        setError(result.error || 'Login failed');
+      }
+    } catch (err) {
+      setError('Network error: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 2: Use token to access protected resource
+  const handleGetProfile = async () => {
+    if (!token) {
+      setError('Please login first');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/agent/profile', {
+        headers: {
+          'Authorization': \`Bearer \${token}\`
+        }
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setProfile(result);
+        setError('');
+      } else {
+        setError(result.error || 'Failed to fetch profile');
+      }
+    } catch (err) {
+      setError('Network error: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 3: Revoke token
+  const handleRevokeToken = async () => {
+    if (!token) {
+      setError('No token to revoke');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch('/api/mcp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tool: 'revoke_token',
+          args: { token }
+        })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setToken('');
+        setProfile(null);
+        setError('Token revoked successfully');
+      } else {
+        setError(result.error || 'Revocation failed');
+      }
+    } catch (err) {
+      setError('Network error: ' + (err as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-8">
+      <h1 className="text-3xl font-bold mb-8">MCP Agent Login Demo</h1>
+
+      {/* Login Form */}
+      <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Step 1: Agent Login</h2>
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">User ID</label>
+            <input
+              type="text"
+              value={userId}
+              onChange={(e) => setUserId(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Agent ID</label>
+            <input
+              type="text"
+              value={agentId}
+              onChange={(e) => setAgentId(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Scopes (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={scopes}
+              onChange={(e) => setScopes(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              Expires In
+            </label>
+            <input
+              type="text"
+              value={expiresIn}
+              onChange={(e) => setExpiresIn(e.target.value)}
+              className="w-full border rounded px-3 py-2"
+              placeholder="15m, 1h, 30s"
+            />
+          </div>
+          <button
+            onClick={handleAgentLogin}
+            disabled={loading}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? 'Logging in...' : 'Create Agent Token'}
+          </button>
+        </div>
+
+        {token && (
+          <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded">
+            <p className="text-sm font-medium text-green-800 mb-1">
+              Token Created:
+            </p>
+            <code className="text-xs break-all text-green-700">{token}</code>
+          </div>
+        )}
+      </div>
+
+      {/* Use Token */}
+      {token && (
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">
+            Step 2: Use Token
+          </h2>
+          <button
+            onClick={handleGetProfile}
+            disabled={loading}
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 disabled:opacity-50"
+          >
+            {loading ? 'Fetching...' : 'Get User Profile'}
+          </button>
+
+          {profile && (
+            <div className="mt-4 p-4 bg-gray-50 border rounded">
+              <h3 className="font-semibold mb-2">Profile Data:</h3>
+              <pre className="text-sm overflow-auto">
+                {JSON.stringify(profile, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Revoke Token */}
+      {token && (
+        <div className="bg-white shadow-md rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">
+            Step 3: Revoke Token
+          </h2>
+          <button
+            onClick={handleRevokeToken}
+            disabled={loading}
+            className="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 disabled:opacity-50"
+          >
+            {loading ? 'Revoking...' : 'Revoke Agent Token'}
+          </button>
+        </div>
+      )}
+
+      {/* Error Display */}
+      {error && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded">
+          <p className="text-red-800">{error}</p>
+        </div>
+      )}
+    </div>
+  );
+}`}
+        />
+
+        <h2>Using with Vercel AI SDK</h2>
+
+        <p>
+          For AI-native applications, integrate MCP tools directly with the Vercel AI SDK:
+        </p>
+
+        <Example
+          title="AI Agent Integration"
+          description="Using generateText() with MCP tools"
+          code={`import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { mcp } from '@/lib/mcp';
+
+export async function handleAgentRequest(userMessage: string, userId: string) {
+  const { text, toolCalls } = await generateText({
+    model: openai('gpt-4-turbo'),
+    tools: mcp,
+    prompt: \`
+      You are a helpful debugging assistant.
+      The user wants: \\\${userMessage}
+
+      To access their data, you need to:
+      1. Call agent_login with userId: "\\\${userId}", scopes: ["debug", "read:logs"], agentId: "debug-assistant"
+      2. Use the returned token to make authenticated API calls
+      3. When done, call revoke_token to clean up
+    \`,
+    maxToolRoundtrips: 5
+  });
+
+  // AI automatically calls agent_login, performs tasks, and revokes token
+  return text;
+}
+
+// Usage in API route:
+export async function POST(request: Request) {
+  const { message, userId } = await request.json();
+  const response = await handleAgentRequest(message, userId);
+  return Response.json({ response });
+}`}
+        />
+
+        <h2>Testing the Implementation</h2>
+
+        <h3>Manual Testing with curl</h3>
+
+        <CodeBlock language="bash">
+{`# 1. Create agent token
+curl -X POST http://localhost:3000/api/mcp \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "tool": "agent_login",
+    "args": {
+      "userId": "user-123",
+      "scopes": ["read:profile", "debug"],
+      "agentId": "test-agent",
+      "expiresIn": "15m"
+    }
+  }'
+
+# Response: { "success": true, "token": "eyJ...", "expires": "..." }
+
+# 2. Use token to access protected endpoint
+TOKEN="eyJ..."  # Use token from previous response
+curl http://localhost:3000/api/agent/profile \\
+  -H "Authorization: Bearer $TOKEN"
+
+# Response: { "profile": {...}, "agent": {...} }
+
+# 3. Verify session
+curl -X POST http://localhost:3000/api/mcp \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "tool": "get_session",
+    "args": { "token": "'$TOKEN'" }
+  }'
+
+# Response: { "success": true, "session": {...} }
+
+# 4. Revoke token
+curl -X POST http://localhost:3000/api/mcp \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "tool": "revoke_token",
+    "args": { "token": "'$TOKEN'" }
+  }'
+
+# Response: { "success": true, "message": "Token revoked" }`}
+        </CodeBlock>
+
+        <h3>Automated Testing</h3>
+
+        <Example
+          title="tests/mcp.test.ts"
+          description="Unit tests for MCP authentication"
+          code={`import { describe, it, expect } from 'vitest';
+import { mcp } from '@/lib/mcp';
+
+describe('MCP Agent Authentication', () => {
+  let agentToken: string;
+
+  it('should create agent token', async () => {
+    const result = await mcp.agent_login.execute({
+      userId: 'test-user',
+      scopes: ['read:profile'],
+      agentId: 'test-agent',
+      expiresIn: '5m'
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.token).toBeDefined();
+    agentToken = result.token!;
+  });
+
+  it('should verify valid token', async () => {
+    const result = await mcp.get_session.execute({
+      token: agentToken
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.session?.userId).toBe('test-user');
+    expect(result.session?.scopes).toContain('read:profile');
+  });
+
+  it('should reject invalid token', async () => {
+    const result = await mcp.get_session.execute({
+      token: 'invalid-token'
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it('should revoke token', async () => {
+    const revokeResult = await mcp.revoke_token.execute({
+      token: agentToken
+    });
+
+    expect(revokeResult.success).toBe(true);
+
+    // Verify token is now invalid
+    const verifyResult = await mcp.get_session.execute({
+      token: agentToken
+    });
+
+    expect(verifyResult.success).toBe(false);
+  });
+});`}
+        />
+
+        <h2>Security Best Practices</h2>
+
+        <Callout type="warning">
+          <strong>Production Checklist:</strong>
+          <ul>
+            <li>Always use HTTPS in production</li>
+            <li>Use database adapter for persistent token revocation</li>
+            <li>Implement rate limiting on MCP endpoints</li>
+            <li>Log all agent authentication events for audit</li>
+            <li>Grant minimal scopes (principle of least privilege)</li>
+            <li>Use short token expiration times (5-30 minutes)</li>
+            <li>Consider enabling Warpy Cloud Shield for production</li>
+          </ul>
+        </Callout>
+
+        <h2>Common Use Cases</h2>
+
+        <h3>1. Debugging Assistant</h3>
+        <p>
+          AI agent with <code>debug</code> and <code>read:logs</code> scopes to help users diagnose issues.
+        </p>
+
+        <h3>2. Data Analysis Agent</h3>
+        <p>
+          Read-only agent with <code>read:analytics</code> scope to generate reports and insights.
+        </p>
+
+        <h3>3. Customer Support Bot</h3>
+        <p>
+          Agent with <code>read:tickets</code> and <code>write:responses</code> to assist with support requests.
+        </p>
+
+        <h3>4. Automation Agent</h3>
+        <p>
+          Scheduled agent with specific scopes to perform routine tasks on behalf of users.
+        </p>
+
+        <h2>Next Steps</h2>
+        <ul>
+          <li>
+            <a href="/docs/mcp/tools-reference">MCP Tools Reference</a> - Complete API documentation
+          </li>
+          <li>
+            <a href="/docs/mcp/cloud-shield-integration">Cloud Shield Integration</a> - Production security
+          </li>
+          <li>
+            <a href="/docs/mcp/security-best-practices">Security Best Practices</a> - Hardening guide
+          </li>
+          <li>
+            <a href="/docs/mcp/examples-and-patterns">Examples and Patterns</a> - Real-world implementations
+          </li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

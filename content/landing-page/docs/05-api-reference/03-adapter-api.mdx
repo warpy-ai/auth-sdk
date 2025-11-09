@@ -1,0 +1,492 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { ApiMethod } from '@/components/docs/api-method';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Adapter API - @warpy-auth-sdk/core',
+  description: 'Database and framework adapter API reference for @warpy-auth-sdk/core.',
+};
+
+export default function AdapterAPI() {
+  return (
+    <DocsLayout
+      title="Adapter API"
+      description="Database and framework adapter API reference."
+      previousPage={{ title: 'Provider API', href: '/docs/api-reference/provider-api' }}
+      nextPage={{ title: 'React Hooks', href: '/docs/api-reference/react-hooks' }}
+    >
+      <div>
+        <h2>Database Adapters</h2>
+        <p>
+          Database adapters provide session persistence and user management. Currently, the SDK
+          includes a Prisma adapter with full CRUD support for sessions, users, and accounts.
+        </p>
+
+        <ApiMethod
+          name="prismaAdapter"
+          description="Prisma database adapter for session persistence"
+          signature="prismaAdapter(client: PrismaClient): Adapter"
+          parameters={[
+            {
+              name: 'client',
+              type: 'PrismaClient',
+              description: 'Initialized Prisma client instance',
+              required: true,
+            },
+          ]}
+          returns="Adapter"
+          example={`import { PrismaClient } from '@prisma/client';
+import { prismaAdapter } from '@warpy-auth-sdk/core';
+
+const prisma = new PrismaClient();
+const adapter = prismaAdapter(prisma);
+
+// Use in auth config
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+  adapter, // Session persistence
+};`}
+        />
+
+        <h3>Adapter Interface</h3>
+        <p>
+          Custom adapters can be implemented by satisfying the Adapter interface:
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface Adapter {
+  // Session methods
+  createSession(session: Omit<Session, "sessionToken">): Promise<Session>;
+  getSession(sessionToken: string): Promise<Session | null>;
+  updateSession(sessionToken: string, session: Partial<Session>): Promise<Session | null>;
+  deleteSession(sessionToken: string): Promise<void>;
+
+  // User methods
+  createUser(user: Omit<User, "id">): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  getUserByEmail(email: string): Promise<User | null>;
+  updateUser(id: string, user: Partial<User>): Promise<User | null>;
+
+  // Account methods (OAuth provider accounts)
+  createAccount(account: Omit<Account, "id">): Promise<Account>;
+  getAccount(provider: string, providerAccountId: string): Promise<Account | null>;
+  deleteAccount(provider: string, providerAccountId: string): Promise<void>;
+}
+
+interface Session {
+  sessionToken: string;
+  userId: string;
+  expires: Date;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
+interface Account {
+  id: string;
+  userId: string;
+  provider: string; // e.g., "google", "facebook"
+  providerAccountId: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: Date;
+}`}
+        </CodeBlock>
+
+        <Callout type="info" title="Prisma Schema">
+          <p>The Prisma adapter requires the following schema models:</p>
+          <CodeBlock language="prisma">
+{`model Session {
+  sessionToken String   @id
+  userId       String
+  expires      DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  picture   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Account {
+  id                String    @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  accessToken       String?   @db.Text
+  refreshToken      String?   @db.Text
+  expiresAt         DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  @@unique([provider, providerAccountId])
+}`}
+          </CodeBlock>
+        </Callout>
+
+        <h2>Framework Adapters</h2>
+        <p>
+          Framework adapters provide HTTP route handlers and middleware for popular Node.js frameworks.
+          All adapters support PKCE OAuth, MCP integration, CAPTCHA, and protected routes.
+        </p>
+
+        <h3>Express Adapter</h3>
+        <ApiMethod
+          name="registerAuthRoutes"
+          description="Register authentication routes in Express app"
+          signature="registerAuthRoutes(app: Express, config: AuthConfig, options?: ExpressAuthOptions): { requireAuth: Middleware }"
+          parameters={[
+            {
+              name: 'app',
+              type: 'Express',
+              description: 'Express application instance',
+              required: true,
+            },
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration',
+              required: true,
+            },
+            {
+              name: 'options',
+              type: 'ExpressAuthOptions',
+              description: 'Adapter configuration options',
+              required: false,
+            },
+          ]}
+          returns="{ requireAuth: Middleware }"
+          example={`import express from 'express';
+import { registerAuthRoutes } from '@warpy-auth-sdk/core/adapters/express';
+import { google } from '@warpy-auth-sdk/core';
+
+const app = express();
+
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: 'http://localhost:3000/auth/callback/google',
+  }),
+}, {
+  basePath: '/auth',
+  successRedirect: '/dashboard',
+  errorRedirect: '/login',
+  mcp: {
+    enabled: true,
+    path: '/api/mcp',
+  },
+});
+
+// Protected route
+app.get('/api/protected', requireAuth, (req, res) => {
+  res.json({ user: req.session.user });
+});`}
+        />
+
+        <h3>Fastify Adapter</h3>
+        <ApiMethod
+          name="registerAuthPlugin"
+          description="Register authentication plugin in Fastify app"
+          signature="registerAuthPlugin(instance: FastifyInstance, config: AuthConfig, options?: FastifyAuthOptions): { requireAuth: Hook }"
+          parameters={[
+            {
+              name: 'instance',
+              type: 'FastifyInstance',
+              description: 'Fastify instance',
+              required: true,
+            },
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration',
+              required: true,
+            },
+            {
+              name: 'options',
+              type: 'FastifyAuthOptions',
+              description: 'Adapter configuration options',
+              required: false,
+            },
+          ]}
+          returns="{ requireAuth: Hook }"
+          example={`import Fastify from 'fastify';
+import { registerAuthPlugin } from '@warpy-auth-sdk/core/adapters/fastify';
+import { google } from '@warpy-auth-sdk/core';
+
+const fastify = Fastify();
+
+const { requireAuth } = registerAuthPlugin(fastify, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: 'http://localhost:3000/auth/callback/google',
+  }),
+}, {
+  basePath: '/auth',
+  successRedirect: '/dashboard',
+  errorRedirect: '/login',
+});
+
+// Protected route
+fastify.get('/api/protected', { preHandler: requireAuth }, async (request, reply) => {
+  return { user: request.session.user };
+});`}
+        />
+
+        <h3>Hono Adapter</h3>
+        <ApiMethod
+          name="registerAuthRoutes"
+          description="Register authentication routes in Hono app (multi-runtime support)"
+          signature="registerAuthRoutes(app: Hono, config: AuthConfig, options?: HonoAuthOptions): { requireAuth: Middleware }"
+          parameters={[
+            {
+              name: 'app',
+              type: 'Hono',
+              description: 'Hono application instance',
+              required: true,
+            },
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration',
+              required: true,
+            },
+            {
+              name: 'options',
+              type: 'HonoAuthOptions',
+              description: 'Adapter configuration options',
+              required: false,
+            },
+          ]}
+          returns="{ requireAuth: Middleware }"
+          example={`import { Hono } from 'hono';
+import { registerAuthRoutes } from '@warpy-auth-sdk/core/adapters/hono';
+import { google } from '@warpy-auth-sdk/core';
+
+const app = new Hono();
+
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: 'http://localhost:3000/auth/callback/google',
+  }),
+}, {
+  basePath: '/auth',
+  successRedirect: '/dashboard',
+  errorRedirect: '/login',
+});
+
+// Protected route
+app.get('/api/protected', requireAuth, (c) => {
+  const session = c.get('session');
+  return c.json({ user: session.user });
+});`}
+        />
+
+        <h3>Node.js HTTP Adapter</h3>
+        <ApiMethod
+          name="createAuthHandler"
+          description="Create HTTP handler for pure Node.js (zero dependencies)"
+          signature="createAuthHandler(config: AuthConfig, options?: NodeAuthOptions): (req: IncomingMessage, res: ServerResponse) => Promise<boolean>"
+          parameters={[
+            {
+              name: 'config',
+              type: 'AuthConfig',
+              description: 'Authentication configuration',
+              required: true,
+            },
+            {
+              name: 'options',
+              type: 'NodeAuthOptions',
+              description: 'Adapter configuration options',
+              required: false,
+            },
+          ]}
+          returns="(req: IncomingMessage, res: ServerResponse) => Promise<boolean>"
+          example={`import { createServer } from 'http';
+import { createAuthHandler } from '@warpy-auth-sdk/core/adapters/node';
+import { google } from '@warpy-auth-sdk/core';
+
+const authHandler = createAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: 'http://localhost:3000/auth/callback/google',
+  }),
+}, {
+  basePath: '/auth',
+  successRedirect: '/dashboard',
+  errorRedirect: '/login',
+});
+
+const server = createServer(async (req, res) => {
+  const handled = await authHandler(req, res);
+  if (handled) return;
+
+  // Handle other routes
+  res.writeHead(404);
+  res.end('Not Found');
+});
+
+server.listen(3000);`}
+        />
+
+        <h2>Adapter Options</h2>
+        <p>
+          All framework adapters support the following options:
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface FrameworkAuthOptions {
+  // Base path for auth routes (default: "/auth")
+  basePath?: string;
+
+  // Redirect URL after successful authentication (default: "/")
+  successRedirect?: string;
+
+  // Redirect URL after authentication error (default: "/login")
+  errorRedirect?: string;
+
+  // MCP tools configuration (optional)
+  mcp?: {
+    enabled?: boolean;        // Enable MCP endpoint (default: false)
+    path?: string;            // MCP endpoint path (default: "/api/mcp")
+    shield?: MCPShieldConfig; // Warpy Cloud Shield config (optional)
+  };
+}`}
+        </CodeBlock>
+
+        <h2>Registered Routes</h2>
+        <p>
+          All framework adapters automatically register the following routes:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Session management
+GET  {basePath}/session           // Get current session
+POST {basePath}/signout           // Sign out user
+
+// OAuth flows
+GET  {basePath}/signin            // Start OAuth (auto-detect provider)
+GET  {basePath}/signin/:provider  // Start OAuth for specific provider
+GET  {basePath}/callback          // OAuth callback (auto-detect provider)
+GET  {basePath}/callback/:provider // OAuth callback for specific provider
+
+// Email magic links (POST)
+POST {basePath}/signin/email      // Send magic link
+
+// Two-factor authentication (POST)
+POST {basePath}/signin/twofa      // Send 2FA code
+POST {basePath}/verify/twofa      // Verify 2FA code
+
+// MCP tools (if enabled)
+POST {mcpPath}                    // Execute MCP tool`}
+        </CodeBlock>
+
+        <Example title="Complete Express Setup">
+{`import express from 'express';
+import { PrismaClient } from '@prisma/client';
+import { registerAuthRoutes, prismaAdapter } from '@warpy-auth-sdk/core';
+import { google } from '@warpy-auth-sdk/core';
+
+const app = express();
+const prisma = new PrismaClient();
+
+app.use(express.json());
+
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: 'http://localhost:3000/auth/callback/google',
+  }),
+  adapter: prismaAdapter(prisma),
+  callbacks: {
+    async user(profile) {
+      // Upsert user in database
+      let user = await prisma.user.findUnique({
+        where: { email: profile.email },
+      });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email: profile.email,
+            name: profile.name,
+            picture: profile.picture,
+          },
+        });
+      }
+
+      return user;
+    },
+  },
+}, {
+  basePath: '/auth',
+  successRedirect: '/dashboard',
+  errorRedirect: '/login',
+  mcp: {
+    enabled: true,
+    path: '/api/mcp',
+  },
+});
+
+// Protected routes
+app.get('/api/user', requireAuth, (req, res) => {
+  res.json({ user: req.session.user });
+});
+
+app.get('/api/posts', requireAuth, async (req, res) => {
+  const posts = await prisma.post.findMany({
+    where: { userId: req.session.user.id },
+  });
+  res.json({ posts });
+});
+
+app.listen(3000);`}
+        </Example>
+
+        <Callout type="info" title="Multi-Runtime Support">
+          <p>
+            The Hono adapter supports multiple JavaScript runtimes:
+          </p>
+          <ul>
+            <li><strong>Node.js</strong>: Full compatibility with Node.js HTTP server</li>
+            <li><strong>Deno</strong>: Works with Deno.serve and Deno Deploy</li>
+            <li><strong>Bun</strong>: Compatible with Bun.serve</li>
+            <li><strong>Cloudflare Workers</strong>: Runs on Cloudflare's edge runtime</li>
+          </ul>
+        </Callout>
+
+        <Callout type="warning" title="Important Notes">
+          <ul>
+            <li>All adapters require the <code>secret</code> in AuthConfig for JWT signing</li>
+            <li>Database adapters are optional; sessions can be JWT-only (stateless)</li>
+            <li>Framework adapters handle PKCE cookie management automatically</li>
+            <li>MCP endpoints should be secured in production environments</li>
+            <li>Custom adapters must implement all methods in the Adapter interface</li>
+          </ul>
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}

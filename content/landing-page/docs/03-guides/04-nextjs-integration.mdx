@@ -1,0 +1,536 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Next.js Integration - @warpy-auth-sdk/core',
+  description: 'Complete guide to integrating @warpy-auth-sdk/core with Next.js App Router',
+};
+
+export default function NextJSIntegration() {
+  return (
+    <DocsLayout
+      title="Next.js Integration"
+      description="Complete guide to integrating @warpy-auth-sdk/core with Next.js App Router"
+      prevPage={{ title: 'CAPTCHA Integration', href: '/docs/guides/captcha-integration' }}
+      nextPage={{ title: 'Next.js Proxy', href: '/docs/guides/nextjs-proxy' }}
+    >
+      <div>
+        <h2>Next.js Integration</h2>
+
+        <p>
+          This guide covers integrating <code>@warpy-auth-sdk/core</code> with Next.js App Router. The SDK provides multiple integration methods, from zero-config Proxy to custom Route Handlers.
+        </p>
+
+        <h2>Integration Methods</h2>
+
+        <p>The SDK offers three integration approaches for Next.js:</p>
+
+        <ul>
+          <li><strong>Next.js 16 Proxy</strong>: Zero-config authentication middleware (recommended)</li>
+          <li><strong>Route Handlers</strong>: Custom API routes for fine-grained control</li>
+          <li><strong>Server Actions</strong>: Server-side authentication in Server Components</li>
+        </ul>
+
+        <h2>Installation</h2>
+
+        <CodeBlock language="bash">{`npm install @warpy-auth-sdk/core
+# or
+yarn add @warpy-auth-sdk/core
+# or
+pnpm add @warpy-auth-sdk/core`}</CodeBlock>
+
+        <h2>Project Structure</h2>
+
+        <p>Typical Next.js App Router project structure with authentication:</p>
+
+        <CodeBlock language="bash">{`my-app/
+├── app/
+│   ├── layout.tsx          # Root layout with AuthProvider
+│   ├── page.tsx           # Public home page
+│   ├── login/
+│   │   └── page.tsx       # Login page
+│   ├── dashboard/
+│   │   └── page.tsx      # Protected dashboard
+│   └── api/
+│       └── auth/
+│           ├── session/
+│           │   └── route.ts    # Session endpoint (if not using Proxy)
+│           └── signin/
+│               └── email/
+│                   └── route.ts # Email auth endpoint (if needed)
+├── proxy.ts                # Next.js 16 Proxy (recommended)
+└── .env.local             # Environment variables`}</CodeBlock>
+
+        <h2>Environment Configuration</h2>
+
+        <p>Create a <code>.env.local</code> file with your authentication credentials:</p>
+
+        <CodeBlock language="bash">{`# Required
+AUTH_SECRET=your-secret-key-at-least-32-characters-long
+
+# Google OAuth (example)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+
+# Email provider (optional, for magic links)
+RESEND_API_KEY=your-resend-api-key
+# or SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password`}</CodeBlock>
+
+        <Callout type="warning" title="Security Note">
+          The <code>AUTH_SECRET</code> must be at least 32 characters long and kept secret. Generate a secure random string for production.
+        </Callout>
+
+        <h2>Method 1: Next.js 16 Proxy (Recommended)</h2>
+
+        <p>
+          The simplest way to add authentication is using the Next.js 16 Proxy (formerly Middleware). This provides a Clerk-like ergonomic experience with automatic route handling.
+        </p>
+
+        <h3>Create the Proxy</h3>
+
+        <Example
+          title="proxy.ts"
+          description="Zero-config authentication proxy"
+          code={`import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      // Resolve/upsert user in your database
+      async user(oauthUser) {
+        // In production, save to database
+        return {
+          id: oauthUser.id || oauthUser.email,
+          email: oauthUser.email,
+          name: oauthUser.name,
+          picture: oauthUser.picture,
+        };
+      },
+      jwt: (token) => token,
+      session: (session) => session,
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};`}
+        />
+
+        <h3>Available Endpoints</h3>
+
+        <p>The Proxy automatically creates these endpoints:</p>
+
+        <ul>
+          <li><code>GET /api/auth/session</code> - Get current session</li>
+          <li><code>POST /api/auth/signout</code> - Sign out user</li>
+          <li><code>GET /api/auth/signin/google</code> - Start Google OAuth</li>
+          <li><code>GET /api/auth/callback/google</code> - OAuth callback</li>
+          <li><code>POST /api/auth/signin/email</code> - Send magic link (Node runtime)</li>
+        </ul>
+
+        <h2>Method 2: Custom Route Handlers</h2>
+
+        <p>For more control, implement custom Route Handlers:</p>
+
+        <h3>Session Endpoint</h3>
+
+        <Example
+          title="app/api/auth/session/route.ts"
+          description="Get current session"
+          code={`import { getSession } from "@warpy-auth-sdk/core";
+import { NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getSession(request, process.env.AUTH_SECRET!);
+
+    return Response.json({ session });
+  } catch (error) {
+    return Response.json({ session: null }, { status: 401 });
+  }
+}`}
+        />
+
+        <h3>Sign-in Endpoint</h3>
+
+        <Example
+          title="app/api/auth/signin/google/route.ts"
+          description="Start Google OAuth flow"
+          code={`import { authenticate } from "@warpy-auth-sdk/core";
+import { google } from "@warpy-auth-sdk/core";
+import { NextRequest, NextResponse } from "next/server";
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+export async function GET(request: NextRequest) {
+  try {
+    const result = await authenticate(config, request);
+
+    if (result.redirectUrl) {
+      return NextResponse.redirect(result.redirectUrl);
+    }
+
+    return Response.json({ error: "Authentication failed" }, { status: 400 });
+  } catch (error) {
+    console.error("Auth error:", error);
+    return NextResponse.redirect("/login?error=auth_failed");
+  }
+}`}
+        />
+
+        <h3>OAuth Callback Endpoint</h3>
+
+        <Example
+          title="app/api/auth/callback/google/route.ts"
+          description="Handle OAuth callback"
+          code={`import { authenticate, createSessionCookie } from "@warpy-auth-sdk/core";
+import { google } from "@warpy-auth-sdk/core";
+import { NextRequest, NextResponse } from "next/server";
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+  callbacks: {
+    async user(oauthUser) {
+      // Save to database in production
+      return {
+        id: oauthUser.email,
+        email: oauthUser.email,
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      };
+    },
+  },
+};
+
+export async function GET(request: NextRequest) {
+  try {
+    const result = await authenticate(config, request);
+
+    if (result.session) {
+      const cookie = createSessionCookie(result.session, config.secret);
+      const response = NextResponse.redirect(
+        new URL("/dashboard", request.url)
+      );
+      response.headers.set("Set-Cookie", cookie);
+      return response;
+    }
+
+    return NextResponse.redirect("/login?error=auth_failed");
+  } catch (error) {
+    console.error("Callback error:", error);
+    return NextResponse.redirect("/login?error=callback_failed");
+  }
+}`}
+        />
+
+        <h3>Sign-out Endpoint</h3>
+
+        <Example
+          title="app/api/auth/signout/route.ts"
+          description="Sign out user"
+          code={`import { signOut, clearSessionCookie } from "@warpy-auth-sdk/core";
+import { NextRequest, NextResponse } from "next/server";
+
+export async function POST(request: NextRequest) {
+  try {
+    await signOut(request, process.env.AUTH_SECRET!);
+
+    const response = Response.json({ success: true });
+    response.headers.set("Set-Cookie", clearSessionCookie());
+
+    return response;
+  } catch (error) {
+    return Response.json(
+      { error: "Sign out failed" },
+      { status: 500 }
+    );
+  }
+}`}
+        />
+
+        <h2>Client Integration</h2>
+
+        <h3>Root Layout with AuthProvider</h3>
+
+        <p>Wrap your app with the <code>AuthProvider</code> to enable session management:</p>
+
+        <Example
+          title="app/layout.tsx"
+          description="Root layout with authentication"
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+import "./globals.css";
+
+export const metadata = {
+  title: "My App",
+  description: "App with authentication",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}`}
+        />
+
+        <h3>Login Page</h3>
+
+        <Example
+          title="app/login/page.tsx"
+          description="Login page with OAuth"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function LoginPage() {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (session) {
+      router.push("/dashboard");
+    }
+  }, [session, router]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="max-w-md w-full space-y-8">
+        <h2 className="text-center text-3xl font-bold">
+          Sign in to your account
+        </h2>
+
+        <a
+          href="/api/auth/signin/google"
+          className="w-full flex justify-center py-3 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+        >
+          Continue with Google
+        </a>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h3>Protected Dashboard</h3>
+
+        <Example
+          title="app/dashboard/page.tsx"
+          description="Protected page requiring authentication"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push("/login");
+    }
+  }, [session, loading, router]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-16">
+          <h1 className="text-3xl font-bold">
+            Welcome, {session.user.name}!
+          </h1>
+          <p className="mt-2 text-gray-600">
+            Email: {session.user.email}
+          </p>
+          <button
+            onClick={signOut}
+            className="mt-4 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Server-Side Session Access</h2>
+
+        <p>Access the session in Server Components using <code>getServerSession</code>:</p>
+
+        <Example
+          title="app/profile/page.tsx"
+          description="Server component with session access"
+          code={`import { getServerSession } from "@warpy-auth-sdk/core/hooks/server";
+import { redirect } from "next/navigation";
+
+export default async function ProfilePage() {
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  return (
+    <div>
+      <h1>Profile</h1>
+      <p>Name: {session.user.name}</p>
+      <p>Email: {session.user.email}</p>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Multiple Providers</h2>
+
+        <p>Support multiple authentication providers:</p>
+
+        <CodeBlock language="typescript">{`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google, github, email } from "@warpy-auth-sdk/core";
+
+// Note: The SDK currently supports one provider per config
+// For multiple providers, you'll need to handle routing logic
+
+const handler = authMiddleware({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  callbacks: {
+    async user(u) { /* ... */ },
+  },
+});`}</CodeBlock>
+
+        <Callout type="info" title="Multiple Providers">
+          The SDK currently focuses on single-provider configurations. For multi-provider support, you can implement custom routing logic or use multiple config objects.
+        </Callout>
+
+        <h2>TypeScript Support</h2>
+
+        <p>The SDK includes full TypeScript support with type definitions:</p>
+
+        <CodeBlock language="typescript">{`import type {
+  AuthConfig,
+  Session,
+  User
+} from "@warpy-auth-sdk/core";
+
+// Session is fully typed
+const { session } = useAuth();
+// session.user.email - autocomplete works!`}</CodeBlock>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>Session Not Persisting</h3>
+
+        <p>Ensure cookies are enabled and the <code>AUTH_SECRET</code> is consistent:</p>
+
+        <CodeBlock language="typescript">{`// Check if session cookie is being set
+const response = NextResponse.redirect("/dashboard");
+response.headers.set("Set-Cookie", cookie);`}</CodeBlock>
+
+        <h3>CORS Issues</h3>
+
+        <p>If your frontend is on a different domain, configure CORS:</p>
+
+        <CodeBlock language="typescript">{`export async function GET(request: NextRequest) {
+  const response = await fetch(/* ... */);
+  response.headers.set("Access-Control-Allow-Origin", "https://yourdomain.com");
+  response.headers.set("Access-Control-Allow-Credentials", "true");
+  return response;
+}`}</CodeBlock>
+
+        <h3>OAuth Redirect Mismatch</h3>
+
+        <p>Ensure the redirect URI in your OAuth provider settings matches exactly:</p>
+
+        <CodeBlock language="bash">{`# Must match in both .env.local and OAuth provider console
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}</CodeBlock>
+
+        <h2>Best Practices</h2>
+
+        <ul>
+          <li><strong>Use Environment Variables</strong>: Never hardcode secrets</li>
+          <li><strong>Implement CSRF Protection</strong>: The SDK handles this automatically for OAuth</li>
+          <li><strong>Validate Sessions Server-Side</strong>: Don't trust client-side session data</li>
+          <li><strong>Use HTTPS in Production</strong>: Required for secure cookies</li>
+          <li><strong>Set Proper Cookie Attributes</strong>: httpOnly, secure, sameSite</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/nextjs-proxy">Next.js Proxy Guide</a> - Deep dive into Proxy configuration</li>
+          <li><a href="/docs/guides/react-hooks">React Hooks Guide</a> - Learn about useAuth and AuthProvider</li>
+          <li><a href="/docs/guides/session-management">Session Management</a> - Understand JWT and cookie handling</li>
+          <li><a href="/docs/examples/nextjs-app-router">Complete Example</a> - Full working Next.js app</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

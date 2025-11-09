@@ -1,0 +1,1110 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'MCP Tools Reference - @warpy-auth-sdk/core',
+  description: 'Complete API reference for Model Context Protocol (MCP) authentication tools including agent_login, get_session, and revoke_token.',
+};
+
+export default function ToolsReference() {
+  return (
+    <DocsLayout
+      title="MCP Tools Reference"
+      description="Detailed API documentation for all MCP authentication tools with schemas, examples, and error handling."
+      prevPage={{ title: 'Cloud Shield Integration', href: '/docs/mcp/cloud-shield-integration' }}
+      nextPage={{ title: 'Vercel AI SDK Integration', href: '/docs/mcp/vercel-ai-sdk-integration' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          The @warpy-auth-sdk/core library provides three core MCP tools for AI agent authentication:
+        </p>
+        <ul>
+          <li><strong>agent_login:</strong> Create short-lived authentication tokens for agents</li>
+          <li><strong>get_session:</strong> Verify tokens and retrieve session information</li>
+          <li><strong>revoke_token:</strong> Immediately invalidate agent tokens</li>
+        </ul>
+        <p>
+          All tools are implemented with Zod schema validation, comprehensive error handling, and support
+          for both direct invocation and Vercel AI SDK integration.
+        </p>
+
+        <h2>Installation and Setup</h2>
+
+        <Example
+          title="Basic Setup"
+          description="Creating MCP tools for direct use"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+// Self-hosted mode (local JWT verification)
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!,
+  // Optional: Add database adapter for persistent revocation
+  // adapter: PrismaAdapter(prisma)
+});
+
+// Available tools:
+// - mcpTools.agent_login
+// - mcpTools.get_session
+// - mcpTools.revoke_token
+
+// Each tool has:
+// - description: string
+// - parameters: ZodObject (schema validation)
+// - execute: async function`}
+        />
+
+        <Example
+          title="Cloud Shield Setup"
+          description="Using Warpy Cloud for managed security"
+          code={`import { createMCPShield } from '@warpy-auth-sdk/core';
+
+// Cloud-enhanced mode with automatic fallback
+const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  warpy: {
+    apiKey: process.env.WARPY_API_KEY  // Enables cloud features
+  },
+  metrics: { enabled: true }
+});
+
+// Same tools, enhanced with cloud security and analytics`}
+        />
+
+        <h2>Tool: agent_login</h2>
+
+        <p>
+          Creates a short-lived JWT token for AI agent authentication with scoped permissions.
+          This is the primary entry point for delegating user access to agents.
+        </p>
+
+        <h3>Schema</h3>
+
+        <Example
+          title="Zod Schema Definition"
+          description="Input validation schema"
+          code={`import { z } from 'zod';
+
+const agentLoginSchema = z.object({
+  userId: z.string()
+    .describe('User ID to impersonate'),
+
+  scopes: z.array(z.string())
+    .describe('Scopes for agent access (e.g., ["debug", "read"])'),
+
+  agentId: z.string()
+    .describe('Unique identifier for the agent'),
+
+  expiresIn: z.string()
+    .optional()
+    .default('15m')
+    .describe('Token expiration (e.g., "15m", "1h", "30s")')
+});
+
+type AgentLoginInput = z.infer<typeof agentLoginSchema>;`}
+        />
+
+        <h3>Parameters</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Required</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>userId</code></td>
+              <td>string</td>
+              <td>Yes</td>
+              <td>ID of the user the agent will act on behalf of</td>
+            </tr>
+            <tr>
+              <td><code>scopes</code></td>
+              <td>string[]</td>
+              <td>Yes</td>
+              <td>Array of permission scopes (e.g., <code>["read:profile", "write:comments"]</code>)</td>
+            </tr>
+            <tr>
+              <td><code>agentId</code></td>
+              <td>string</td>
+              <td>Yes</td>
+              <td>Unique identifier for the agent (e.g., <code>"claude-assistant"</code>, <code>"debug-bot"</code>)</td>
+            </tr>
+            <tr>
+              <td><code>expiresIn</code></td>
+              <td>string</td>
+              <td>No</td>
+              <td>Token lifetime using time notation (<code>"15m"</code>, <code>"1h"</code>, <code>"30s"</code>, <code>"7d"</code>). Default: <code>"15m"</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Response</h3>
+
+        <Example
+          title="Success Response"
+          description="Successful agent login"
+          code={`{
+  success: true,
+  token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJ1c2VyLTEyMyIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSIsInNjb3BlcyI6WyJkZWJ1ZyIsInJlYWQiXSwiYWdlbnRJZCI6ImNsYXVkZS1hc3Npc3RhbnQiLCJ0eXBlIjoibWNwLWFnZW50IiwiaWF0IjoxNjk5MjgyNDk2LCJleHAiOjE2OTkyODMzOTZ9.signature",
+  expires: "2024-11-06T12:49:56.000Z",
+  message: "Agent claude-assistant logged in as user user-123 with scopes: debug, read"
+}`}
+        />
+
+        <Example
+          title="Error Response"
+          description="Failed agent login"
+          code={`{
+  success: false,
+  error: "Invalid user ID or insufficient permissions"
+}`}
+        />
+
+        <h3>JWT Token Structure</h3>
+
+        <p>
+          The returned JWT token contains the following claims in its payload:
+        </p>
+
+        <Example
+          title="Decoded JWT Payload"
+          description="Token claims structure"
+          code={`{
+  // Standard JWT claims
+  iat: 1699282496,  // Issued at (Unix timestamp)
+  exp: 1699283396,  // Expires at (Unix timestamp)
+
+  // User identification
+  userId: "user-123",
+  email: "user@example.com",  // Optional, if available
+  name: "John Doe",           // Optional, if available
+
+  // Agent-specific claims
+  type: "mcp-agent",           // Token type (always "mcp-agent")
+  agentId: "claude-assistant", // Agent identifier
+  scopes: ["debug", "read"],   // Granted permission scopes
+
+  // Standard JWT signature
+  // Verified using AUTH_SECRET
+}`}
+        />
+
+        <h3>Scope Design Guidelines</h3>
+
+        <p>
+          Scopes should follow a hierarchical naming convention for clarity and flexibility:
+        </p>
+
+        <ul>
+          <li><strong>Format:</strong> <code>action:resource</code> or <code>action:resource:subresource</code></li>
+          <li><strong>Examples:</strong>
+            <ul>
+              <li><code>read:profile</code> - Read user profile data</li>
+              <li><code>write:comments</code> - Create/edit comments</li>
+              <li><code>delete:comments:own</code> - Delete only own comments</li>
+              <li><code>admin:users</code> - Full administrative access to users</li>
+            </ul>
+          </li>
+          <li><strong>Common actions:</strong> <code>read</code>, <code>write</code>, <code>delete</code>, <code>admin</code></li>
+          <li><strong>Wildcard support:</strong> <code>read:*</code> (read all resources), <code>*:profile</code> (all actions on profile)</li>
+        </ul>
+
+        <Callout type="warning">
+          <strong>Security Best Practice:</strong> Grant the minimum necessary scopes for the agent's task.
+          Avoid broad permissions like <code>admin:*</code> unless absolutely required. Consider implementing
+          time-based scopes that automatically expire after task completion.
+        </Callout>
+
+        <h3>Usage Examples</h3>
+
+        <Example
+          title="Direct Tool Invocation"
+          description="Calling agent_login directly"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+// Execute the tool
+const result = await mcpTools.agent_login.execute({
+  userId: 'user-123',
+  scopes: ['read:profile', 'read:orders'],
+  agentId: 'shopping-assistant',
+  expiresIn: '30m'
+});
+
+if (result.success) {
+  console.log('Token:', result.token);
+  console.log('Expires:', result.expires);
+
+  // Use token for authenticated requests
+  const response = await fetch('/api/user/profile', {
+    headers: {
+      'Authorization': \`Bearer \${result.token}\`
+    }
+  });
+} else {
+  console.error('Login failed:', result.error);
+}`}
+        />
+
+        <Example
+          title="HTTP Endpoint"
+          description="Exposing agent_login via API"
+          code={`// app/api/mcp/route.ts
+import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+export async function POST(request: Request) {
+  const { tool, args } = await request.json();
+
+  if (tool === 'agent_login') {
+    const result = await mcpTools.agent_login.execute(args);
+    return Response.json(result);
+  }
+
+  return Response.json({ error: 'Unknown tool' }, { status: 400 });
+}
+
+// Client usage:
+const response = await fetch('/api/mcp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    tool: 'agent_login',
+    args: {
+      userId: 'user-123',
+      scopes: ['debug', 'read'],
+      agentId: 'claude-assistant',
+      expiresIn: '15m'
+    }
+  })
+});
+
+const { success, token } = await response.json();`}
+        />
+
+        <Example
+          title="Vercel AI SDK Integration"
+          description="Using with generateText()"
+          code={`import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+const { text, toolCalls } = await generateText({
+  model: openai('gpt-4-turbo'),
+  tools: mcpTools,
+  prompt: 'Login as user-123 with read and debug scopes',
+  maxToolRoundtrips: 3
+});
+
+// Agent automatically calls agent_login tool
+// Token is available in toolCalls[0].result.token`}
+        />
+
+        <h3>Error Handling</h3>
+
+        <p>
+          Common error scenarios and how to handle them:
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Error</th>
+              <th>Cause</th>
+              <th>Resolution</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Invalid user ID</td>
+              <td>User doesn't exist or ID format is wrong</td>
+              <td>Validate user exists before calling agent_login</td>
+            </tr>
+            <tr>
+              <td>Invalid scopes</td>
+              <td>Scopes array is empty or contains invalid values</td>
+              <td>Ensure at least one valid scope is provided</td>
+            </tr>
+            <tr>
+              <td>Invalid expiresIn format</td>
+              <td>Unrecognized time format (e.g., "15 minutes")</td>
+              <td>Use valid formats: "15m", "1h", "30s", "7d"</td>
+            </tr>
+            <tr>
+              <td>Token generation failed</td>
+              <td>Missing or invalid AUTH_SECRET</td>
+              <td>Ensure AUTH_SECRET is set and at least 32 characters</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Tool: get_session</h2>
+
+        <p>
+          Verifies a JWT token and retrieves the associated session information including user details,
+          scopes, and agent identifier. Use this to validate tokens before performing privileged operations.
+        </p>
+
+        <h3>Schema</h3>
+
+        <Example
+          title="Zod Schema Definition"
+          description="Input validation schema"
+          code={`import { z } from 'zod';
+
+const getSessionSchema = z.object({
+  token: z.string()
+    .describe('JWT token to verify')
+});
+
+type GetSessionInput = z.infer<typeof getSessionSchema>;`}
+        />
+
+        <h3>Parameters</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Required</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>token</code></td>
+              <td>string</td>
+              <td>Yes</td>
+              <td>JWT token to verify (typically from <code>Authorization</code> header)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Response</h3>
+
+        <Example
+          title="Success Response"
+          description="Valid token"
+          code={`{
+  success: true,
+  session: {
+    userId: "user-123",
+    email: "user@example.com",
+    name: "John Doe",
+    type: "mcp-agent",
+    scopes: ["debug", "read"],
+    agentId: "claude-assistant"
+  }
+}`}
+        />
+
+        <Example
+          title="Error Response"
+          description="Invalid or expired token"
+          code={`{
+  success: false,
+  error: "Invalid or expired token"
+}
+
+// Or if token was revoked:
+{
+  success: false,
+  error: "Token has been revoked"
+}`}
+        />
+
+        <h3>Session Object Structure</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Field</th>
+              <th>Type</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>userId</code></td>
+              <td>string</td>
+              <td>ID of the user the agent is acting as</td>
+            </tr>
+            <tr>
+              <td><code>email</code></td>
+              <td>string?</td>
+              <td>User's email address (if available)</td>
+            </tr>
+            <tr>
+              <td><code>name</code></td>
+              <td>string?</td>
+              <td>User's display name (if available)</td>
+            </tr>
+            <tr>
+              <td><code>type</code></td>
+              <td>string</td>
+              <td>Token type (always <code>"mcp-agent"</code> for agent tokens)</td>
+            </tr>
+            <tr>
+              <td><code>scopes</code></td>
+              <td>string[]</td>
+              <td>Array of granted permission scopes</td>
+            </tr>
+            <tr>
+              <td><code>agentId</code></td>
+              <td>string</td>
+              <td>Identifier of the agent that owns this token</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Usage Examples</h3>
+
+        <Example
+          title="Verify Token Before API Operation"
+          description="Protecting an API endpoint"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+export async function GET(request: Request) {
+  // Extract token from Authorization header
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const token = authHeader.substring(7);
+
+  // Verify token
+  const verification = await mcpTools.get_session.execute({ token });
+
+  if (!verification.success) {
+    return Response.json(
+      { error: 'Invalid token' },
+      { status: 401 }
+    );
+  }
+
+  // Check if agent has required scope
+  const { session } = verification;
+  if (!session.scopes.includes('read:profile')) {
+    return Response.json(
+      { error: 'Insufficient permissions' },
+      { status: 403 }
+    );
+  }
+
+  // Proceed with operation
+  const userData = await getUserData(session.userId);
+  return Response.json(userData);
+}`}
+        />
+
+        <Example
+          title="Scope Validation Middleware"
+          description="Reusable authorization helper"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+export async function requireScopes(
+  request: Request,
+  requiredScopes: string[]
+): Promise<{ userId: string; agentId: string } | Response> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const token = authHeader.substring(7);
+  const verification = await mcpTools.get_session.execute({ token });
+
+  if (!verification.success || !verification.session) {
+    return Response.json({ error: 'Invalid token' }, { status: 401 });
+  }
+
+  const { session } = verification;
+  const hasAllScopes = requiredScopes.every(scope =>
+    session.scopes.includes(scope)
+  );
+
+  if (!hasAllScopes) {
+    return Response.json(
+      {
+        error: 'Insufficient permissions',
+        required: requiredScopes,
+        granted: session.scopes
+      },
+      { status: 403 }
+    );
+  }
+
+  return {
+    userId: session.userId,
+    agentId: session.agentId
+  };
+}
+
+// Usage in route handlers:
+export async function POST(request: Request) {
+  const auth = await requireScopes(request, ['write:comments']);
+  if (auth instanceof Response) return auth;  // Error response
+
+  const { userId, agentId } = auth;
+  // Perform authorized operation
+  console.log(\`Agent \${agentId} creating comment for user \${userId}\`);
+  // ...
+}`}
+        />
+
+        <Example
+          title="Token Health Check"
+          description="Periodic validation"
+          code={`// Check if a long-lived token is still valid
+async function isTokenStillValid(token: string): Promise<boolean> {
+  const result = await mcpTools.get_session.execute({ token });
+  return result.success;
+}
+
+// Usage in long-running agent tasks
+const token = await authenticateAgent();
+
+setInterval(async () => {
+  const valid = await isTokenStillValid(token);
+  if (!valid) {
+    console.log('Token expired or revoked, re-authenticating...');
+    token = await authenticateAgent();
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes`}
+        />
+
+        <h3>Revocation Checking</h3>
+
+        <p>
+          The <code>get_session</code> tool automatically checks if a token has been revoked before
+          returning session information. Revocation lists are maintained:
+        </p>
+        <ul>
+          <li><strong>Self-hosted mode:</strong> In-memory Set (resets on process restart)</li>
+          <li><strong>With adapter:</strong> Database-backed revocation list (persistent)</li>
+          <li><strong>Cloud Shield:</strong> Distributed revocation list across all instances</li>
+        </ul>
+
+        <Callout type="info">
+          <strong>Production Recommendation:</strong> Use a database adapter (Prisma, MongoDB, etc.) or
+          Cloud Shield to ensure revocation lists persist across deployments and scale horizontally.
+        </Callout>
+
+        <h2>Tool: revoke_token</h2>
+
+        <p>
+          Immediately invalidates an agent token, preventing further use. Once revoked, any subsequent
+          <code>get_session</code> calls with the token will fail. Use this to terminate agent sessions
+          when tasks complete or security incidents occur.
+        </p>
+
+        <h3>Schema</h3>
+
+        <Example
+          title="Zod Schema Definition"
+          description="Input validation schema"
+          code={`import { z } from 'zod';
+
+const revokeTokenSchema = z.object({
+  token: z.string()
+    .describe('JWT token to revoke')
+});
+
+type RevokeTokenInput = z.infer<typeof revokeTokenSchema>;`}
+        />
+
+        <h3>Parameters</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Parameter</th>
+              <th>Type</th>
+              <th>Required</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>token</code></td>
+              <td>string</td>
+              <td>Yes</td>
+              <td>JWT token to revoke (must be valid format, even if already expired)</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Response</h3>
+
+        <Example
+          title="Success Response"
+          description="Token revoked successfully"
+          code={`{
+  success: true,
+  message: "Token for agent claude-assistant has been revoked"
+}`}
+        />
+
+        <Example
+          title="Error Response"
+          description="Invalid token or revocation failed"
+          code={`{
+  success: false,
+  error: "Invalid token"
+}
+
+// Or if token format is malformed:
+{
+  success: false,
+  error: "Failed to revoke token"
+}`}
+        />
+
+        <h3>Usage Examples</h3>
+
+        <Example
+          title="Revoke After Task Completion"
+          description="Clean up agent tokens"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+async function performAgentTask(userId: string) {
+  // Create agent token
+  const loginResult = await mcpTools.agent_login.execute({
+    userId,
+    scopes: ['read:data', 'write:analysis'],
+    agentId: 'data-analyst-agent',
+    expiresIn: '1h'
+  });
+
+  if (!loginResult.success) {
+    throw new Error('Failed to create agent token');
+  }
+
+  const { token } = loginResult;
+
+  try {
+    // Perform task with token
+    await analyzeUserData(token);
+    await generateReport(token);
+    console.log('Task completed successfully');
+  } finally {
+    // Always revoke token after task, even if errors occurred
+    await mcpTools.revoke_token.execute({ token });
+    console.log('Agent token revoked');
+  }
+}`}
+        />
+
+        <Example
+          title="Emergency Revocation Endpoint"
+          description="Admin API to revoke tokens"
+          code={`// app/api/admin/revoke-agent-token/route.ts
+import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+export async function POST(request: Request) {
+  // Verify admin authentication (your auth logic)
+  const admin = await verifyAdminAuth(request);
+  if (!admin) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { token } = await request.json();
+
+  // Get session info before revoking (for audit log)
+  const sessionResult = await mcpTools.get_session.execute({ token });
+
+  // Revoke the token
+  const revokeResult = await mcpTools.revoke_token.execute({ token });
+
+  if (revokeResult.success) {
+    // Log the revocation for audit trail
+    await logAuditEvent({
+      action: 'agent_token_revoked',
+      admin: admin.id,
+      agentId: sessionResult.session?.agentId,
+      userId: sessionResult.session?.userId,
+      reason: 'Admin revocation'
+    });
+  }
+
+  return Response.json(revokeResult);
+}`}
+        />
+
+        <Example
+          title="Automatic Token Cleanup"
+          description="Revoke expired tokens periodically"
+          code={`// Background job to clean up expired tokens
+import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+async function cleanupExpiredTokens() {
+  // Get all active agent tokens from your database
+  const activeTokens = await db.agentToken.findMany({
+    where: { revoked: false }
+  });
+
+  for (const tokenRecord of activeTokens) {
+    // Check if token is still valid
+    const verification = await mcpTools.get_session.execute({
+      token: tokenRecord.token
+    });
+
+    if (!verification.success) {
+      // Token expired, revoke and mark in database
+      await mcpTools.revoke_token.execute({ token: tokenRecord.token });
+      await db.agentToken.update({
+        where: { id: tokenRecord.id },
+        data: { revoked: true, revokedAt: new Date() }
+      });
+      console.log(\`Cleaned up expired token for agent \${tokenRecord.agentId}\`);
+    }
+  }
+}
+
+// Run every hour
+setInterval(cleanupExpiredTokens, 60 * 60 * 1000);`}
+        />
+
+        <h3>Revocation Persistence</h3>
+
+        <p>
+          How revocation is handled depends on your setup:
+        </p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th>Storage</th>
+              <th>Persistence</th>
+              <th>Scalability</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Self-hosted (no adapter)</td>
+              <td>In-memory Set</td>
+              <td>Process lifetime only</td>
+              <td>Single instance</td>
+            </tr>
+            <tr>
+              <td>With database adapter</td>
+              <td>Database table</td>
+              <td>Permanent</td>
+              <td>Horizontal scaling</td>
+            </tr>
+            <tr>
+              <td>Cloud Shield</td>
+              <td>Distributed cache</td>
+              <td>Cloud-managed</td>
+              <td>Global, multi-region</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <Callout type="warning">
+          <strong>Important:</strong> In self-hosted mode without an adapter, revoked tokens will become
+          "un-revoked" if your application restarts. For production, always use a database adapter or
+          Cloud Shield.
+        </Callout>
+
+        <h2>Common Patterns</h2>
+
+        <h3>Pattern 1: Single-Use Agent Tokens</h3>
+
+        <Example
+          title="One-Time Task Token"
+          description="Create, use once, and immediately revoke"
+          code={`async function performOneTimeTask(userId: string, taskData: any) {
+  // Create short-lived token
+  const { token } = await mcpTools.agent_login.execute({
+    userId,
+    scopes: ['write:task_result'],
+    agentId: 'one-time-task-agent',
+    expiresIn: '5m'
+  });
+
+  // Perform task
+  const result = await executeTask(token, taskData);
+
+  // Immediately revoke (don't wait for expiration)
+  await mcpTools.revoke_token.execute({ token });
+
+  return result;
+}`}
+        />
+
+        <h3>Pattern 2: Token Refresh with Scope Escalation</h3>
+
+        <Example
+          title="Progressive Permissions"
+          description="Start with minimal scopes, escalate as needed"
+          code={`async function interactiveAgentSession(userId: string) {
+  // Start with read-only access
+  let { token } = await mcpTools.agent_login.execute({
+    userId,
+    scopes: ['read:data'],
+    agentId: 'interactive-agent',
+    expiresIn: '15m'
+  });
+
+  // Agent performs read operations
+  await analyzeData(token);
+
+  // User approves write operation, get new token with escalated scope
+  const needsWrite = await askUserPermission('Agent wants to save results');
+  if (needsWrite) {
+    // Revoke read-only token
+    await mcpTools.revoke_token.execute({ token });
+
+    // Create new token with write permission
+    const newTokenResult = await mcpTools.agent_login.execute({
+      userId,
+      scopes: ['read:data', 'write:results'],
+      agentId: 'interactive-agent',
+      expiresIn: '15m'
+    });
+    token = newTokenResult.token;
+
+    await saveResults(token);
+  }
+
+  // Clean up
+  await mcpTools.revoke_token.execute({ token });
+}`}
+        />
+
+        <h3>Pattern 3: Distributed Agent Coordination</h3>
+
+        <Example
+          title="Multi-Agent Workflow"
+          description="Multiple agents sharing scoped access"
+          code={`async function coordinatedWorkflow(userId: string) {
+  // Agent 1: Data collector (read-only)
+  const collectorToken = await mcpTools.agent_login.execute({
+    userId,
+    scopes: ['read:raw_data'],
+    agentId: 'data-collector',
+    expiresIn: '30m'
+  });
+
+  const rawData = await collectData(collectorToken.token);
+
+  // Agent 2: Data processor (read + write intermediate)
+  const processorToken = await mcpTools.agent_login.execute({
+    userId,
+    scopes: ['read:raw_data', 'write:processed_data'],
+    agentId: 'data-processor',
+    expiresIn: '30m'
+  });
+
+  const processedData = await processData(processorToken.token, rawData);
+
+  // Agent 3: Report generator (read processed + write final)
+  const reporterToken = await mcpTools.agent_login.execute({
+    userId,
+    scopes: ['read:processed_data', 'write:reports'],
+    agentId: 'report-generator',
+    expiresIn: '30m'
+  });
+
+  const report = await generateReport(reporterToken.token, processedData);
+
+  // Clean up all tokens
+  await Promise.all([
+    mcpTools.revoke_token.execute({ token: collectorToken.token }),
+    mcpTools.revoke_token.execute({ token: processorToken.token }),
+    mcpTools.revoke_token.execute({ token: reporterToken.token })
+  ]);
+
+  return report;
+}`}
+        />
+
+        <h2>Security Considerations</h2>
+
+        <h3>Token Storage</h3>
+        <ul>
+          <li><strong>Never log tokens:</strong> Avoid logging full tokens in application logs or metrics</li>
+          <li><strong>Secure transmission:</strong> Always use HTTPS for token transmission</li>
+          <li><strong>Client storage:</strong> If storing tokens client-side, use secure storage (e.g., HttpOnly cookies, encrypted local storage)</li>
+          <li><strong>Token leakage:</strong> Implement monitoring to detect unusual token usage patterns</li>
+        </ul>
+
+        <h3>Scope Design</h3>
+        <ul>
+          <li><strong>Principle of least privilege:</strong> Grant only necessary scopes</li>
+          <li><strong>Time-bound permissions:</strong> Use short expiration times (5-30 minutes)</li>
+          <li><strong>Hierarchical scopes:</strong> Implement scope inheritance (e.g., <code>admin:*</code> includes all admin scopes)</li>
+          <li><strong>Scope validation:</strong> Always validate scopes server-side before operations</li>
+        </ul>
+
+        <h3>Revocation Strategy</h3>
+        <ul>
+          <li><strong>Immediate revocation:</strong> Revoke tokens as soon as tasks complete</li>
+          <li><strong>Batch revocation:</strong> Revoke all tokens for a user when account is compromised</li>
+          <li><strong>Automatic cleanup:</strong> Implement background jobs to remove expired tokens from revocation list</li>
+          <li><strong>Audit logging:</strong> Log all revocations with context for security investigations</li>
+        </ul>
+
+        <Callout type="info">
+          For comprehensive security guidelines, see the
+          <a href="/docs/mcp/security-best-practices">Security Best Practices</a> guide.
+        </Callout>
+
+        <h2>Integration Examples</h2>
+
+        <h3>Express.js Integration</h3>
+
+        <Example
+          title="Express Middleware"
+          description="Protecting Express routes"
+          code={`import express from 'express';
+import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const app = express();
+const mcpTools = createMCPTools({ secret: process.env.AUTH_SECRET! });
+
+// Middleware to verify agent tokens
+const requireAgent = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const token = authHeader.substring(7);
+  const verification = await mcpTools.get_session.execute({ token });
+
+  if (!verification.success) {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  req.agentSession = verification.session;
+  next();
+};
+
+// Protected route
+app.get('/api/agent/data', requireAgent, async (req, res) => {
+  const { userId, agentId, scopes } = req.agentSession;
+  console.log(\`Agent \${agentId} accessing data for user \${userId}\`);
+
+  if (!scopes.includes('read:data')) {
+    return res.status(403).json({ error: 'Insufficient permissions' });
+  }
+
+  const data = await fetchUserData(userId);
+  res.json(data);
+});`}
+        />
+
+        <h3>Next.js API Route</h3>
+
+        <Example
+          title="Next.js Route Handler with Agent Auth"
+          description="Using MCP tools in Next.js"
+          code={`// app/api/agent/profile/route.ts
+import { createMCPTools } from '@warpy-auth-sdk/core';
+import { NextRequest, NextResponse } from 'next/server';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!
+});
+
+export async function GET(request: NextRequest) {
+  // Extract and verify token
+  const authHeader = request.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    return NextResponse.json(
+      { error: 'Unauthorized' },
+      { status: 401 }
+    );
+  }
+
+  const token = authHeader.substring(7);
+  const verification = await mcpTools.get_session.execute({ token });
+
+  if (!verification.success || !verification.session) {
+    return NextResponse.json(
+      { error: 'Invalid token' },
+      { status: 401 }
+    );
+  }
+
+  const { userId, scopes } = verification.session;
+
+  // Check required scope
+  if (!scopes.includes('read:profile')) {
+    return NextResponse.json(
+      { error: 'Insufficient permissions' },
+      { status: 403 }
+    );
+  }
+
+  // Fetch user profile
+  const profile = await db.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, name: true, avatar: true }
+  });
+
+  return NextResponse.json(profile);
+}`}
+        />
+
+        <h2>Next Steps</h2>
+        <ul>
+          <li>
+            <a href="/docs/mcp/vercel-ai-sdk-integration">Vercel AI SDK Integration</a> - Using MCP tools
+            with popular AI frameworks
+          </li>
+          <li>
+            <a href="/docs/mcp/security-best-practices">Security Best Practices</a> - Hardening your MCP
+            authentication
+          </li>
+          <li>
+            <a href="/docs/mcp/examples-and-patterns">Examples and Patterns</a> - Real-world implementation
+            examples
+          </li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

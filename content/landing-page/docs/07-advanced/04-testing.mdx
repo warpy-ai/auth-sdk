@@ -1,0 +1,791 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Testing - @warpy-auth-sdk/core',
+  description: 'Comprehensive testing strategies for authentication flows',
+};
+
+export default function Testing() {
+  return (
+    <DocsLayout
+      title="Testing"
+      description="Comprehensive testing strategies for authentication flows"
+      prevPage={{ title: 'Error Handling', href: '/docs/advanced/error-handling' }}
+    >
+      <div>
+        <h2>Testing Authentication</h2>
+        <p>
+          Testing authentication flows is critical for security and reliability.
+          This guide covers unit testing, integration testing, and end-to-end testing strategies for @warpy-auth-sdk/core.
+        </p>
+
+        <h2>Testing Setup</h2>
+
+        <h3>Install Testing Dependencies</h3>
+        <CodeBlock language="bash">
+{`npm install -D vitest @vitest/ui
+npm install -D @testing-library/react @testing-library/jest-dom
+npm install -D msw # Mock Service Worker for API mocking`}
+        </CodeBlock>
+
+        <h3>Vitest Configuration</h3>
+        <p>
+          Create a Vitest config for your tests:
+        </p>
+
+        <Example
+          title="Vitest Configuration"
+          description="Setup Vitest for testing"
+          code={`// vitest.config.ts
+import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./tests/setup.ts'],
+  },
+});
+
+// tests/setup.ts
+import { expect, afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import * as matchers from '@testing-library/jest-dom/matchers';
+
+expect.extend(matchers);
+
+// Cleanup after each test
+afterEach(() => {
+  cleanup();
+});`}
+        />
+
+        <h2>Unit Testing</h2>
+
+        <h3>Testing Core Functions</h3>
+        <p>
+          Test the core authentication functions in isolation:
+        </p>
+
+        <Example
+          title="Testing authenticate()"
+          description="Unit test for OAuth authentication"
+          code={`// __tests__/core/authenticate.test.ts
+import { describe, it, expect, beforeEach } from 'vitest';
+import { authenticate } from '@warpy-auth-sdk/core';
+import { google } from '@warpy-auth-sdk/core';
+
+describe('authenticate', () => {
+  const mockConfig = {
+    secret: 'test-secret-minimum-32-characters-long',
+    provider: google({
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback',
+    }),
+  };
+
+  it('should return redirectUrl for initial OAuth request', async () => {
+    const request = new Request('http://localhost:3000/signin');
+
+    const result = await authenticate(mockConfig, request);
+
+    expect(result.redirectUrl).toBeDefined();
+    expect(result.redirectUrl).toContain('accounts.google.com');
+    expect(result.redirectUrl).toContain('client_id=test-client-id');
+  });
+
+  it('should return error for invalid CSRF token', async () => {
+    const request = new Request(
+      'http://localhost:3000/callback?code=test-code&state=invalid-state'
+    );
+
+    const result = await authenticate(mockConfig, request);
+
+    expect(result.error).toBe('Invalid CSRF token');
+    expect(result.session).toBeUndefined();
+  });
+
+  it('should create session for valid OAuth callback', async () => {
+    // Mock OAuth flow with valid CSRF
+    // This requires mocking the CSRF token store and OAuth provider
+    // Implementation depends on your mocking strategy
+  });
+});`}
+        />
+
+        <h3>Testing getSession()</h3>
+        <p>
+          Test session retrieval and validation:
+        </p>
+
+        <Example
+          title="Testing getSession()"
+          description="Unit test for session retrieval"
+          code={`// __tests__/core/session.test.ts
+import { describe, it, expect } from 'vitest';
+import { getSession, createSessionCookie } from '@warpy-auth-sdk/core';
+import { signJWT } from '@warpy-auth-sdk/core/utils/jwt';
+
+describe('getSession', () => {
+  const secret = 'test-secret-minimum-32-characters-long';
+
+  it('should return null for request without session cookie', async () => {
+    const request = new Request('http://localhost:3000/api/test');
+
+    const session = await getSession(request, secret);
+
+    expect(session).toBeNull();
+  });
+
+  it('should return session for valid session cookie', async () => {
+    const mockSession = {
+      user: {
+        id: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+      },
+      expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      token: signJWT(
+        {
+          userId: 'user-123',
+          email: 'test@example.com',
+          name: 'Test User',
+          type: 'standard',
+        },
+        secret
+      ),
+      type: 'standard' as const,
+    };
+
+    const cookie = createSessionCookie(mockSession);
+    const request = new Request('http://localhost:3000/api/test', {
+      headers: { Cookie: cookie },
+    });
+
+    const session = await getSession(request, secret);
+
+    expect(session).toBeDefined();
+    expect(session?.user.id).toBe('user-123');
+    expect(session?.user.email).toBe('test@example.com');
+  });
+
+  it('should return null for expired session', async () => {
+    const expiredToken = signJWT(
+      {
+        userId: 'user-123',
+        email: 'test@example.com',
+        type: 'standard',
+      },
+      secret,
+      '0s' // Expired immediately
+    );
+
+    // Wait 100ms to ensure expiration
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    const request = new Request('http://localhost:3000/api/test', {
+      headers: { Cookie: \`auth_session=\${expiredToken}\` },
+    });
+
+    const session = await getSession(request, secret);
+
+    expect(session).toBeNull();
+  });
+});`}
+        />
+
+        <h3>Testing Callbacks</h3>
+        <p>
+          Test custom callback logic:
+        </p>
+
+        <Example
+          title="Testing Callbacks"
+          description="Unit test for user callback"
+          code={`// __tests__/callbacks/user.test.ts
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+
+// Mock user callback
+const userCallback = async (oauthUser: any) => {
+  let user = await prisma.user.findUnique({
+    where: { email: oauthUser.email },
+  });
+
+  if (!user) {
+    user = await prisma.user.create({
+      data: {
+        email: oauthUser.email,
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      },
+    });
+  }
+
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name ?? undefined,
+    picture: user.picture ?? undefined,
+  };
+};
+
+describe('user callback', () => {
+  beforeEach(async () => {
+    // Clear test database
+    await prisma.user.deleteMany();
+  });
+
+  it('should create new user if not exists', async () => {
+    const oauthUser = {
+      email: 'test@example.com',
+      name: 'Test User',
+      picture: 'https://example.com/avatar.jpg',
+    };
+
+    const result = await userCallback(oauthUser);
+
+    expect(result.email).toBe('test@example.com');
+    expect(result.name).toBe('Test User');
+
+    // Verify user was created in database
+    const dbUser = await prisma.user.findUnique({
+      where: { email: 'test@example.com' },
+    });
+    expect(dbUser).toBeDefined();
+  });
+
+  it('should return existing user if found', async () => {
+    // Create user first
+    const existingUser = await prisma.user.create({
+      data: {
+        email: 'existing@example.com',
+        name: 'Existing User',
+      },
+    });
+
+    const oauthUser = {
+      email: 'existing@example.com',
+      name: 'Updated Name',
+    };
+
+    const result = await userCallback(oauthUser);
+
+    expect(result.id).toBe(existingUser.id);
+    expect(result.email).toBe('existing@example.com');
+
+    // Verify no duplicate was created
+    const userCount = await prisma.user.count({
+      where: { email: 'existing@example.com' },
+    });
+    expect(userCount).toBe(1);
+  });
+
+  it('should throw error for banned user', async () => {
+    await prisma.bannedUser.create({
+      data: { email: 'banned@example.com' },
+    });
+
+    const oauthUser = {
+      email: 'banned@example.com',
+      name: 'Banned User',
+    };
+
+    await expect(userCallback(oauthUser)).rejects.toThrow(
+      'Account has been suspended'
+    );
+  });
+});`}
+        />
+
+        <h2>Integration Testing</h2>
+
+        <h3>Testing Full Authentication Flow</h3>
+        <p>
+          Test complete authentication flows with API mocking:
+        </p>
+
+        <Example
+          title="OAuth Flow Integration Test"
+          description="Test full OAuth authentication flow"
+          code={`// __tests__/integration/oauth.test.ts
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { setupServer } from 'msw/node';
+import { http, HttpResponse } from 'msw';
+import { authenticate } from '@warpy-auth-sdk/core';
+import { google } from '@warpy-auth-sdk/core';
+
+// Mock OAuth provider responses
+const server = setupServer(
+  // Mock token exchange
+  http.post('https://oauth2.googleapis.com/token', () => {
+    return HttpResponse.json({
+      access_token: 'mock-access-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+  }),
+
+  // Mock user info
+  http.get('https://www.googleapis.com/oauth2/v2/userinfo', () => {
+    return HttpResponse.json({
+      id: 'google-user-123',
+      email: 'test@example.com',
+      name: 'Test User',
+      picture: 'https://example.com/avatar.jpg',
+      verified_email: true,
+    });
+  })
+);
+
+beforeAll(() => server.listen());
+afterAll(() => server.close());
+
+describe('Google OAuth Integration', () => {
+  const config = {
+    secret: 'test-secret-minimum-32-characters-long',
+    provider: google({
+      clientId: 'test-client-id',
+      clientSecret: 'test-client-secret',
+      redirectUri: 'http://localhost:3000/callback',
+    }),
+  };
+
+  it('should complete full OAuth flow', async () => {
+    // Step 1: Initiate OAuth
+    const initiateRequest = new Request('http://localhost:3000/signin');
+    const initiateResult = await authenticate(config, initiateRequest);
+
+    expect(initiateResult.redirectUrl).toBeDefined();
+    const redirectUrl = new URL(initiateResult.redirectUrl!);
+    const state = redirectUrl.searchParams.get('state');
+
+    // Step 2: Simulate OAuth callback with state
+    // (Requires mocking CSRF token validation)
+    // Implementation depends on your CSRF mocking strategy
+  });
+});`}
+        />
+
+        <h3>Testing Email Magic Link Flow</h3>
+        <p>
+          Test email authentication with mock email service:
+        </p>
+
+        <Example
+          title="Email Magic Link Test"
+          description="Test email authentication flow"
+          code={`// __tests__/integration/email.test.ts
+import { describe, it, expect, vi } from 'vitest';
+import { authenticate } from '@warpy-auth-sdk/core';
+import { email } from '@warpy-auth-sdk/core';
+
+// Mock email service
+const mockSendEmail = vi.fn();
+
+describe('Email Magic Link Integration', () => {
+  const config = {
+    secret: 'test-secret-minimum-32-characters-long',
+    provider: email({
+      from: 'noreply@example.com',
+      service: {
+        type: 'resend' as const,
+        apiKey: 'test-api-key',
+      },
+    }),
+  };
+
+  it('should send magic link email', async () => {
+    const request = new Request('http://localhost:3000/signin/email', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'test@example.com' }),
+    });
+
+    const result = await authenticate(config, request);
+
+    expect(result.error).toBeUndefined();
+    expect(mockSendEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: 'test@example.com',
+        from: 'noreply@example.com',
+      })
+    );
+  });
+
+  it('should verify magic link token', async () => {
+    // This requires mocking the token generation and verification
+    // Implementation depends on your token mocking strategy
+  });
+});`}
+        />
+
+        <h2>Testing React Hooks</h2>
+
+        <h3>Testing useAuth Hook</h3>
+        <p>
+          Test the React authentication hook:
+        </p>
+
+        <Example
+          title="Testing useAuth Hook"
+          description="Unit test for React authentication hook"
+          code={`// __tests__/hooks/useAuth.test.tsx
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { renderHook, waitFor } from '@testing-library/react';
+import { AuthProvider, useAuth } from '@warpy-auth-sdk/core/hooks';
+import { setupServer } from 'msw/node';
+import { http, HttpResponse } from 'msw';
+
+const server = setupServer(
+  http.get('/api/auth/session', () => {
+    return HttpResponse.json({
+      user: {
+        id: 'user-123',
+        email: 'test@example.com',
+        name: 'Test User',
+      },
+    });
+  })
+);
+
+beforeEach(() => server.listen());
+
+describe('useAuth', () => {
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <AuthProvider>{children}</AuthProvider>
+  );
+
+  it('should fetch session on mount', async () => {
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    expect(result.current.loading).toBe(true);
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.session).toBeDefined();
+    expect(result.current.session?.user.email).toBe('test@example.com');
+  });
+
+  it('should handle sign out', async () => {
+    server.use(
+      http.post('/api/auth/signout', () => {
+        return HttpResponse.json({ success: true });
+      })
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.session).toBeDefined();
+    });
+
+    await result.current.signOut();
+
+    expect(result.current.session).toBeNull();
+  });
+
+  it('should return null session when not authenticated', async () => {
+    server.use(
+      http.get('/api/auth/session', () => {
+        return HttpResponse.json(null);
+      })
+    );
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    expect(result.current.session).toBeNull();
+  });
+});`}
+        />
+
+        <h2>End-to-End Testing</h2>
+
+        <h3>Playwright Setup</h3>
+        <p>
+          Setup Playwright for E2E testing:
+        </p>
+
+        <CodeBlock language="bash">
+{`npm install -D @playwright/test
+npx playwright install`}
+        </CodeBlock>
+
+        <h3>E2E OAuth Test</h3>
+        <p>
+          Test complete OAuth flow in a real browser:
+        </p>
+
+        <Example
+          title="E2E OAuth Test"
+          description="Complete OAuth flow with Playwright"
+          code={`// e2e/oauth.spec.ts
+import { test, expect } from '@playwright/test';
+
+test.describe('Google OAuth Flow', () => {
+  test('should authenticate with Google', async ({ page }) => {
+    // Navigate to login page
+    await page.goto('http://localhost:3000/login');
+
+    // Click "Sign in with Google" button
+    await page.click('button:has-text("Sign in with Google")');
+
+    // Wait for redirect to Google
+    await page.waitForURL(/accounts\.google\.com/);
+
+    // Fill in Google credentials (test account)
+    await page.fill('input[type="email"]', process.env.TEST_GOOGLE_EMAIL!);
+    await page.click('button:has-text("Next")');
+
+    await page.fill('input[type="password"]', process.env.TEST_GOOGLE_PASSWORD!);
+    await page.click('button:has-text("Next")');
+
+    // Wait for redirect back to app
+    await page.waitForURL('http://localhost:3000/dashboard');
+
+    // Verify session
+    const userEmail = await page.textContent('[data-testid="user-email"]');
+    expect(userEmail).toBe(process.env.TEST_GOOGLE_EMAIL);
+  });
+
+  test('should sign out', async ({ page }) => {
+    // Assume user is authenticated
+    await page.goto('http://localhost:3000/dashboard');
+
+    // Click sign out
+    await page.click('button:has-text("Sign Out")');
+
+    // Verify redirect to login
+    await page.waitForURL('http://localhost:3000/login');
+
+    // Verify session cleared
+    const isAuthenticated = await page.locator('[data-testid="user-email"]').count();
+    expect(isAuthenticated).toBe(0);
+  });
+});`}
+        />
+
+        <h2>Testing Best Practices</h2>
+
+        <h3>1. Use Test Fixtures</h3>
+        <p>
+          Create reusable test fixtures for common data:
+        </p>
+
+        <Example
+          title="Test Fixtures"
+          description="Reusable test data"
+          code={`// __tests__/fixtures/users.ts
+export const mockUsers = {
+  standard: {
+    id: 'user-123',
+    email: 'test@example.com',
+    name: 'Test User',
+    picture: 'https://example.com/avatar.jpg',
+  },
+  admin: {
+    id: 'admin-456',
+    email: 'admin@example.com',
+    name: 'Admin User',
+    roles: ['admin'],
+  },
+  banned: {
+    id: 'banned-789',
+    email: 'banned@example.com',
+    status: 'banned',
+  },
+};
+
+// __tests__/fixtures/sessions.ts
+export const mockSessions = {
+  standard: {
+    user: mockUsers.standard,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    type: 'standard' as const,
+  },
+  admin: {
+    user: mockUsers.admin,
+    expires: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+    type: 'standard' as const,
+  },
+  agent: {
+    user: { id: 'agent-user', email: '', name: 'Agent' },
+    expires: new Date(Date.now() + 15 * 60 * 1000), // 15 minutes
+    type: 'mcp-agent' as const,
+    scopes: ['debug', 'read'],
+    agentId: 'dev-agent',
+  },
+};`}
+        />
+
+        <h3>2. Mock External Services</h3>
+        <p>
+          Always mock OAuth providers, email services, and databases:
+        </p>
+
+        <Example
+          title="Service Mocking"
+          description="Mock external dependencies"
+          code={`// __tests__/mocks/oauth.ts
+import { setupServer } from 'msw/node';
+import { http, HttpResponse } from 'msw';
+
+export const mockOAuthServer = setupServer(
+  http.post('https://oauth2.googleapis.com/token', () => {
+    return HttpResponse.json({
+      access_token: 'mock-access-token',
+      token_type: 'Bearer',
+      expires_in: 3600,
+    });
+  }),
+  http.get('https://www.googleapis.com/oauth2/v2/userinfo', () => {
+    return HttpResponse.json({
+      id: 'google-user-123',
+      email: 'test@example.com',
+      verified_email: true,
+    });
+  })
+);
+
+// __tests__/mocks/email.ts
+import { vi } from 'vitest';
+
+export const mockEmailService = {
+  sendEmail: vi.fn().mockResolvedValue({ id: 'mock-email-id' }),
+};`}
+        />
+
+        <h3>3. Test Error Paths</h3>
+        <p>
+          Always test error scenarios:
+        </p>
+
+        <Example
+          title="Error Path Testing"
+          description="Test failure scenarios"
+          code={`describe('Error Scenarios', () => {
+  it('should handle OAuth provider error', async () => {
+    server.use(
+      http.post('https://oauth2.googleapis.com/token', () => {
+        return HttpResponse.json(
+          { error: 'invalid_grant' },
+          { status: 400 }
+        );
+      })
+    );
+
+    const result = await authenticate(config, request);
+    expect(result.error).toBeDefined();
+  });
+
+  it('should handle database connection error', async () => {
+    // Mock database error
+    vi.spyOn(prisma.user, 'findUnique').mockRejectedValue(
+      new Error('Database connection failed')
+    );
+
+    await expect(userCallback(mockUser)).rejects.toThrow(
+      'Database connection failed'
+    );
+  });
+
+  it('should handle expired token', async () => {
+    const expiredToken = signJWT(payload, secret, '0s');
+    const session = await getSession(requestWithToken(expiredToken), secret);
+    expect(session).toBeNull();
+  });
+});`}
+        />
+
+        <h2>Continuous Integration</h2>
+
+        <h3>GitHub Actions Workflow</h3>
+        <p>
+          Setup automated testing in CI:
+        </p>
+
+        <Example
+          title="GitHub Actions CI"
+          description="Automated testing workflow"
+          code={`# .github/workflows/test.yml
+name: Tests
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm run test:unit
+        env:
+          AUTH_SECRET: \${{ secrets.TEST_AUTH_SECRET }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          AUTH_SECRET: \${{ secrets.TEST_AUTH_SECRET }}
+
+      - name: Run E2E tests
+        run: npm run test:e2e
+        env:
+          AUTH_SECRET: \${{ secrets.TEST_AUTH_SECRET }}
+          TEST_GOOGLE_EMAIL: \${{ secrets.TEST_GOOGLE_EMAIL }}
+          TEST_GOOGLE_PASSWORD: \${{ secrets.TEST_GOOGLE_PASSWORD }}`}
+        />
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you understand testing strategies, explore:
+        </p>
+
+        <ul>
+          <li><a href="/docs/advanced/callbacks">Callbacks</a> - Customize authentication logic</li>
+          <li><a href="/docs/advanced/error-handling">Error Handling</a> - Handle authentication errors</li>
+          <li><a href="/docs/examples/nextjs-app-router">Examples</a> - See working implementations</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

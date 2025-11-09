@@ -1,0 +1,923 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Warpy Cloud Shield Integration - @warpy-auth-sdk/core',
+  description: 'Secure MCP agent authentication with managed execution environments, analytics, and edge protection via Warpy Cloud Shield.',
+};
+
+export default function CloudShieldIntegration() {
+  return (
+    <DocsLayout
+      title="Cloud Shield Integration"
+      description="Production-grade MCP authentication with managed security, monitoring, and compliance."
+      prevPage={{ title: 'Efficient AI Agent Authentication', href: '/docs/mcp/efficient-ai-agent-authentication' }}
+      nextPage={{ title: 'Tools Reference', href: '/docs/mcp/tools-reference' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          Warpy Cloud Shield is a managed security layer for MCP (Model Context Protocol) agent authentication
+          that provides enterprise-grade protection, monitoring, and compliance features. Instead of managing
+          your own authentication infrastructure, Shield handles token provisioning, validation, authorization,
+          and execution through a secure cloud endpoint with automatic fallback to self-hosted mode.
+        </p>
+
+        <h3>Key Features</h3>
+        <ul>
+          <li><strong>Zero-Config Onboarding:</strong> Set an API key and you're protected</li>
+          <li><strong>Edge Security:</strong> Rate limiting, WAF rules, and anomaly detection</li>
+          <li><strong>Centralized Analytics:</strong> Real-time metrics and audit logs</li>
+          <li><strong>Intent Scanning:</strong> Heuristic analysis of agent prompts for suspicious activity</li>
+          <li><strong>Automatic Fallback:</strong> Seamlessly switches to self-host mode if cloud is unavailable</li>
+          <li><strong>Compliance Ready:</strong> Built-in audit trails for GDPR, SOC 2, HIPAA</li>
+        </ul>
+
+        <h3>When to Use Cloud Shield</h3>
+        <p>
+          Cloud Shield is ideal for:
+        </p>
+        <ul>
+          <li><strong>Production deployments</strong> requiring high availability and security</li>
+          <li><strong>Enterprise applications</strong> with compliance requirements</li>
+          <li><strong>Multi-tenant systems</strong> needing centralized monitoring</li>
+          <li><strong>Teams</strong> wanting to focus on features rather than security infrastructure</li>
+        </ul>
+
+        <Callout type="info">
+          <strong>Self-Host Alternative:</strong> If you prefer complete control or have strict data residency
+          requirements, you can use <code>createMCPTools()</code> without Shield for local JWT-based authentication.
+          See <a href="/docs/mcp/tools-reference">Tools Reference</a> for details.
+        </Callout>
+
+        <h2>Quick Start</h2>
+
+        <h3>Step 1: Get Your API Key</h3>
+        <p>
+          Sign up for a free Warpy Cloud account at <a href="https://platform.warpy.co">platform.warpy.co</a> and
+          generate an API key from your dashboard.
+        </p>
+
+        <Callout type="success">
+          <strong>Free Tier:</strong> The free tier includes up to 10,000 MCP tool calls per month, basic rate
+          limiting, and 7-day audit log retention—perfect for development and small production workloads.
+        </Callout>
+
+        <h3>Step 2: Configure Your Environment</h3>
+        <p>
+          Add your API key to your environment variables:
+        </p>
+
+        <Example
+          title="Environment Configuration"
+          description="Set your Warpy API key"
+          code={`# .env.local (Next.js) or .env
+AUTH_SECRET=your-jwt-secret-key-min-32-chars
+WARPY_API_KEY=warpy_api_key_xxxxxxxxxxxxx
+
+# Optional: Customize Shield behavior
+WARPY_BASE_URL=https://platform.warpy.co/api/v1  # Default
+WARPY_TIMEOUT_MS=5000  # Request timeout in milliseconds
+WARPY_MAX_RETRIES=3    # Number of retry attempts on transient errors`}
+        />
+
+        <h3>Step 3: Initialize Shield in Your Application</h3>
+
+        <Example
+          title="Basic Shield Setup"
+          description="Minimal configuration with env-based setup"
+          code={`import { createMCPShield } from '@warpy-auth-sdk/core';
+
+// Zero-config: reads WARPY_API_KEY from environment
+const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!
+});
+
+// Cloud mode automatically enabled when WARPY_API_KEY is present
+// Falls back to self-host mode if API key is missing`}
+        />
+
+        <Example
+          title="Advanced Shield Setup"
+          description="Full configuration with explicit options"
+          code={`import { createMCPShield } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+
+  // Warpy Cloud configuration
+  warpy: {
+    apiKey: process.env.WARPY_API_KEY,      // Or read from env
+    baseUrl: process.env.WARPY_BASE_URL,    // Custom endpoint (e.g., EU region)
+    timeoutMs: 5000,                        // Request timeout
+    maxRetries: 3                            // Retry attempts on transient errors
+  },
+
+  // Metrics and analytics
+  metrics: {
+    enabled: true,           // Enable metrics collection
+    flushIntervalMs: 10000,  // Send metrics every 10 seconds
+    bufferSize: 100          // Buffer up to 100 events before forcing flush
+  }
+});
+
+// Use with Vercel AI SDK or any LLM framework
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+
+const { text } = await generateText({
+  model: openai('gpt-4-turbo'),
+  tools: mcpTools,
+  prompt: 'Login as user-123 with debug and read scopes'
+});`}
+        />
+
+        <h3>Step 4: Expose MCP Endpoint (Optional)</h3>
+        <p>
+          For HTTP-based agent access, create an endpoint to handle MCP tool calls:
+        </p>
+
+        <Example
+          title="Next.js Route Handler"
+          description="Expose MCP tools via HTTP API"
+          code={`// app/api/mcp/route.ts
+import { createMCPShield } from '@warpy-auth-sdk/core';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+
+const mcp = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  metrics: { enabled: true }
+});
+
+export async function POST(req: NextRequest) {
+  try {
+    const { tool, args } = await req.json();
+
+    if (!tool || !(tool in mcp)) {
+      return NextResponse.json(
+        { error: 'Unknown tool', available: Object.keys(mcp) },
+        { status: 400 }
+      );
+    }
+
+    // Execute tool through Shield
+    const toolDef = (mcp as any)[tool];
+    const result = await toolDef.execute(args || {});
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// Optional: Add authentication to the endpoint
+// export const runtime = 'nodejs'; // Required for Next.js`}
+        />
+
+        <h2>How Cloud Shield Works</h2>
+        <p>
+          Cloud Shield wraps each MCP tool call in a three-stage security pipeline:
+        </p>
+
+        <Example
+          title="Shield Security Pipeline"
+          description="Three-stage protection for every tool call"
+          code={`\`\`\`mermaid
+sequenceDiagram
+    participant Agent
+    participant Shield (Client)
+    participant Warpy Cloud
+    participant Your API
+
+    Agent->>Shield (Client): Call agent_login tool
+    Shield (Client)->>Warpy Cloud: Stage 1: Validate<br/>(token verification)
+    Warpy Cloud-->>Shield (Client): Token valid
+
+    Shield (Client)->>Warpy Cloud: Stage 2: Check Authorization<br/>(scopes + intent scan)
+    Warpy Cloud-->>Shield (Client): Authorized (no threats detected)
+
+    Shield (Client)->>Warpy Cloud: Stage 3: Proxy Execution<br/>(secure tool execution)
+    Warpy Cloud->>Your API: Execute with validated context
+    Your API-->>Warpy Cloud: Result
+    Warpy Cloud-->>Shield (Client): Filtered result
+    Shield (Client)-->>Agent: Success response
+\`\`\`
+
+**Comparison: Cloud vs Self-Host**
+
+| Stage | Cloud Shield | Self-Host Mode |
+|-------|-------------|----------------|
+| **1. Authentication** | Remote validation via Warpy | Local JWT verification |
+| **2. Authorization** | Scope check + intent scanning | Scope check only |
+| **3. Execution** | Secure proxy execution | Direct tool invocation |
+| **Metrics** | Centralized dashboard | Not collected |
+| **Rate Limiting** | Global edge protection | Not included |
+| **Audit Logs** | 30-day retention (Pro: 1 year) | Manual implementation |`}
+        />
+
+        <h3>Stage 1: Authentication (Validate)</h3>
+        <p>
+          Before any tool execution, Shield verifies the authenticity of tokens:
+        </p>
+        <ul>
+          <li><strong>Cloud Mode:</strong> Token sent to Warpy for signature verification and expiration check</li>
+          <li><strong>Self-Host Mode:</strong> Local JWT verification using your AUTH_SECRET</li>
+          <li><strong>Revocation Check:</strong> Tokens are checked against a distributed revocation list</li>
+        </ul>
+
+        <h3>Stage 2: Authorization + Intent Scanning</h3>
+        <p>
+          After authentication, Shield performs authorization checks and threat analysis:
+        </p>
+        <ul>
+          <li><strong>Scope Validation:</strong> Verifies requested scopes match granted permissions</li>
+          <li><strong>Intent Scanning (Cloud Only):</strong> Heuristic analysis of agent prompts to detect:
+            <ul>
+              <li>Privilege escalation attempts</li>
+              <li>Suspicious data exfiltration patterns</li>
+              <li>Malicious command injection</li>
+              <li>Unusual access patterns</li>
+            </ul>
+          </li>
+          <li><strong>Policy Enforcement:</strong> Custom rules based on user roles, time of day, geolocation, etc.</li>
+        </ul>
+
+        <Callout type="warning">
+          <strong>Intent Scanning:</strong> This feature uses machine learning models to detect potentially
+          malicious behavior. While highly accurate, it may occasionally flag legitimate requests. Review
+          denied requests in your Warpy dashboard and whitelist false positives.
+        </Callout>
+
+        <h3>Stage 3: Execution (Proxy)</h3>
+        <p>
+          Finally, the tool is executed in a secure environment:
+        </p>
+        <ul>
+          <li><strong>Cloud Mode:</strong> Execution happens in Warpy's sandboxed environment with resource limits</li>
+          <li><strong>Self-Host Mode:</strong> Direct local execution (you manage sandboxing)</li>
+          <li><strong>Response Filtering:</strong> Sensitive data automatically masked before returning to agent</li>
+          <li><strong>Audit Logging:</strong> All executions logged with full context for compliance</li>
+        </ul>
+
+        <h2>Configuration Reference</h2>
+
+        <h3>Full Configuration Schema</h3>
+
+        <Example
+          title="TypeScript Configuration Interface"
+          description="Complete type definitions for Shield configuration"
+          code={`interface MCPShieldConfig {
+  // Required: JWT secret for token signing/verification
+  secret: string;
+
+  // Warpy Cloud configuration
+  warpy?: {
+    // API key from https://platform.warpy.co (or WARPY_API_KEY env var)
+    apiKey?: string;
+
+    // Base URL for Warpy API (default: https://platform.warpy.co/api/v1)
+    // Use custom URL for:
+    // - EU region: https://eu.platform.warpy.co/api/v1
+    // - Self-hosted Warpy: https://your-instance.com/api/v1
+    baseUrl?: string;
+
+    // Request timeout in milliseconds (default: 5000)
+    timeoutMs?: number;
+
+    // Number of retry attempts on transient errors (default: 3)
+    maxRetries?: number;
+
+    // Custom retry strategy (default: exponential backoff)
+    retryStrategy?: 'exponential' | 'linear' | 'none';
+  };
+
+  // Metrics and analytics configuration
+  metrics?: {
+    // Enable metrics collection (default: false)
+    enabled: boolean;
+
+    // Flush interval in milliseconds (default: 10000)
+    // Metrics buffered and sent in batches for efficiency
+    flushIntervalMs?: number;
+
+    // Maximum buffer size before forcing flush (default: 100)
+    bufferSize?: number;
+
+    // Custom tags for filtering in dashboard
+    tags?: Record<string, string>;
+
+    // Sample rate (0.0 to 1.0, default: 1.0 = 100%)
+    sampleRate?: number;
+  };
+
+  // Optional: Database adapter for persistent token revocation
+  adapter?: Adapter;
+}`}
+        />
+
+        <h3>Environment Variables</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Variable</th>
+              <th>Required</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>AUTH_SECRET</code></td>
+              <td>Yes</td>
+              <td>JWT signing secret (min 32 characters)</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td><code>WARPY_API_KEY</code></td>
+              <td>No</td>
+              <td>Warpy Cloud API key (enables cloud mode)</td>
+              <td>-</td>
+            </tr>
+            <tr>
+              <td><code>WARPY_BASE_URL</code></td>
+              <td>No</td>
+              <td>Warpy API endpoint</td>
+              <td><code>https://platform.warpy.co/api/v1</code></td>
+            </tr>
+            <tr>
+              <td><code>WARPY_TIMEOUT_MS</code></td>
+              <td>No</td>
+              <td>Request timeout in milliseconds</td>
+              <td><code>5000</code></td>
+            </tr>
+            <tr>
+              <td><code>WARPY_MAX_RETRIES</code></td>
+              <td>No</td>
+              <td>Max retry attempts on transient errors</td>
+              <td><code>3</code></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h2>Metrics and Analytics</h2>
+
+        <p>
+          When metrics are enabled, Shield collects detailed telemetry for monitoring and debugging:
+        </p>
+
+        <h3>Captured Metrics</h3>
+        <ul>
+          <li><strong>timestamp:</strong> ISO 8601 timestamp of the request</li>
+          <li><strong>toolName:</strong> MCP tool that was called (agent_login, get_session, etc.)</li>
+          <li><strong>action:</strong> Security stage (validate, check_authz, proxy, revoke)</li>
+          <li><strong>durationMs:</strong> Execution time in milliseconds</li>
+          <li><strong>denied:</strong> Whether request was blocked (boolean)</li>
+          <li><strong>denialReason:</strong> Reason for denial (if applicable)</li>
+          <li><strong>userId:</strong> User ID from token (when available)</li>
+          <li><strong>agentId:</strong> Agent identifier (when provided)</li>
+          <li><strong>scopes:</strong> Array of requested permission scopes</li>
+          <li><strong>success:</strong> Whether tool execution succeeded</li>
+          <li><strong>errorType:</strong> Error classification (if failed)</li>
+        </ul>
+
+        <h3>Viewing Metrics</h3>
+        <p>
+          Access your metrics dashboard at <a href="https://platform.warpy.co/dashboard">platform.warpy.co/dashboard</a>:
+        </p>
+        <ul>
+          <li><strong>Real-time Overview:</strong> Request volume, success rate, average latency</li>
+          <li><strong>Security Events:</strong> Denied requests with full context for review</li>
+          <li><strong>Agent Activity:</strong> Per-agent usage and behavior patterns</li>
+          <li><strong>Audit Logs:</strong> Searchable, exportable logs for compliance</li>
+          <li><strong>Custom Alerts:</strong> Email/Slack notifications for anomalies</li>
+        </ul>
+
+        <Example
+          title="Enable Metrics Collection"
+          description="Configure metrics with custom tags"
+          code={`const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  metrics: {
+    enabled: true,
+    flushIntervalMs: 10000,  // Flush every 10 seconds
+    bufferSize: 100,         // Or when buffer reaches 100 events
+    tags: {
+      environment: process.env.NODE_ENV || 'development',
+      service: 'api',
+      region: 'us-west-2'
+    },
+    sampleRate: 1.0  // 100% sampling (use 0.1 for 10% sampling in high-traffic apps)
+  }
+});`}
+        />
+
+        <Callout type="success">
+          <strong>Performance Impact:</strong> Metrics are buffered locally and sent asynchronously in batches,
+          adding less than 1ms of overhead per request. The flush happens in the background without blocking
+          agent operations.
+        </Callout>
+
+        <h2>API Contract (Warpy Cloud)</h2>
+
+        <p>
+          All cloud operations use a single endpoint: <code>POST https://platform.warpy.co/api/v1/mcp/shield</code>
+        </p>
+
+        <h3>Request Format</h3>
+
+        <Example
+          title="Shield API Request"
+          description="Standard request structure"
+          code={`{
+  "action": "validate" | "check_authz" | "proxy" | "revoke",
+  "payload": {
+    // Action-specific data
+  },
+  "metadata": {
+    "toolName": "agent_login",
+    "timestamp": "2024-11-06T12:34:56.789Z",
+    "agentId": "claude-assistant",
+    "userId": "user-123"
+  }
+}`}
+        />
+
+        <h3>Response Format</h3>
+
+        <Example
+          title="Shield API Response"
+          description="Standard response structure"
+          code={`// Success response
+{
+  "success": true,
+  "data": {
+    // Action-specific result
+  },
+  "denied": false,
+  "reason": null,
+  "timestamp": "2024-11-06T12:34:56.890Z"
+}
+
+// Denied request
+{
+  "success": false,
+  "data": null,
+  "denied": true,
+  "reason": "Scope 'admin:delete_users' not granted for this agent",
+  "timestamp": "2024-11-06T12:34:56.890Z"
+}
+
+// Error response
+{
+  "success": false,
+  "error": "Token signature invalid",
+  "code": "INVALID_TOKEN",
+  "timestamp": "2024-11-06T12:34:56.890Z"
+}`}
+        />
+
+        <h3>Action-Specific Payloads</h3>
+
+        <h4>Validate Action</h4>
+        <Example
+          title="Validate Token"
+          description="Check token authenticity and expiration"
+          code={`// Request
+{
+  "action": "validate",
+  "payload": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  },
+  "metadata": { "toolName": "get_session", ... }
+}
+
+// Response
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "payload": {
+      "userId": "user-123",
+      "email": "user@example.com",
+      "scopes": ["debug", "read"],
+      "exp": 1699282496
+    }
+  },
+  "denied": false
+}`}
+        />
+
+        <h4>Check Authorization Action</h4>
+        <Example
+          title="Authorization Check"
+          description="Validate scopes and scan for threats"
+          code={`// Request
+{
+  "action": "check_authz",
+  "payload": {
+    "userId": "user-123",
+    "requestedScopes": ["debug", "read"],
+    "grantedScopes": ["read", "debug"],
+    "intent": "Agent wants to fetch user profile for debugging"
+  },
+  "metadata": { "toolName": "agent_login", ... }
+}
+
+// Response
+{
+  "success": true,
+  "data": {
+    "authorized": true,
+    "threatsDetected": false,
+    "analysis": {
+      "scopeMatch": true,
+      "intentSafe": true,
+      "riskScore": 0.02
+    }
+  },
+  "denied": false
+}`}
+        />
+
+        <h4>Proxy Execution Action</h4>
+        <Example
+          title="Proxy Tool Execution"
+          description="Execute tool in secure environment"
+          code={`// Request
+{
+  "action": "proxy",
+  "payload": {
+    "tool": "agent_login",
+    "args": {
+      "userId": "user-123",
+      "scopes": ["debug", "read"],
+      "agentId": "claude-assistant",
+      "expiresIn": "15m"
+    }
+  },
+  "metadata": { "toolName": "agent_login", ... }
+}
+
+// Response
+{
+  "success": true,
+  "data": {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "expires": "2024-11-06T13:00:00.000Z",
+    "message": "Agent claude-assistant logged in as user user-123"
+  },
+  "denied": false
+}`}
+        />
+
+        <h3>Error Codes</h3>
+
+        <table>
+          <thead>
+            <tr>
+              <th>HTTP Status</th>
+              <th>Code</th>
+              <th>Description</th>
+              <th>Retry?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>401</td>
+              <td><code>INVALID_API_KEY</code></td>
+              <td>API key is missing or invalid</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>403</td>
+              <td><code>DENIED</code></td>
+              <td>Request blocked by security policy</td>
+              <td>No</td>
+            </tr>
+            <tr>
+              <td>429</td>
+              <td><code>RATE_LIMITED</code></td>
+              <td>Too many requests, slow down</td>
+              <td>Yes (with backoff)</td>
+            </tr>
+            <tr>
+              <td>500</td>
+              <td><code>INTERNAL_ERROR</code></td>
+              <td>Transient server error</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <td>503</td>
+              <td><code>SERVICE_UNAVAILABLE</code></td>
+              <td>Temporary outage</td>
+              <td>Yes</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <Callout type="info">
+          <strong>Automatic Retry:</strong> Shield automatically retries transient errors (429, 500, 503)
+          with exponential backoff. After max retries are exhausted, it falls back to self-host mode to
+          maintain availability.
+        </Callout>
+
+        <h2>Self-Host Fallback</h2>
+
+        <p>
+          Shield automatically falls back to self-host mode when:
+        </p>
+        <ul>
+          <li><code>WARPY_API_KEY</code> is not configured</li>
+          <li>Warpy Cloud is unreachable (network issues, outages)</li>
+          <li>API key is invalid or expired</li>
+          <li>Retry limit is exceeded</li>
+        </ul>
+
+        <h3>Self-Host Behavior</h3>
+        <p>
+          In self-host mode, Shield uses local implementations:
+        </p>
+        <ul>
+          <li><strong>Token Validation:</strong> Local JWT verification using <code>AUTH_SECRET</code></li>
+          <li><strong>Authorization:</strong> Basic scope checking (no intent scanning)</li>
+          <li><strong>Execution:</strong> Direct tool invocation in your process</li>
+          <li><strong>Revocation:</strong> In-memory revocation list (not distributed)</li>
+          <li><strong>Metrics:</strong> Not collected (implement custom logging)</li>
+        </ul>
+
+        <Callout type="warning">
+          <strong>Production Consideration:</strong> Self-host mode uses in-memory token revocation, which
+          doesn't persist across process restarts or scale horizontally. For production, use Redis or a
+          database adapter for revocation tracking, or rely on Cloud Shield for distributed revocation.
+        </Callout>
+
+        <Example
+          title="Hybrid Setup: Cloud with Self-Host Fallback"
+          description="Best of both worlds"
+          code={`import { createMCPShield } from '@warpy-auth-sdk/core';
+import { PrismaAdapter } from '@warpy-auth-sdk/core/adapters/prisma';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
+const adapter = PrismaAdapter(prisma);
+
+const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+
+  // Cloud mode (preferred)
+  warpy: {
+    apiKey: process.env.WARPY_API_KEY,
+    maxRetries: 3  // Try 3 times before falling back
+  },
+
+  // Self-host fallback uses database for revocation
+  adapter,
+
+  metrics: {
+    enabled: true,
+    flushIntervalMs: 10000
+  }
+});
+
+// Behavior:
+// 1. Try Cloud Shield (with retries)
+// 2. On failure, use self-host mode with Prisma adapter
+// 3. Token revocation persisted to database
+// 4. Metrics still collected (buffered, sent when Cloud returns)`}
+        />
+
+        <h2>Complete Integration Example</h2>
+
+        <Example
+          title="Production Next.js Setup"
+          description="Full implementation with all features"
+          code={`// File: lib/mcp.ts
+import { createMCPShield } from '@warpy-auth-sdk/core';
+import { PrismaAdapter } from '@warpy-auth-sdk/core/adapters/prisma';
+import { prisma } from './prisma';
+
+export const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+
+  warpy: {
+    apiKey: process.env.WARPY_API_KEY,
+    baseUrl: process.env.WARPY_BASE_URL,
+    timeoutMs: 5000,
+    maxRetries: 3
+  },
+
+  metrics: {
+    enabled: process.env.NODE_ENV === 'production',
+    flushIntervalMs: 10000,
+    bufferSize: 100,
+    tags: {
+      environment: process.env.NODE_ENV!,
+      version: process.env.APP_VERSION || 'unknown'
+    }
+  },
+
+  adapter: PrismaAdapter(prisma)
+});
+
+// File: app/api/mcp/route.ts
+import { mcpTools } from '@/lib/mcp';
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+
+export async function POST(req: NextRequest) {
+  try {
+    // Optional: Add your own auth check here
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { tool, args } = await req.json();
+
+    if (!tool || !(tool in mcpTools)) {
+      return NextResponse.json(
+        { error: 'Unknown tool', available: Object.keys(mcpTools) },
+        { status: 400 }
+      );
+    }
+
+    // Execute through Shield
+    const toolDef = (mcpTools as any)[tool];
+    const result = await toolDef.execute(args || {});
+
+    // Log for debugging (Shield handles production metrics)
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[MCP]', { tool, args, result });
+    }
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (error) {
+    console.error('[MCP Error]', error);
+    return NextResponse.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+// File: app/api/agent-chat/route.ts (Using with Vercel AI SDK)
+import { generateText } from 'ai';
+import { openai } from '@ai-sdk/openai';
+import { mcpTools } from '@/lib/mcp';
+
+export async function POST(req: NextRequest) {
+  const { prompt } = await req.json();
+
+  const { text, toolCalls } = await generateText({
+    model: openai('gpt-4-turbo'),
+    tools: mcpTools,
+    prompt,
+    maxToolRoundtrips: 5
+  });
+
+  return NextResponse.json({
+    response: text,
+    toolCalls: toolCalls.map(tc => ({
+      tool: tc.toolName,
+      args: tc.args,
+      result: tc.result
+    }))
+  });
+}`}
+        />
+
+        <h2>Troubleshooting</h2>
+
+        <h3>Common Issues</h3>
+
+        <h4>Issue: "Invalid API key" error</h4>
+        <p><strong>Solution:</strong></p>
+        <ul>
+          <li>Verify <code>WARPY_API_KEY</code> is set correctly in your environment</li>
+          <li>Check the key hasn't expired in your Warpy dashboard</li>
+          <li>Ensure no leading/trailing whitespace in the env variable</li>
+          <li>Confirm you're using the correct key for your environment (dev/prod)</li>
+        </ul>
+
+        <h4>Issue: High latency on MCP calls</h4>
+        <p><strong>Solution:</strong></p>
+        <ul>
+          <li>Check network connectivity to Warpy Cloud</li>
+          <li>Consider using a regional endpoint closer to your infrastructure</li>
+          <li>Review metrics dashboard for slow stages (validate, authz, proxy)</li>
+          <li>Increase <code>timeoutMs</code> if seeing timeout errors</li>
+        </ul>
+
+        <h4>Issue: Metrics not appearing in dashboard</h4>
+        <p><strong>Solution:</strong></p>
+        <ul>
+          <li>Ensure <code>metrics.enabled</code> is <code>true</code></li>
+          <li>Verify your API key has metrics permissions</li>
+          <li>Check flush interval isn't too long (<code>flushIntervalMs</code>)</li>
+          <li>Look for network errors in application logs</li>
+          <li>Metrics buffer may be waiting to fill—trigger with high traffic or lower <code>bufferSize</code></li>
+        </ul>
+
+        <h4>Issue: Requests being denied unexpectedly</h4>
+        <p><strong>Solution:</strong></p>
+        <ul>
+          <li>Check denied requests in Warpy dashboard for <code>denialReason</code></li>
+          <li>Review intent scanning results—may be false positive</li>
+          <li>Whitelist legitimate patterns in your security policies</li>
+          <li>Verify scopes in token match requested permissions</li>
+        </ul>
+
+        <h3>Debug Mode</h3>
+
+        <Example
+          title="Enable Debug Logging"
+          description="Detailed logs for troubleshooting"
+          code={`// Add to your environment
+DEBUG=warpy:shield,warpy:metrics
+
+// Or in code (not recommended for production)
+process.env.DEBUG = 'warpy:*';
+
+const mcpTools = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  warpy: { apiKey: process.env.WARPY_API_KEY },
+  metrics: { enabled: true }
+});
+
+// Console output will include:
+// [warpy:shield] Validating token... (action: validate)
+// [warpy:shield] Authorization check passed (action: check_authz)
+// [warpy:shield] Proxying tool execution... (action: proxy)
+// [warpy:metrics] Buffering metric (buffer size: 15/100)
+// [warpy:metrics] Flushing 100 metrics to Warpy...`}
+        />
+
+        <h2>Pricing and Limits</h2>
+
+        <h3>Free Tier</h3>
+        <ul>
+          <li><strong>10,000 MCP calls/month</strong></li>
+          <li>Basic rate limiting (100 req/min per API key)</li>
+          <li>7-day audit log retention</li>
+          <li>Community support</li>
+        </ul>
+
+        <h3>Pro Tier ($49/month)</h3>
+        <ul>
+          <li><strong>1,000,000 MCP calls/month</strong></li>
+          <li>Advanced rate limiting with custom policies</li>
+          <li>1-year audit log retention</li>
+          <li>Advanced threat intelligence</li>
+          <li>Custom alerting (Email, Slack, PagerDuty)</li>
+          <li>Priority support</li>
+          <li>Regional deployments (EU, Asia-Pacific)</li>
+        </ul>
+
+        <h3>Enterprise (Custom)</h3>
+        <ul>
+          <li><strong>Unlimited MCP calls</strong></li>
+          <li>Dedicated infrastructure</li>
+          <li>Custom data retention policies</li>
+          <li>SLA guarantees (99.95% uptime)</li>
+          <li>SOC 2 Type II compliance</li>
+          <li>On-premise deployment option</li>
+          <li>Dedicated support with Slack channel</li>
+        </ul>
+
+        <Callout type="success">
+          <strong>Volume Discounts:</strong> Contact <a href="mailto:sales@warpy.co">sales@warpy.co</a> for
+          custom pricing based on your usage patterns. We offer flexible plans for startups, scale-ups, and
+          enterprises.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <ul>
+          <li>
+            <a href="/docs/mcp/tools-reference">Tools Reference</a> - Detailed API documentation for all MCP tools
+          </li>
+          <li>
+            <a href="/docs/mcp/vercel-ai-sdk-integration">Vercel AI SDK Integration</a> - Using Shield with
+            popular AI frameworks
+          </li>
+          <li>
+            <a href="/docs/mcp/security-best-practices">Security Best Practices</a> - Hardening your MCP
+            authentication
+          </li>
+          <li>
+            <a href="https://platform.warpy.co/docs">Warpy Cloud Documentation</a> - Platform guides and API reference
+          </li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

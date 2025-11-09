@@ -1,0 +1,529 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Callbacks - @warpy-auth-sdk/core',
+  description: 'Customize authentication behavior with lifecycle callbacks',
+};
+
+export default function Callbacks() {
+  return (
+    <DocsLayout
+      title="Callbacks"
+      description="Customize authentication behavior with lifecycle callbacks"
+      nextPage={{ title: 'Token Management', href: '/docs/advanced/token-management' }}
+    >
+      <div>
+        <h2>Authentication Callbacks</h2>
+        <p>
+          The @warpy-auth-sdk/core provides three powerful callbacks that let you customize the authentication flow:
+          <code>user</code>, <code>jwt</code>, and <code>session</code>. These callbacks execute at different points
+          in the authentication lifecycle, giving you full control over user resolution, token claims, and session data.
+        </p>
+
+        <h2>Callback Execution Order</h2>
+        <p>
+          During authentication, callbacks execute in this specific order:
+        </p>
+
+        <ol>
+          <li><strong>user()</strong> - Resolves and upserts the user after OAuth/email verification</li>
+          <li><strong>jwt()</strong> - Customizes JWT token claims before signing</li>
+          <li><strong>session()</strong> - Shapes the final session object returned to the client</li>
+        </ol>
+
+        <Callout type="info" title="Execution Flow">
+          <p>
+            OAuth/Email Verification → <strong>user()</strong> → <strong>jwt()</strong> → Sign JWT → <strong>session()</strong> → Return Session
+          </p>
+        </Callout>
+
+        <h2>User Callback</h2>
+        <p>
+          The <code>user</code> callback is invoked after successful OAuth or email verification.
+          It's your opportunity to resolve the user from your database, create new users, or map external profiles to your user model.
+        </p>
+
+        <h3>Signature</h3>
+        <CodeBlock language="typescript">
+{`type UserCallback = (
+  user: {
+    id?: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  },
+  context?: {
+    provider?: string;
+  }
+) => Promise<{
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}> | {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+};`}
+        </CodeBlock>
+
+        <h3>Basic Example</h3>
+        <Example
+          title="Basic User Callback"
+          description="Simple user resolution with database lookup"
+          code={`import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
+import { prisma } from '@/lib/db';
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      async user(oauthUser, context) {
+        // Find existing user by email
+        let user = await prisma.user.findUnique({
+          where: { email: oauthUser.email },
+        });
+
+        // Create new user if not found
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email: oauthUser.email,
+              name: oauthUser.name,
+              picture: oauthUser.picture,
+            },
+          });
+        }
+
+        // Return user object for session
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name ?? undefined,
+          picture: user.picture ?? undefined,
+        };
+      },
+    },
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+  }
+);`}
+        />
+
+        <h3>Advanced Example with Provider Context</h3>
+        <Example
+          title="Provider-Specific User Handling"
+          description="Different logic based on authentication provider"
+          code={`callbacks: {
+  async user(oauthUser, context) {
+    // Different handling for different providers
+    if (context?.provider === 'oauth') {
+      // OAuth providers (Google, GitHub, etc.)
+      return await upsertOAuthUser(oauthUser);
+    } else if (context?.provider === 'email') {
+      // Email magic link
+      return await upsertEmailUser(oauthUser.email);
+    } else if (context?.provider === 'twofa') {
+      // Two-factor authentication
+      return await upsertTwoFactorUser(oauthUser.email);
+    }
+
+    // Fallback
+    return {
+      id: oauthUser.email,
+      email: oauthUser.email,
+      name: oauthUser.name,
+    };
+  },
+}`}
+        />
+
+        <h3>User Callback Best Practices</h3>
+        <ul>
+          <li>Always return a user with a valid <code>id</code> and <code>email</code></li>
+          <li>Use database transactions when creating related records (profiles, accounts, etc.)</li>
+          <li>Handle database errors gracefully (duplicates, constraints, etc.)</li>
+          <li>Keep the callback fast - avoid slow external API calls</li>
+          <li>Validate email addresses before creating users</li>
+        </ul>
+
+        <Callout type="warning" title="Required Fields">
+          The user callback <strong>must</strong> return an object with at least <code>id</code> and <code>email</code> fields.
+          Missing these fields will cause authentication to fail.
+        </Callout>
+
+        <h2>JWT Callback</h2>
+        <p>
+          The <code>jwt</code> callback is invoked before signing the JWT token.
+          Use it to add custom claims, embed roles/permissions, or modify token data.
+        </p>
+
+        <h3>Signature</h3>
+        <CodeBlock language="typescript">
+{`type JWTCallback = (
+  token: {
+    userId: string;
+    email?: string;
+    name?: string;
+    type?: 'standard' | 'mcp-agent';
+    scopes?: string[];
+    agentId?: string;
+    [key: string]: any; // Custom claims
+  }
+) => Promise<JWTPayload> | JWTPayload;`}
+        </CodeBlock>
+
+        <h3>Basic Example</h3>
+        <Example
+          title="Adding Custom JWT Claims"
+          description="Embed user roles and permissions in the token"
+          code={`import { getUserRole } from '@/lib/auth';
+
+callbacks: {
+  async jwt(token) {
+    // Fetch user role from database
+    const role = await getUserRole(token.userId);
+
+    // Add custom claims
+    return {
+      ...token,
+      role: role.name,
+      permissions: role.permissions,
+      tenantId: role.tenantId,
+    };
+  },
+}`}
+        />
+
+        <h3>Advanced Example with Conditional Claims</h3>
+        <Example
+          title="Conditional JWT Claims"
+          description="Add different claims based on user type"
+          code={`callbacks: {
+  async jwt(token) {
+    // Don't modify MCP agent tokens
+    if (token.type === 'mcp-agent') {
+      return token;
+    }
+
+    // Fetch user from database
+    const user = await prisma.user.findUnique({
+      where: { id: token.userId },
+      include: { organization: true, roles: true },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    // Add organization and role claims
+    return {
+      ...token,
+      organizationId: user.organization?.id,
+      roles: user.roles.map(r => r.name),
+      isAdmin: user.roles.some(r => r.name === 'admin'),
+      // Add timestamp for debugging
+      issuedAt: new Date().toISOString(),
+    };
+  },
+}`}
+        />
+
+        <h3>JWT Callback Best Practices</h3>
+        <ul>
+          <li>Keep tokens small - avoid embedding large data structures</li>
+          <li>Don't include sensitive data (passwords, API keys, etc.)</li>
+          <li>Use standard JWT claims (<code>sub</code>, <code>iat</code>, <code>exp</code>) when possible</li>
+          <li>Consider token size limits (4KB for cookies)</li>
+          <li>Avoid async database calls if possible - fetch data in the user callback instead</li>
+        </ul>
+
+        <Callout type="info" title="Token Size">
+          JWT tokens are stored in cookies. Keep them under 4KB to avoid browser limits.
+          For large datasets, store an ID in the token and fetch data on the server.
+        </Callout>
+
+        <h2>Session Callback</h2>
+        <p>
+          The <code>session</code> callback is invoked after JWT signing to shape the final session object.
+          Use it to add computed properties, format data, or control what's exposed to the client.
+        </p>
+
+        <h3>Signature</h3>
+        <CodeBlock language="typescript">
+{`type SessionCallback = (
+  session: {
+    user: {
+      id: string;
+      email: string;
+      name?: string;
+      picture?: string;
+    };
+    expires: Date;
+    token?: string;
+    type?: 'standard' | 'mcp-agent';
+    scopes?: string[];
+    agentId?: string;
+  }
+) => Promise<Session> | Session;`}
+        </CodeBlock>
+
+        <h3>Basic Example</h3>
+        <Example
+          title="Adding Session Metadata"
+          description="Enhance session with computed properties"
+          code={`callbacks: {
+  session(session) {
+    // Add computed properties
+    return {
+      ...session,
+      isAuthenticated: true,
+      expiresIn: Math.floor(
+        (session.expires.getTime() - Date.now()) / 1000
+      ),
+      user: {
+        ...session.user,
+        initials: session.user.name
+          ?.split(' ')
+          .map(n => n[0])
+          .join('')
+          .toUpperCase(),
+      },
+    };
+  },
+}`}
+        />
+
+        <h3>Advanced Example with Client-Safe Data</h3>
+        <Example
+          title="Client-Safe Session Shaping"
+          description="Control what data is exposed to the client"
+          code={`callbacks: {
+  async session(session) {
+    // Decode JWT to access custom claims
+    const decoded = jwt.decode(session.token!) as any;
+
+    // Shape client-safe session
+    return {
+      user: {
+        id: session.user.id,
+        email: session.user.email,
+        name: session.user.name,
+        picture: session.user.picture,
+        // Add role from JWT claims
+        role: decoded.role,
+        // Add computed display name
+        displayName: session.user.name || session.user.email.split('@')[0],
+      },
+      expires: session.expires,
+      // Don't expose raw token to client
+      // token: session.token, // Commented out
+      type: session.type,
+    };
+  },
+}`}
+        />
+
+        <h3>Session Callback Best Practices</h3>
+        <ul>
+          <li>Remove sensitive fields before returning to the client</li>
+          <li>Add computed properties for UI convenience</li>
+          <li>Consider what data the frontend actually needs</li>
+          <li>Keep session objects serializable (no functions, classes, etc.)</li>
+          <li>Avoid slow async operations - the session is fetched on every request</li>
+        </ul>
+
+        <Callout type="warning" title="Security Note">
+          The session object is returned to the client (browser). Never include sensitive data like
+          internal IDs, tokens, or privileged information.
+        </Callout>
+
+        <h2>Complete Example</h2>
+        <p>
+          Here's a complete example using all three callbacks together:
+        </p>
+
+        <Example
+          title="Complete Callback Configuration"
+          description="Full authentication customization with all callbacks"
+          code={`import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
+import { prisma } from '@/lib/db';
+import jwt from 'jsonwebtoken';
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      // Step 1: Resolve/upsert user
+      async user(oauthUser) {
+        let user = await prisma.user.findUnique({
+          where: { email: oauthUser.email },
+          include: { roles: true },
+        });
+
+        if (!user) {
+          user = await prisma.user.create({
+            data: {
+              email: oauthUser.email,
+              name: oauthUser.name,
+              picture: oauthUser.picture,
+              roles: {
+                connect: { name: 'user' }, // Default role
+              },
+            },
+            include: { roles: true },
+          });
+        }
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name ?? undefined,
+          picture: user.picture ?? undefined,
+        };
+      },
+
+      // Step 2: Add custom JWT claims
+      async jwt(token) {
+        // Skip for MCP agents
+        if (token.type === 'mcp-agent') return token;
+
+        // Fetch user roles
+        const user = await prisma.user.findUnique({
+          where: { id: token.userId },
+          include: { roles: true, organization: true },
+        });
+
+        return {
+          ...token,
+          roles: user?.roles.map(r => r.name) ?? [],
+          organizationId: user?.organization?.id,
+        };
+      },
+
+      // Step 3: Shape final session
+      session(session) {
+        // Decode JWT to access custom claims
+        const decoded = jwt.decode(session.token!) as any;
+
+        return {
+          user: {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.name,
+            picture: session.user.picture,
+            roles: decoded.roles ?? [],
+            organizationId: decoded.organizationId,
+          },
+          expires: session.expires,
+          type: session.type,
+        };
+      },
+    },
+  },
+  {
+    basePath: '/api/auth',
+    successRedirect: '/dashboard',
+    errorRedirect: '/login',
+  }
+);`}
+        />
+
+        <h2>Error Handling in Callbacks</h2>
+        <p>
+          Callbacks can throw errors to abort authentication:
+        </p>
+
+        <Example
+          title="Error Handling in Callbacks"
+          description="Validate and abort authentication when needed"
+          code={`callbacks: {
+  async user(oauthUser) {
+    // Check if user is banned
+    const bannedUser = await prisma.bannedUser.findUnique({
+      where: { email: oauthUser.email },
+    });
+
+    if (bannedUser) {
+      throw new Error('Account has been suspended');
+    }
+
+    // Check domain whitelist
+    const allowedDomains = ['company.com', 'partner.com'];
+    const domain = oauthUser.email.split('@')[1];
+
+    if (!allowedDomains.includes(domain)) {
+      throw new Error(\`Email domain \${domain} is not allowed\`);
+    }
+
+    // Continue with user creation/lookup
+    return await upsertUser(oauthUser);
+  },
+}`}
+        />
+
+        <h2>Adapter Integration</h2>
+        <p>
+          If you don't provide a <code>user</code> callback, the SDK will use the adapter's
+          default user resolution logic:
+        </p>
+
+        <CodeBlock language="typescript">
+{`import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
+import { PrismaAdapter } from '@warpy-auth-sdk/core/adapters/prisma';
+import { prisma } from '@/lib/db';
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({ /* ... */ }),
+    // No user callback - adapter handles it
+    adapter: PrismaAdapter(prisma),
+    callbacks: {
+      // Only customize JWT and session
+      jwt: (token) => ({ ...token, custom: 'claim' }),
+      session: (session) => session,
+    },
+  },
+  { basePath: '/api/auth' }
+);`}
+        </CodeBlock>
+
+        <Callout type="info" title="Callback Priority">
+          If both <code>callbacks.user</code> and <code>adapter</code> are provided,
+          the <code>callbacks.user</code> takes priority. The adapter is only used for fallback.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you understand callbacks, explore related topics:
+        </p>
+
+        <ul>
+          <li><a href="/docs/advanced/token-management">Token Management</a> - JWT customization and lifecycle</li>
+          <li><a href="/docs/advanced/error-handling">Error Handling</a> - Handle authentication errors</li>
+          <li><a href="/docs/guides/database-adapters">Database Adapters</a> - Persist sessions and users</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

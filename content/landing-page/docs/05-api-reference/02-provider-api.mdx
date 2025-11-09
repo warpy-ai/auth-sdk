@@ -1,0 +1,864 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { ApiMethod } from '@/components/docs/api-method';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Provider API - @warpy-auth-sdk/core',
+  description: 'Provider API reference for OAuth, email, and two-factor authentication in @warpy-auth-sdk/core.',
+};
+
+export default function ProviderAPI() {
+  return (
+    <DocsLayout
+      title="Provider API"
+      description="Provider API reference for OAuth, email, and two-factor authentication."
+      previousPage={{ title: 'Core Functions', href: '/docs/api-reference/core-functions' }}
+      nextPage={{ title: 'Adapter API', href: '/docs/api-reference/adapter-api' }}
+    >
+      <div>
+        <h2>OAuth Providers</h2>
+        <p>
+          All OAuth providers follow a consistent pattern and support PKCE (Proof Key for Code Exchange)
+          with S256 enabled by default for enhanced security.
+        </p>
+
+        <ApiMethod
+          name="google"
+          description="Google OAuth 2.0 provider with OpenID Connect"
+          signature="google(options: GoogleProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Google OAuth client ID from Google Cloud Console',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Google OAuth client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL (must match Google Console config)',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes to request',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { google } from '@warpy-auth-sdk/core';
+
+const provider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/google',
+  scope: ['openid', 'email', 'profile'], // Optional, these are defaults
+  pkce: 'S256', // Optional, S256 is default
+});`}
+        />
+
+        <ApiMethod
+          name="facebook"
+          description="Facebook OAuth 2.0 provider"
+          signature="facebook(options: FacebookProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Facebook App ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Facebook App Secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["email", "public_profile"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { facebook } from '@warpy-auth-sdk/core';
+
+const provider = facebook({
+  clientId: process.env.FACEBOOK_CLIENT_ID!,
+  clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/facebook',
+});`}
+        />
+
+        <ApiMethod
+          name="github"
+          description="GitHub OAuth 2.0 provider with private email handling"
+          signature="github(options: GitHubProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'GitHub OAuth App client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'GitHub OAuth App client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["user:email"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { github } from '@warpy-auth-sdk/core';
+
+const provider = github({
+  clientId: process.env.GITHUB_CLIENT_ID!,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/github',
+  scope: ['user:email'], // Optional, includes private emails
+});`}
+        />
+
+        <ApiMethod
+          name="gitlab"
+          description="GitLab OAuth 2.0 provider with self-hosted support"
+          signature="gitlab(options: GitLabProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'GitLab OAuth application ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'GitLab OAuth application secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'baseUrl',
+              type: 'string',
+              description: 'GitLab instance URL (default: "https://gitlab.com")',
+              required: false,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["read_user"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { gitlab } from '@warpy-auth-sdk/core';
+
+// GitLab.com
+const provider = gitlab({
+  clientId: process.env.GITLAB_CLIENT_ID!,
+  clientSecret: process.env.GITLAB_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/gitlab',
+});
+
+// Self-hosted GitLab
+const selfHosted = gitlab({
+  clientId: process.env.GITLAB_CLIENT_ID!,
+  clientSecret: process.env.GITLAB_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/gitlab',
+  baseUrl: 'https://gitlab.company.com',
+});`}
+        />
+
+        <ApiMethod
+          name="linkedin"
+          description="LinkedIn OAuth 2.0 provider with OpenID Connect"
+          signature="linkedin(options: LinkedInProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'LinkedIn App client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'LinkedIn App client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["openid", "profile", "email"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { linkedin } from '@warpy-auth-sdk/core';
+
+const provider = linkedin({
+  clientId: process.env.LINKEDIN_CLIENT_ID!,
+  clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/linkedin',
+});`}
+        />
+
+        <ApiMethod
+          name="microsoft"
+          description="Microsoft/Azure AD OAuth 2.0 provider with multi-tenant support"
+          signature="microsoft(options: MicrosoftProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Azure AD application (client) ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Azure AD client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'tenant',
+              type: 'string',
+              description: 'Azure AD tenant ID or "common"/"organizations" (default: "common")',
+              required: false,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["openid", "profile", "email"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { microsoft } from '@warpy-auth-sdk/core';
+
+// Multi-tenant (any Microsoft account)
+const provider = microsoft({
+  clientId: process.env.MICROSOFT_CLIENT_ID!,
+  clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/microsoft',
+  tenant: 'common', // Optional, 'common' is default
+});
+
+// Single-tenant (specific organization)
+const singleTenant = microsoft({
+  clientId: process.env.MICROSOFT_CLIENT_ID!,
+  clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/microsoft',
+  tenant: 'your-tenant-id',
+});`}
+        />
+
+        <ApiMethod
+          name="spotify"
+          description="Spotify OAuth 2.0 provider"
+          signature="spotify(options: SpotifyProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Spotify App client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Spotify App client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["user-read-email"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { spotify } from '@warpy-auth-sdk/core';
+
+const provider = spotify({
+  clientId: process.env.SPOTIFY_CLIENT_ID!,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/spotify',
+  scope: ['user-read-email', 'user-read-private'],
+});`}
+        />
+
+        <ApiMethod
+          name="discord"
+          description="Discord OAuth 2.0 provider"
+          signature="discord(options: DiscordProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Discord App client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Discord App client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["identify", "email"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { discord } from '@warpy-auth-sdk/core';
+
+const provider = discord({
+  clientId: process.env.DISCORD_CLIENT_ID!,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/discord',
+});`}
+        />
+
+        <ApiMethod
+          name="twitch"
+          description="Twitch OAuth 2.0 provider"
+          signature="twitch(options: TwitchProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Twitch App client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Twitch App client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["user:read:email"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { twitch } from '@warpy-auth-sdk/core';
+
+const provider = twitch({
+  clientId: process.env.TWITCH_CLIENT_ID!,
+  clientSecret: process.env.TWITCH_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/twitch',
+});`}
+        />
+
+        <ApiMethod
+          name="epic"
+          description="Epic Games OAuth 2.0 provider"
+          signature="epic(options: EpicProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'Epic Games client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'Epic Games client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes (default: ["basic_profile"])',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { epic } from '@warpy-auth-sdk/core';
+
+const provider = epic({
+  clientId: process.env.EPIC_CLIENT_ID!,
+  clientSecret: process.env.EPIC_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/epic',
+});`}
+        />
+
+        <ApiMethod
+          name="custom"
+          description="Custom OAuth 2.0 provider with configurable endpoints and user mapping"
+          signature="custom(options: CustomOAuthProviderOptions): OAuthProviderConfig"
+          parameters={[
+            {
+              name: 'clientId',
+              type: 'string',
+              description: 'OAuth client ID',
+              required: true,
+            },
+            {
+              name: 'clientSecret',
+              type: 'string',
+              description: 'OAuth client secret',
+              required: true,
+            },
+            {
+              name: 'redirectUri',
+              type: 'string',
+              description: 'OAuth callback URL',
+              required: true,
+            },
+            {
+              name: 'authorizeUrl',
+              type: 'string',
+              description: 'Authorization endpoint URL',
+              required: true,
+            },
+            {
+              name: 'tokenUrl',
+              type: 'string',
+              description: 'Token endpoint URL',
+              required: true,
+            },
+            {
+              name: 'userInfoUrl',
+              type: 'string',
+              description: 'User info endpoint URL',
+              required: true,
+            },
+            {
+              name: 'scope',
+              type: 'string[]',
+              description: 'OAuth scopes',
+              required: false,
+            },
+            {
+              name: 'pkce',
+              type: '"S256" | "plain" | false',
+              description: 'PKCE method (default: "S256")',
+              required: false,
+            },
+            {
+              name: 'mapUser',
+              type: '(userInfo: any) => UserProfile',
+              description: 'Function to map provider user info to standard UserProfile',
+              required: false,
+            },
+          ]}
+          returns="OAuthProviderConfig"
+          example={`import { custom } from '@warpy-auth-sdk/core';
+
+const provider = custom({
+  clientId: process.env.CUSTOM_CLIENT_ID!,
+  clientSecret: process.env.CUSTOM_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/custom',
+  authorizeUrl: 'https://auth.example.com/oauth/authorize',
+  tokenUrl: 'https://auth.example.com/oauth/token',
+  userInfoUrl: 'https://auth.example.com/oauth/userinfo',
+  scope: ['openid', 'email', 'profile'],
+  mapUser: (userInfo) => ({
+    id: userInfo.sub || userInfo.id,
+    email: userInfo.email,
+    name: userInfo.name || userInfo.displayName,
+    picture: userInfo.picture || userInfo.avatar,
+  }),
+});`}
+        />
+
+        <h2>Email Magic Link Provider</h2>
+        <p>
+          The email provider sends magic links for passwordless authentication. Supports both
+          Nodemailer (SMTP) and Resend email services with React Email templates.
+        </p>
+
+        <ApiMethod
+          name="email"
+          description="Email magic link provider with React Email templates"
+          signature="email(options: EmailProviderOptions): EmailProviderConfig"
+          parameters={[
+            {
+              name: 'from',
+              type: 'string',
+              description: 'From email address',
+              required: true,
+            },
+            {
+              name: 'service',
+              type: 'EmailServiceConfig',
+              description: 'Email service configuration (Nodemailer or Resend)',
+              required: true,
+            },
+            {
+              name: 'template',
+              type: 'CustomEmailTemplate',
+              description: 'Custom React Email template (optional)',
+              required: false,
+            },
+            {
+              name: 'appName',
+              type: 'string',
+              description: 'App name for default template (default: "Your App")',
+              required: false,
+            },
+            {
+              name: 'companyName',
+              type: 'string',
+              description: 'Company name for default template (default: "Your Company")',
+              required: false,
+            },
+            {
+              name: 'expirationMinutes',
+              type: 'number',
+              description: 'Token expiration in minutes (default: 15)',
+              required: false,
+            },
+          ]}
+          returns="EmailProviderConfig"
+          example={`import { email } from '@warpy-auth-sdk/core';
+
+// With Resend
+const provider = email({
+  from: 'noreply@example.com',
+  service: {
+    type: 'resend',
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+  appName: 'MyApp',
+  companyName: 'Acme Inc',
+  expirationMinutes: 15,
+});
+
+// With Nodemailer (SMTP)
+const nodemailerProvider = email({
+  from: 'noreply@example.com',
+  service: {
+    type: 'nodemailer',
+    server: 'smtp.gmail.com:587',
+    auth: {
+      user: 'user@gmail.com',
+      pass: process.env.SMTP_PASSWORD!,
+    },
+  },
+});
+
+// With custom template
+const customProvider = email({
+  from: 'noreply@example.com',
+  service: { type: 'resend', apiKey: process.env.RESEND_API_KEY! },
+  template: {
+    component: ({ magicLink }) => (
+      <MyCustomEmail magicLink={magicLink} />
+    ),
+    subject: 'Custom Sign In',
+  },
+});`}
+        />
+
+        <h2>Two-Factor Email Provider</h2>
+        <p>
+          The two-factor provider sends 6-digit verification codes via email for enhanced security.
+          Supports the same email services as the magic link provider.
+        </p>
+
+        <ApiMethod
+          name="twofa"
+          description="Two-factor email authentication provider with 6-digit codes"
+          signature="twofa(options: TwoFactorProviderOptions): TwoFactorProviderConfig"
+          parameters={[
+            {
+              name: 'from',
+              type: 'string',
+              description: 'From email address',
+              required: true,
+            },
+            {
+              name: 'service',
+              type: 'EmailServiceConfig',
+              description: 'Email service configuration (Nodemailer or Resend)',
+              required: true,
+            },
+            {
+              name: 'template',
+              type: 'CustomTwoFactorTemplate',
+              description: 'Custom React Email template (optional)',
+              required: false,
+            },
+            {
+              name: 'appName',
+              type: 'string',
+              description: 'App name for default template (default: "Your App")',
+              required: false,
+            },
+            {
+              name: 'companyName',
+              type: 'string',
+              description: 'Company name for default template (default: "Your Company")',
+              required: false,
+            },
+            {
+              name: 'expirationMinutes',
+              type: 'number',
+              description: 'Code expiration in minutes (default: 5)',
+              required: false,
+            },
+          ]}
+          returns="TwoFactorProviderConfig"
+          example={`import { twofa } from '@warpy-auth-sdk/core';
+
+const provider = twofa({
+  from: 'noreply@example.com',
+  service: {
+    type: 'resend',
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+  appName: 'MyApp',
+  companyName: 'Acme Inc',
+  expirationMinutes: 5, // Code valid for 5 minutes
+});`}
+        />
+
+        <h2>Provider Type Definitions</h2>
+        <CodeBlock language="typescript">
+{`// OAuth Provider
+interface OAuthProviderConfig {
+  type: "oauth";
+  clientId: string;
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  redirectUri: string;
+  scope?: string[];
+  pkce?: "S256" | "plain" | false;
+  getUser: (accessToken: string) => Promise<UserProfile>;
+}
+
+// Email Provider
+interface EmailProviderConfig {
+  type: "email";
+  server: string;
+  from: string;
+  sendMagicLink: (email: string, url: string) => Promise<void>;
+  verify: (token: string) => Promise<{ email: string; userId?: string } | null>;
+}
+
+// Two-Factor Provider
+interface TwoFactorProviderConfig {
+  type: "twofa";
+  from: string;
+  sendCode: (email: string) => Promise<{ identifier: string; expiresIn: number }>;
+  verifyCode: (identifier: string, code: string) => Promise<{ email: string; userId?: string } | null>;
+}
+
+// User Profile (returned by all providers)
+interface UserProfile {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
+// Email Service Configuration
+type EmailServiceConfig =
+  | { type: 'resend'; apiKey: string }
+  | { type: 'nodemailer'; server: string; auth: { user: string; pass: string } };`}
+        </CodeBlock>
+
+        <h2>PKCE Support</h2>
+        <Callout type="info" title="Enhanced OAuth Security">
+          <p>
+            All OAuth providers support PKCE (Proof Key for Code Exchange) with S256 enabled by default.
+            PKCE prevents authorization code interception attacks and is recommended for all OAuth flows.
+          </p>
+          <ul>
+            <li><strong>S256</strong>: SHA-256 challenge (default, most secure)</li>
+            <li><strong>plain</strong>: Plain text verifier (legacy servers only)</li>
+            <li><strong>false</strong>: Disable PKCE (not recommended)</li>
+          </ul>
+        </Callout>
+
+        <Example title="Provider Configuration Examples">
+{`// OAuth with PKCE (recommended)
+import { google, facebook, github } from '@warpy-auth-sdk/core';
+
+const googleProvider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/google',
+  pkce: 'S256', // Default, can be omitted
+});
+
+// Email magic links
+import { email } from '@warpy-auth-sdk/core';
+
+const emailProvider = email({
+  from: 'noreply@example.com',
+  service: {
+    type: 'resend',
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+  appName: 'MyApp',
+  expirationMinutes: 15,
+});
+
+// Two-factor authentication
+import { twofa } from '@warpy-auth-sdk/core';
+
+const twofaProvider = twofa({
+  from: 'noreply@example.com',
+  service: {
+    type: 'resend',
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+  appName: 'MyApp',
+  expirationMinutes: 5,
+});`}
+        </Example>
+
+        <Callout type="warning" title="Important Notes">
+          <ul>
+            <li>Store OAuth secrets securely in environment variables</li>
+            <li>Redirect URIs must match exactly in provider console configuration</li>
+            <li>Email providers require server runtime (Node.js) for email sending</li>
+            <li>Two-factor codes are single-use and expire after the configured time</li>
+            <li>Custom OAuth providers require manual user info mapping</li>
+          </ul>
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}

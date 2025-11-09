@@ -1,0 +1,701 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Deployment Guide - @warpy-auth-sdk/core',
+  description: 'Deploy your authentication system to production',
+};
+
+export default function Deployment() {
+  return (
+    <DocsLayout
+      title="Deployment Guide"
+      description="Deploy your authentication system to production"
+      prevPage={{ title: 'Security Best Practices', href: '/docs/guides/security-best-practices' }}
+    >
+      <div>
+        <h2>Deployment Guide</h2>
+
+        <p>
+          This guide covers deploying applications using <code>@warpy-auth-sdk/core</code> to popular hosting platforms with production-ready configurations.
+        </p>
+
+        <h2>Pre-Deployment Checklist</h2>
+
+        <ul>
+          <li>✓ Generate strong <code>AUTH_SECRET</code> (32+ characters)</li>
+          <li>✓ Configure OAuth providers with production redirect URIs</li>
+          <li>✓ Set up production database (if using adapter)</li>
+          <li>✓ Enable HTTPS on your domain</li>
+          <li>✓ Configure environment variables</li>
+          <li>✓ Test authentication flows in staging</li>
+          <li>✓ Review security best practices</li>
+          <li>✓ Set up monitoring and logging</li>
+        </ul>
+
+        <h2>Vercel Deployment</h2>
+
+        <p>Vercel is the recommended platform for Next.js applications.</p>
+
+        <h3>1. Install Vercel CLI</h3>
+
+        <CodeBlock language="bash">{`npm install -g vercel
+# or use npx
+npx vercel`}</CodeBlock>
+
+        <h3>2. Environment Variables</h3>
+
+        <p>Set environment variables in Vercel dashboard or CLI:</p>
+
+        <CodeBlock language="bash">{`# Via CLI
+vercel env add AUTH_SECRET production
+vercel env add GOOGLE_CLIENT_ID production
+vercel env add GOOGLE_CLIENT_SECRET production
+vercel env add GOOGLE_REDIRECT_URI production
+vercel env add DATABASE_URL production
+
+# Or via dashboard: https://vercel.com/your-team/your-project/settings/environment-variables`}</CodeBlock>
+
+        <h3>3. Configure OAuth Redirect URIs</h3>
+
+        <CodeBlock language="bash">{`# Production redirect URI
+https://yourdomain.com/api/auth/callback/google
+
+# Add to Google Cloud Console:
+# https://console.cloud.google.com/apis/credentials`}</CodeBlock>
+
+        <h3>4. Deploy</h3>
+
+        <CodeBlock language="bash">{`# Deploy to production
+vercel --prod
+
+# Or push to main branch (with Git integration)
+git push origin main`}</CodeBlock>
+
+        <h3>5. Database Setup (Optional)</h3>
+
+        <p>If using Prisma with Vercel Postgres:</p>
+
+        <Example
+          title="Vercel Postgres Setup"
+          description="Connect to Vercel Postgres database"
+          code={`# Install Vercel Postgres
+npm install @vercel/postgres
+
+# Create database in Vercel dashboard
+# Copy DATABASE_URL from Vercel
+
+# Run migrations
+npx prisma migrate deploy
+
+# Generate Prisma Client
+npx prisma generate`}
+        />
+
+        <h2>AWS Deployment</h2>
+
+        <h3>AWS Amplify (Next.js)</h3>
+
+        <Example
+          title="amplify.yml"
+          description="Build configuration for Amplify"
+          code={`version: 1
+frontend:
+  phases:
+    preBuild:
+      commands:
+        - npm ci
+    build:
+      commands:
+        - npx prisma generate
+        - npx prisma migrate deploy
+        - npm run build
+  artifacts:
+    baseDirectory: .next
+    files:
+      - '**/*'
+  cache:
+    paths:
+      - node_modules/**/*
+      - .next/cache/**/*`}
+        />
+
+        <p>Set environment variables in Amplify console:</p>
+
+        <ul>
+          <li><code>AUTH_SECRET</code></li>
+          <li><code>GOOGLE_CLIENT_ID</code></li>
+          <li><code>GOOGLE_CLIENT_SECRET</code></li>
+          <li><code>GOOGLE_REDIRECT_URI</code></li>
+          <li><code>DATABASE_URL</code></li>
+        </ul>
+
+        <h3>AWS EC2 (Node.js)</h3>
+
+        <Example
+          title="EC2 Deployment Script"
+          description="Deploy to EC2 instance"
+          code={`#!/bin/bash
+
+# Update system
+sudo apt update && sudo apt upgrade -y
+
+# Install Node.js
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt install -y nodejs
+
+# Install PM2
+sudo npm install -g pm2
+
+# Clone repository
+git clone https://github.com/your-org/your-app.git
+cd your-app
+
+# Install dependencies
+npm ci
+
+# Generate Prisma Client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate deploy
+
+# Build application
+npm run build
+
+# Start with PM2
+pm2 start npm --name "auth-app" -- start
+
+# Save PM2 config
+pm2 save
+
+# Auto-start on reboot
+pm2 startup`}
+        />
+
+        <h3>Environment Variables on EC2</h3>
+
+        <CodeBlock language="bash">{`# Create .env file
+cat > .env << EOF
+AUTH_SECRET=your-secret-here
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google
+DATABASE_URL=postgresql://user:pass@localhost:5432/db
+NODE_ENV=production
+EOF
+
+# Secure the file
+chmod 600 .env`}</CodeBlock>
+
+        <h2>Railway Deployment</h2>
+
+        <p>Railway provides simple deployment with built-in PostgreSQL:</p>
+
+        <h3>1. Install Railway CLI</h3>
+
+        <CodeBlock language="bash">{`npm install -g @railway/cli
+railway login`}</CodeBlock>
+
+        <h3>2. Create Project</h3>
+
+        <CodeBlock language="bash">{`railway init
+railway add postgresql`}</CodeBlock>
+
+        <h3>3. Set Environment Variables</h3>
+
+        <CodeBlock language="bash">{`railway variables set AUTH_SECRET=your-secret
+railway variables set GOOGLE_CLIENT_ID=your-client-id
+railway variables set GOOGLE_CLIENT_SECRET=your-secret
+railway variables set GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google
+
+# DATABASE_URL is automatically set by Railway`}</CodeBlock>
+
+        <h3>4. Deploy</h3>
+
+        <CodeBlock language="bash">{`railway up
+
+# Or connect to GitHub for auto-deployment
+railway link`}</CodeBlock>
+
+        <h2>Render Deployment</h2>
+
+        <h3>1. Create render.yaml</h3>
+
+        <Example
+          title="render.yaml"
+          description="Render configuration"
+          code={`services:
+  - type: web
+    name: auth-app
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: npm ci && npx prisma generate && npx prisma migrate deploy && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REDIRECT_URI
+        value: https://your-app.onrender.com/api/auth/callback/google
+      - key: DATABASE_URL
+        fromDatabase:
+          name: auth-db
+          property: connectionString
+
+databases:
+  - name: auth-db
+    databaseName: auth
+    user: auth_user
+    plan: starter`}
+        />
+
+        <h3>2. Deploy</h3>
+
+        <p>Push to GitHub and connect repository in Render dashboard.</p>
+
+        <h2>Docker Deployment</h2>
+
+        <h3>Dockerfile</h3>
+
+        <Example
+          title="Dockerfile"
+          description="Multi-stage Docker build"
+          code={`# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY prisma ./prisma/
+
+# Install dependencies
+RUN npm ci
+
+# Generate Prisma Client
+RUN npx prisma generate
+
+# Copy source
+COPY . .
+
+# Build application
+RUN npm run build
+
+# Production stage
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+# Copy built files
+COPY --from=builder /app/package*.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/prisma ./prisma
+
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
+
+# Expose port
+EXPOSE 3000
+
+# Run migrations and start
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]`}
+        />
+
+        <h3>Docker Compose</h3>
+
+        <Example
+          title="docker-compose.yml"
+          description="Docker Compose with PostgreSQL"
+          code={`version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      - AUTH_SECRET=\${AUTH_SECRET}
+      - GOOGLE_CLIENT_ID=\${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=\${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_REDIRECT_URI=\${GOOGLE_REDIRECT_URI}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/auth
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=auth
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:`}
+        />
+
+        <h3>Deploy with Docker</h3>
+
+        <CodeBlock language="bash">{`# Build and run
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop
+docker-compose down`}</CodeBlock>
+
+        <h2>Environment Configuration</h2>
+
+        <h3>Production Environment Variables</h3>
+
+        <CodeBlock language="bash">{`# Required
+AUTH_SECRET=<strong-random-secret-32-chars-min>
+NODE_ENV=production
+
+# OAuth Provider (example: Google)
+GOOGLE_CLIENT_ID=<your-client-id>
+GOOGLE_CLIENT_SECRET=<your-client-secret>
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google
+
+# Database (if using adapter)
+DATABASE_URL=postgresql://user:pass@host:5432/db
+
+# Email (if using email provider)
+RESEND_API_KEY=<your-resend-key>
+# or SMTP
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=<your-email>
+SMTP_PASS=<your-password>
+
+# CAPTCHA (optional)
+RECAPTCHA_SECRET_KEY=<your-secret-key>
+
+# MCP/Warpy (optional)
+WARPY_API_KEY=<your-api-key>`}</CodeBlock>
+
+        <h3>Generate Secrets</h3>
+
+        <CodeBlock language="bash">{`# Generate AUTH_SECRET
+openssl rand -base64 32
+
+# Or use Node.js
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`}</CodeBlock>
+
+        <h2>Database Migrations</h2>
+
+        <h3>Prisma Migrations</h3>
+
+        <CodeBlock language="bash">{`# Development: Create migration
+npx prisma migrate dev --name add_auth_tables
+
+# Production: Apply migrations
+npx prisma migrate deploy
+
+# Reset database (WARNING: deletes all data)
+npx prisma migrate reset`}</CodeBlock>
+
+        <h3>Migration in CI/CD</h3>
+
+        <Example
+          title=".github/workflows/deploy.yml"
+          description="GitHub Actions deployment"
+          code={`name: Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Run migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: \${{ secrets.DATABASE_URL }}
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Vercel
+        run: npx vercel --prod --token \${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: \${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: \${{ secrets.VERCEL_PROJECT_ID }}`}
+        />
+
+        <h2>SSL/HTTPS Setup</h2>
+
+        <h3>Vercel (Automatic)</h3>
+
+        <p>Vercel automatically provisions SSL certificates for custom domains.</p>
+
+        <h3>Let's Encrypt (Self-Hosted)</h3>
+
+        <CodeBlock language="bash">{`# Install Certbot
+sudo apt install certbot python3-certbot-nginx
+
+# Get certificate
+sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+
+# Auto-renewal
+sudo certbot renew --dry-run`}</CodeBlock>
+
+        <h3>Nginx Configuration</h3>
+
+        <Example
+          title="/etc/nginx/sites-available/yourdomain.com"
+          description="Nginx reverse proxy with SSL"
+          code={`server {
+  listen 80;
+  server_name yourdomain.com www.yourdomain.com;
+  return 301 https://$server_name$request_uri;
+}
+
+server {
+  listen 443 ssl http2;
+  server_name yourdomain.com www.yourdomain.com;
+
+  ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+  ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+
+  location / {
+    proxy_pass http://localhost:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection 'upgrade';
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_cache_bypass $http_upgrade;
+  }
+}`}
+        />
+
+        <h2>Monitoring and Logging</h2>
+
+        <h3>Sentry Error Tracking</h3>
+
+        <Example
+          title="Sentry Integration"
+          description="Track errors in production"
+          code={`import * as Sentry from "@sentry/nextjs";
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 1.0,
+});
+
+// Wrap auth errors
+try {
+  const result = await authenticate(config, request);
+} catch (error) {
+  Sentry.captureException(error, {
+    tags: { context: "authentication" },
+  });
+  throw error;
+}`}
+        />
+
+        <h3>Structured Logging</h3>
+
+        <Example
+          title="Winston Logger"
+          description="Production logging"
+          code={`import winston from "winston";
+
+const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || "info",
+  format: winston.format.json(),
+  transports: [
+    new winston.transports.File({ filename: "error.log", level: "error" }),
+    new winston.transports.File({ filename: "combined.log" }),
+  ],
+});
+
+if (process.env.NODE_ENV !== "production") {
+  logger.add(new winston.transports.Console({
+    format: winston.format.simple(),
+  }));
+}
+
+// Usage
+logger.info("User authenticated", {
+  userId: session.user.id,
+  provider: "google",
+  timestamp: new Date().toISOString(),
+});`}
+        />
+
+        <h2>Performance Optimization</h2>
+
+        <h3>Database Connection Pooling</h3>
+
+        <CodeBlock language="typescript">{`// prisma/schema.prisma
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Use connection pooling (Prisma Accelerate or PgBouncer)
+// DATABASE_URL=postgresql://user:pass@host:5432/db?connection_limit=10`}</CodeBlock>
+
+        <h3>Redis for Sessions</h3>
+
+        <p>Use Redis for fast session lookups in production:</p>
+
+        <CodeBlock language="typescript">{`import { RedisAdapter } from "./redis-adapter";
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+  adapter: RedisAdapter(process.env.REDIS_URL!),
+};`}</CodeBlock>
+
+        <h2>Health Checks</h2>
+
+        <Example
+          title="Health Check Endpoint"
+          description="Monitor application health"
+          code={`// app/api/health/route.ts
+import { NextRequest } from "next/server";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+export async function GET(request: NextRequest) {
+  try {
+    // Check database connection
+    await prisma.$queryRaw\`SELECT 1\`;
+
+    return Response.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  } catch (error) {
+    return Response.json(
+      {
+        status: "unhealthy",
+        error: error.message,
+        timestamp: new Date().toISOString(),
+      },
+      { status: 503 }
+    );
+  }
+}`}
+        />
+
+        <h2>Rollback Strategy</h2>
+
+        <h3>Database Rollbacks</h3>
+
+        <CodeBlock language="bash">{`# Create a backup before migrations
+pg_dump $DATABASE_URL > backup-$(date +%Y%m%d-%H%M%S).sql
+
+# If migration fails, restore from backup
+psql $DATABASE_URL < backup-20240315-120000.sql
+
+# Or use Prisma migrate resolve
+npx prisma migrate resolve --rolled-back "20240315120000_migration_name"`}</CodeBlock>
+
+        <h3>Application Rollbacks</h3>
+
+        <CodeBlock language="bash">{`# Vercel: Instant rollback via dashboard or CLI
+vercel rollback
+
+# Railway: Rollback to previous deployment
+railway rollback
+
+# Docker: Use previous image
+docker-compose down
+docker-compose up -d --force-recreate your-app:previous-tag`}</CodeBlock>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>OAuth Redirect Mismatch</h3>
+
+        <p>Ensure redirect URI matches exactly in provider settings:</p>
+
+        <CodeBlock language="bash">{`# Check your production URL
+echo $GOOGLE_REDIRECT_URI
+
+# Should be: https://yourdomain.com/api/auth/callback/google
+# NOT: http://... (wrong protocol)
+# NOT: https://www.yourdomain.com/... (wrong subdomain)`}</CodeBlock>
+
+        <h3>Database Connection Issues</h3>
+
+        <CodeBlock language="bash">{`# Test database connection
+npx prisma db pull
+
+# Check connection string format
+# postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public`}</CodeBlock>
+
+        <h3>Environment Variable Not Set</h3>
+
+        <CodeBlock language="typescript">{`// Add validation
+if (!process.env.AUTH_SECRET) {
+  throw new Error("AUTH_SECRET is required");
+}
+
+if (process.env.AUTH_SECRET.length < 32) {
+  throw new Error("AUTH_SECRET must be at least 32 characters");
+}`}</CodeBlock>
+
+        <h2>Post-Deployment</h2>
+
+        <ul>
+          <li>✓ Test all authentication flows (OAuth, email, etc.)</li>
+          <li>✓ Verify session persistence across requests</li>
+          <li>✓ Test sign-out functionality</li>
+          <li>✓ Check error logging and monitoring</li>
+          <li>✓ Verify HTTPS on all pages</li>
+          <li>✓ Test protected routes</li>
+          <li>✓ Monitor performance and errors</li>
+          <li>✓ Set up automated backups</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/security-best-practices">Security Best Practices</a> - Secure your production app</li>
+          <li><a href="/docs/guides/session-management">Session Management</a> - Understand session lifecycle</li>
+          <li><a href="/docs/guides/database-adapters">Database Adapters</a> - Production database setup</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

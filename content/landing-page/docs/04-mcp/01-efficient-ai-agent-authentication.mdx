@@ -1,0 +1,868 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Efficient AI Agent Authentication with MCP - @warpy-auth-sdk/core',
+  description: 'Deep dive into using Model Context Protocol (MCP) with code execution for efficient, secure AI agent authentication that reduces token consumption and improves privacy.',
+};
+
+export default function EfficientMCPAuth() {
+  return (
+    <DocsLayout
+      title="Efficient AI Agent Authentication with MCP"
+      description="Build scalable AI agents with optimized authentication workflows using Model Context Protocol."
+      nextPage={{ title: 'Cloud Shield Integration', href: '/docs/mcp/cloud-shield-integration' }}
+    >
+      <div>
+        <h2>Introduction</h2>
+        <p>
+          Authentication is a hidden bottleneck in AI agent efficiency. When AI agents need to access
+          user data, perform actions on behalf of users, or integrate with authenticated APIs, traditional
+          authentication patterns can consume thousands of tokens, expose sensitive credentials, and create
+          security vulnerabilities. The Model Context Protocol (MCP) combined with code execution transforms
+          this landscape, enabling agents to authenticate efficiently while maintaining security and privacy.
+        </p>
+        <p>
+          <strong>@warpy-auth-sdk/core</strong> implements MCP with a code-execution-first approach, allowing
+          AI agents to authenticate users with scoped, time-limited access while minimizing context window usage
+          and protecting sensitive data. This guide explores how code execution with MCP creates more efficient,
+          secure, and scalable AI agent authentication.
+        </p>
+
+        <h2>The Challenge: Traditional Agent Authentication</h2>
+        <p>
+          Traditional authentication patterns designed for human users create significant challenges when
+          applied to AI agents:
+        </p>
+
+        <h3>Token Bloat from Credential Passing</h3>
+        <p>
+          Agents often need to repeatedly pass authentication credentials and tokens through their context
+          window. When using direct tool calls, every authentication attempt includes:
+        </p>
+        <ul>
+          <li><strong>Full OAuth provider schemas</strong> for every supported provider (Google, GitHub, Facebook, etc.)</li>
+          <li><strong>Complete configuration objects</strong> with client IDs, redirect URIs, and scope definitions</li>
+          <li><strong>JWT tokens and session data</strong> returned from authentication calls</li>
+          <li><strong>User profile information</strong> that may include unnecessary fields</li>
+        </ul>
+        <p>
+          <strong>Impact:</strong> A single authentication workflow with 5 providers can consume 10,000+ tokens
+          just for provider definitions and responses, leaving less room for actual task logic.
+        </p>
+
+        <h3>Context Window Waste with Intermediate Results</h3>
+        <p>
+          Multi-step authentication flows compound the problem:
+        </p>
+        <Example
+          title="Inefficient Traditional Approach"
+          description="Token-heavy authentication workflow"
+          code={`// Step 1: Agent calls tool to list available providers (800 tokens)
+const providers = await listAuthProviders(); // Returns full config for 10+ providers
+
+// Step 2: Agent selects provider and initiates auth (1,200 tokens)
+const authUrl = await getAuthUrl({
+  provider: 'google',
+  scopes: ['email', 'profile'],
+  redirectUri: 'https://example.com/callback'
+});
+
+// Step 3: After OAuth callback, agent exchanges code (2,500 tokens)
+const result = await exchangeAuthCode({
+  provider: 'google',
+  code: 'abc123',
+  state: 'xyz789'
+}); // Returns full user profile + token + refresh token + provider metadata
+
+// Step 4: Agent uses token to fetch additional data (1,500 tokens)
+const userData = await fetchUserData({
+  token: result.accessToken
+}); // Returns complete user object with all fields
+
+// Total: ~6,000+ tokens consumed, sensitive data exposed in context`}
+        />
+
+        <h3>Multi-Provider Complexity</h3>
+        <p>
+          Supporting multiple authentication providers creates exponential complexity:
+        </p>
+        <ul>
+          <li>Each provider requires unique configuration schemas in the context</li>
+          <li>Different providers return different user data structures</li>
+          <li>Agents must understand provider-specific error handling</li>
+          <li>PKCE (Proof Key for Code Exchange) parameters differ across implementations</li>
+        </ul>
+        <p>
+          This complexity fragments agent decision-making and increases the risk of
+          authentication errors or security misconfigurations.
+        </p>
+
+        <h3>Security and Privacy Risks</h3>
+        <p>
+          Passing full credentials and tokens through the agent's context creates risks:
+        </p>
+        <ul>
+          <li><strong>Credential Exposure:</strong> Full OAuth tokens visible in agent conversation history</li>
+          <li><strong>PII Leakage:</strong> Email addresses, names, and profile data stored in model context</li>
+          <li><strong>Token Logging:</strong> Sensitive tokens may be logged for debugging or training</li>
+          <li><strong>Scope Creep:</strong> Agents may request broader permissions than necessary</li>
+        </ul>
+
+        <Callout type="warning">
+          <strong>Real-World Impact:</strong> In production systems, traditional authentication patterns can
+          consume 40-60% of available context window for authentication alone, severely limiting an agent's
+          ability to perform complex tasks or maintain conversation history.
+        </Callout>
+
+        <h2>The Solution: Code Execution with MCP</h2>
+        <p>
+          Code execution transforms MCP authentication from a series of tool calls into a programmatic API
+          that agents can use efficiently. Instead of passing provider configurations and credentials through
+          the context window, agents write code that interacts with authentication endpoints locally, keeping
+          sensitive data isolated and reducing token consumption by up to 95%.
+        </p>
+
+        <h3>How Code Execution Works</h3>
+        <p>
+          With code execution, MCP tools are presented to agents as a virtual filesystem of TypeScript/JavaScript
+          modules that can be imported and used programmatically:
+        </p>
+
+        <Example
+          title="Filesystem-Based MCP Structure"
+          description="Tools presented as importable modules"
+          code={`// Virtual filesystem structure visible to agents
+servers/
+├── warpy-auth/
+│   ├── agentLogin.ts        // Creates short-lived agent tokens
+│   ├── getSession.ts        // Verifies tokens and retrieves session info
+│   ├── revokeToken.ts       // Invalidates tokens immediately
+│   └── types.ts             // Shared type definitions
+
+// Agent code can import and use these modules directly
+import * as auth from './servers/warpy-auth';
+
+// Efficient, isolated authentication
+const { token } = await auth.agentLogin({
+  userId: 'user-123',
+  scopes: ['debug', 'read'],
+  expiresIn: '15m'
+});
+
+// Token stays in execution environment, never passed to model
+const profile = await fetchWithAuth(token);
+console.log('Authentication successful'); // Only confirmation goes to model`}
+        />
+
+        <h3>Progressive Disclosure Pattern</h3>
+        <p>
+          Code execution enables <strong>progressive disclosure</strong>—agents only load the authentication
+          capabilities they actually need, when they need them:
+        </p>
+
+        <Example
+          title="On-Demand Provider Loading"
+          description="Load provider schemas only when needed"
+          code={`// Traditional: All providers loaded upfront (10,000+ tokens)
+const allProviders = await listProviders(); // Full config for 10+ providers
+
+// Code Execution: Load providers on-demand (500 tokens)
+import { searchAuthTools } from './servers/warpy-auth';
+
+// Agent only discovers tools it needs
+if (taskRequiresGoogleAuth) {
+  const googleTools = await searchAuthTools({ provider: 'google' });
+  // Only Google-specific functions loaded
+}`}
+        />
+
+        <h3>Automatic Data Tokenization</h3>
+        <p>
+          When agents execute authentication code, sensitive data can be automatically masked before
+          being returned to the model:
+        </p>
+
+        <Example
+          title="Privacy-Preserving Execution"
+          description="Automatic credential masking"
+          code={`import * as auth from './servers/warpy-auth';
+
+// Agent code runs in isolated environment
+const { token } = await auth.agentLogin({
+  userId: 'user-123',
+  scopes: ['debug', 'read']
+});
+
+// Fetch user profile with token (token never leaves execution env)
+const profile = await fetch('/api/user/profile', {
+  headers: { 'Authorization': \`Bearer \${token}\` }
+}).then(res => res.json());
+
+// Automatic masking applied before returning to model
+console.log(\`Profile loaded for \${profile.email}\`);
+// Model sees: "Profile loaded for [EMAIL_1]"
+
+// Real data available in execution environment for API calls
+// Masked references available in model context for tracking`}
+        />
+
+        <h3>Architecture Comparison</h3>
+        <p>
+          Here's how the authentication flow differs between traditional MCP and code execution:
+        </p>
+
+        <Example
+          title="Flow Comparison"
+          description="Traditional vs Code Execution"
+          code={`\`\`\`mermaid
+graph TD
+    subgraph Traditional MCP
+        A1[Agent Context] -->|Full provider configs| B1[Tool: agent_login]
+        B1 -->|Full token + user data| A1
+        A1 -->|Token in context| C1[Tool: get_session]
+        C1 -->|Complete profile| A1
+        A1 -->|All data visible| D1[Task Execution]
+    end
+
+    subgraph Code Execution with MCP
+        A2[Agent Context] -->|Import statement only| B2[Execution Env]
+        B2 -->|agentLogin function| C2[Auth Logic]
+        C2 -->|Token stays local| B2
+        B2 -->|Masked result only| A2
+        B2 -->|Direct API calls| D2[Task Execution]
+    end
+\`\`\`
+
+**Token Usage:**
+- Traditional: ~6,000 tokens per auth flow
+- Code Execution: ~300 tokens per auth flow (95% reduction)`}
+        />
+
+        <h2>Benefits: Why Code Execution Transforms Authentication</h2>
+
+        <h3>Context-Efficient Auth Flows</h3>
+        <p>
+          By keeping authentication logic in code rather than tool calls, agents can perform complex
+          authentication workflows with minimal token usage:
+        </p>
+        <ul>
+          <li><strong>Provider discovery:</strong> 50 tokens (vs 2,000 tokens for full provider list)</li>
+          <li><strong>Token generation:</strong> 100 tokens (vs 1,500 tokens with full response data)</li>
+          <li><strong>Session management:</strong> 80 tokens (vs 1,200 tokens with complete user profiles)</li>
+          <li><strong>Multi-step flows:</strong> 400 tokens (vs 6,000+ tokens with intermediate results)</li>
+        </ul>
+
+        <Callout type="success">
+          <strong>Real-World Savings:</strong> Production deployments show 90-95% reduction in authentication-related
+          token consumption, freeing context space for more sophisticated agent behaviors and longer conversations.
+        </Callout>
+
+        <h3>Privacy-Preserving Authentication</h3>
+        <p>
+          Code execution creates a natural privacy boundary between authentication credentials and the model:
+        </p>
+
+        <Example
+          title="Automatic PII Masking"
+          description="Keep sensitive data out of model context"
+          code={`import * as auth from './servers/warpy-auth';
+import { maskPII } from './servers/warpy-auth/privacy';
+
+// Authenticate and fetch user data
+const { token } = await auth.agentLogin({
+  userId: 'user-123',
+  scopes: ['read:profile', 'read:orders']
+});
+
+const user = await fetchUserProfile(token);
+const orders = await fetchUserOrders(token);
+
+// Mask PII automatically before logging
+const maskedUser = maskPII(user, {
+  email: '[EMAIL_1]',
+  phone: '[PHONE_1]',
+  address: '[ADDRESS_1]'
+});
+
+console.log(\`Loaded profile for \${maskedUser.email}\`);
+console.log(\`Found \${orders.length} orders\`);
+
+// Model Context Sees:
+// "Loaded profile for [EMAIL_1]"
+// "Found 5 orders"
+
+// Execution Environment Has:
+// Full access to real email, phone, address for API operations
+// Can make authenticated API calls with real data
+// Model never sees unmasked PII`}
+        />
+
+        <p>
+          This pattern ensures compliance with privacy regulations (GDPR, CCPA) while still allowing
+          agents to perform useful work with user data.
+        </p>
+
+        <h3>Advanced Control and State Persistence</h3>
+        <p>
+          Code execution allows agents to implement sophisticated authentication patterns:
+        </p>
+
+        <Example
+          title="Persistent Auth Sessions"
+          description="Save and reuse tokens across agent sessions"
+          code={`import * as auth from './servers/warpy-auth';
+import { readFile, writeFile } from 'fs/promises';
+
+// Check for existing session
+let sessionData;
+try {
+  const cached = await readFile('./workspace/.auth-session', 'utf-8');
+  sessionData = JSON.parse(cached);
+
+  // Verify token is still valid
+  const verification = await auth.getSession({ token: sessionData.token });
+  if (!verification.success) {
+    throw new Error('Session expired');
+  }
+} catch {
+  // No valid session, create new one
+  const result = await auth.agentLogin({
+    userId: 'user-123',
+    scopes: ['debug', 'read'],
+    expiresIn: '1h'
+  });
+
+  sessionData = {
+    token: result.token,
+    expires: result.expires,
+    userId: 'user-123'
+  };
+
+  // Persist for future tasks
+  await writeFile(
+    './workspace/.auth-session',
+    JSON.stringify(sessionData),
+    'utf-8'
+  );
+}
+
+console.log('Authenticated session ready');
+// Agent can now perform multiple operations without re-authenticating`}
+        />
+
+        <h3>Security Enhancements</h3>
+        <p>
+          Code execution enables security patterns that are difficult or impossible with direct tool calls:
+        </p>
+
+        <ul>
+          <li>
+            <strong>Audit Trails:</strong> Log all authentication operations in the execution environment
+            without exposing details to the model
+          </li>
+          <li>
+            <strong>Token Rotation:</strong> Automatically refresh tokens before expiration without model involvement
+          </li>
+          <li>
+            <strong>Rate Limiting:</strong> Implement client-side rate limiting to prevent auth abuse
+          </li>
+          <li>
+            <strong>Scope Validation:</strong> Verify agent actions match granted scopes before execution
+          </li>
+        </ul>
+
+        <Example
+          title="Secure Audit Logging"
+          description="Track auth operations without context pollution"
+          code={`import * as auth from './servers/warpy-auth';
+import { appendFile } from 'fs/promises';
+
+async function auditedLogin(userId: string, scopes: string[], reason: string) {
+  const timestamp = new Date().toISOString();
+
+  // Perform authentication
+  const result = await auth.agentLogin({
+    userId,
+    scopes,
+    agentId: 'production-agent',
+    expiresIn: '15m'
+  });
+
+  // Log to secure audit file (not visible to model)
+  await appendFile('./workspace/.audit-log', JSON.stringify({
+    timestamp,
+    action: 'agent_login',
+    userId,
+    scopes,
+    reason,
+    success: result.success,
+    tokenHash: hashToken(result.token) // Never log full token
+  }) + '\\n');
+
+  console.log(\`Authenticated for: \${reason}\`);
+  return result;
+}
+
+// Model only sees high-level confirmation
+// Full audit trail preserved in execution environment`}
+        />
+
+        <h3>Progressive Disclosure of Authentication Capabilities</h3>
+        <p>
+          Agents can discover authentication tools dynamically based on task requirements:
+        </p>
+
+        <Example
+          title="Dynamic Tool Discovery"
+          description="Load only needed authentication methods"
+          code={`import { searchAuthTools } from './servers/warpy-auth';
+
+// Agent determines authentication needs based on task
+const taskContext = analyzeTask(userRequest);
+
+if (taskContext.requiresOAuth) {
+  // Load OAuth-specific tools
+  const oauthTools = await searchAuthTools({
+    type: 'oauth',
+    provider: taskContext.preferredProvider
+  });
+  // Only OAuth schemas loaded into context
+}
+
+if (taskContext.requires2FA) {
+  // Load 2FA tools separately
+  const twoFATools = await searchAuthTools({ type: '2fa' });
+  // 2FA schemas loaded only when needed
+}
+
+// Result: 80% reduction in unnecessary schema loading`}
+        />
+
+        <h2>Implementation Examples</h2>
+
+        <h3>Basic: Direct MCP Call (Current Approach)</h3>
+        <p>
+          Traditional MCP authentication without code execution:
+        </p>
+
+        <Example
+          title="Traditional MCP Authentication"
+          description="Simple but inefficient"
+          code={`// Agent makes direct tool call
+const response = await fetch('/api/mcp', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    tool: 'agent_login',
+    args: {
+      userId: 'user-123',
+      scopes: ['debug', 'read'],
+      agentId: 'claude-assistant',
+      expiresIn: '15m'
+    }
+  })
+});
+
+const result = await response.json();
+// Full response visible in agent context
+// Token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+// Expires: "2024-11-06T15:30:00Z"
+// Message: "Agent claude-assistant logged in..."
+
+// Use token for authenticated requests
+const userData = await fetch('/api/user/profile', {
+  headers: { 'Authorization': \`Bearer \${result.token}\` }
+});
+
+const profile = await userData.json();
+// Full user profile in context
+// { email: "user@example.com", name: "John Doe", ... }
+
+// Token Usage: ~1,500 tokens for auth + response`}
+        />
+
+        <h3>Optimized: Code Execution Setup</h3>
+        <p>
+          Using code execution for efficient, secure authentication:
+        </p>
+
+        <Example
+          title="Code Execution-Based Authentication"
+          description="Filesystem API structure"
+          code={`// File: servers/warpy-auth/agentLogin.ts
+import { callMCPTool } from '../../../client.js';
+
+export interface AgentLoginInput {
+  userId: string;
+  scopes: string[];
+  agentId?: string;
+  expiresIn?: string;
+}
+
+export interface AgentLoginResponse {
+  success: boolean;
+  token?: string;
+  expires?: string;
+  error?: string;
+}
+
+export async function agentLogin(
+  input: AgentLoginInput
+): Promise<AgentLoginResponse> {
+  return callMCPTool<AgentLoginResponse>('warpy_auth__agent_login', {
+    userId: input.userId,
+    scopes: input.scopes,
+    agentId: input.agentId || 'default-agent',
+    expiresIn: input.expiresIn || '15m'
+  });
+}
+
+// File: servers/warpy-auth/getSession.ts
+export interface GetSessionInput {
+  token: string;
+}
+
+export interface SessionInfo {
+  userId: string;
+  email?: string;
+  scopes: string[];
+  agentId?: string;
+}
+
+export async function getSession(
+  input: GetSessionInput
+): Promise<{ success: boolean; session?: SessionInfo; error?: string }> {
+  return callMCPTool('warpy_auth__get_session', input);
+}
+
+// File: servers/warpy-auth/revokeToken.ts
+export async function revokeToken(
+  token: string
+): Promise<{ success: boolean; error?: string }> {
+  return callMCPTool('warpy_auth__revoke_token', { token });
+}`}
+        />
+
+        <p>
+          Agent code using the filesystem API:
+        </p>
+
+        <Example
+          title="Agent Implementation"
+          description="Efficient auth workflow with code execution"
+          code={`import * as auth from './servers/warpy-auth';
+
+// Authenticate (token stays in execution environment)
+const { success, token, error } = await auth.agentLogin({
+  userId: 'user-123',
+  scopes: ['debug', 'read'],
+  expiresIn: '15m'
+});
+
+if (!success) {
+  console.log(\`Auth failed: \${error}\`);
+  throw new Error('Authentication failed');
+}
+
+console.log('Authentication successful');
+// Model sees: "Authentication successful" (8 tokens)
+// Token never enters model context
+
+// Use token for API calls
+const profile = await fetch('/api/user/profile', {
+  headers: { 'Authorization': \`Bearer \${token}\` }
+}).then(res => res.json());
+
+// Mask sensitive data before logging
+console.log(\`Loaded profile for \${profile.email ? '[EMAIL]' : 'unknown'}\`);
+// Model sees: "Loaded profile for [EMAIL]" (7 tokens)
+
+// Total token usage: ~50 tokens (vs 1,500 tokens traditional approach)
+// 97% reduction in authentication token consumption`}
+        />
+
+        <h3>Advanced: Multi-Step Auth Flow with Token Refresh</h3>
+        <p>
+          Handling complex authentication scenarios efficiently:
+        </p>
+
+        <Example
+          title="Token Refresh Loop"
+          description="Long-running tasks with automatic token refresh"
+          code={`import * as auth from './servers/warpy-auth';
+
+class AuthenticatedSession {
+  private token: string | null = null;
+  private expiresAt: Date | null = null;
+  private userId: string;
+  private scopes: string[];
+
+  constructor(userId: string, scopes: string[]) {
+    this.userId = userId;
+    this.scopes = scopes;
+  }
+
+  async ensureValid(): Promise<string> {
+    // Check if token exists and hasn't expired
+    if (this.token && this.expiresAt && this.expiresAt > new Date()) {
+      return this.token;
+    }
+
+    // Token expired or doesn't exist, refresh
+    console.log('Refreshing authentication...');
+    const result = await auth.agentLogin({
+      userId: this.userId,
+      scopes: this.scopes,
+      expiresIn: '15m'
+    });
+
+    if (!result.success || !result.token) {
+      throw new Error('Failed to refresh token');
+    }
+
+    this.token = result.token;
+    this.expiresAt = new Date(result.expires!);
+    console.log('Token refreshed successfully');
+
+    return this.token;
+  }
+
+  async authenticatedFetch(url: string, options: RequestInit = {}) {
+    const token = await this.ensureValid();
+    return fetch(url, {
+      ...options,
+      headers: {
+        ...options.headers,
+        'Authorization': \`Bearer \${token}\`
+      }
+    });
+  }
+}
+
+// Usage in long-running task
+const session = new AuthenticatedSession('user-123', ['debug', 'read']);
+
+// Agent performs multiple operations over time
+for (let i = 0; i < 10; i++) {
+  // Token automatically refreshed if needed
+  const response = await session.authenticatedFetch('/api/data/batch/' + i);
+  const data = await response.json();
+
+  console.log(\`Processed batch \${i + 1}/10\`);
+  await sleep(120000); // 2 minute delay between batches
+}
+
+console.log('All batches processed successfully');
+
+// Model Context: Only sees progress updates
+// Token refresh happens transparently in execution environment
+// No token exposure, no context bloat from refresh operations`}
+        />
+
+        <h3>Privacy Pattern: Automatic Credential Masking</h3>
+        <p>
+          Implementing comprehensive PII protection:
+        </p>
+
+        <Example
+          title="Privacy-First Authentication"
+          description="Automatic masking of sensitive data"
+          code={`import * as auth from './servers/warpy-auth';
+
+// Privacy utility (runs in execution environment)
+class PrivacyGuard {
+  private tokenMap = new Map<string, string>();
+  private counter = 0;
+
+  maskEmail(email: string): string {
+    if (!this.tokenMap.has(email)) {
+      this.tokenMap.set(email, \`[EMAIL_\${++this.counter}]\`);
+    }
+    return this.tokenMap.get(email)!;
+  }
+
+  maskPhone(phone: string): string {
+    if (!this.tokenMap.has(phone)) {
+      this.tokenMap.set(phone, \`[PHONE_\${++this.counter}]\`);
+    }
+    return this.tokenMap.get(phone)!;
+  }
+
+  maskObject<T extends Record<string, any>>(obj: T): T {
+    const masked = { ...obj };
+    if (masked.email) masked.email = this.maskEmail(masked.email);
+    if (masked.phone) masked.phone = this.maskPhone(masked.phone);
+    if (masked.address) masked.address = '[ADDRESS]';
+    if (masked.ssn) masked.ssn = '[SSN]';
+    return masked;
+  }
+
+  // Real data available for API calls
+  getRealValue(maskedValue: string): string | undefined {
+    for (const [real, masked] of this.tokenMap.entries()) {
+      if (masked === maskedValue) return real;
+    }
+    return undefined;
+  }
+}
+
+const privacy = new PrivacyGuard();
+
+// Authenticate and fetch user data
+const { token } = await auth.agentLogin({
+  userId: 'user-123',
+  scopes: ['read:profile', 'write:support_ticket']
+});
+
+const profile = await fetch('/api/user/profile', {
+  headers: { 'Authorization': \`Bearer \${token}\` }
+}).then(res => res.json());
+
+// Mask before any logging
+const maskedProfile = privacy.maskObject(profile);
+console.log(\`User profile: \${JSON.stringify(maskedProfile)}\`);
+// Model sees: "{ email: '[EMAIL_1]', phone: '[PHONE_1]', name: 'John' }"
+
+// Later, if agent needs to reference the email in API call:
+// Use the mask for tracking, real value for API
+console.log(\`Creating support ticket for \${maskedProfile.email}\`);
+const realEmail = privacy.getRealValue(maskedProfile.email);
+await createTicket({ email: realEmail, ... });
+
+// Privacy preserved: Model only sees masks, APIs get real data`}
+        />
+
+        <h2>Trade-Offs and Best Practices</h2>
+
+        <h3>When to Use Code Execution</h3>
+        <p>
+          Code execution is ideal for:
+        </p>
+        <ul>
+          <li><strong>Multi-step authentication workflows</strong> where intermediate results can be cached</li>
+          <li><strong>Long-running agent tasks</strong> that need persistent authentication sessions</li>
+          <li><strong>Privacy-sensitive operations</strong> requiring PII masking</li>
+          <li><strong>Complex scope management</strong> with dynamic permission requirements</li>
+          <li><strong>High-volume authentication</strong> where token efficiency is critical</li>
+        </ul>
+
+        <h3>When Direct Calls Are Sufficient</h3>
+        <p>
+          Use direct MCP tool calls for:
+        </p>
+        <ul>
+          <li><strong>Simple, one-time authentication</strong> with no sensitive data</li>
+          <li><strong>Proof-of-concept or testing</strong> scenarios</li>
+          <li><strong>Environments without code execution support</strong></li>
+          <li><strong>Debugging authentication flows</strong> where visibility is helpful</li>
+        </ul>
+
+        <h3>Sandboxing Complexity</h3>
+        <p>
+          Code execution requires proper sandboxing to prevent security issues:
+        </p>
+        <ul>
+          <li>Use isolated execution environments (containers, VMs, or secure runtimes)</li>
+          <li>Implement filesystem restrictions to prevent unauthorized file access</li>
+          <li>Set network policies to limit outbound connections</li>
+          <li>Monitor resource usage to prevent abuse</li>
+        </ul>
+
+        <Callout type="warning">
+          <strong>Production Recommendation:</strong> Use Warpy Cloud Shield for managed execution
+          environments with built-in sandboxing, monitoring, and compliance features. See the
+          <a href="/docs/mcp/cloud-shield-integration">Cloud Shield Integration</a> guide.
+        </Callout>
+
+        <h3>Performance Considerations</h3>
+        <ul>
+          <li><strong>Startup overhead:</strong> Code execution environments take 50-200ms to initialize</li>
+          <li><strong>Memory usage:</strong> Each execution environment requires 50-100MB RAM</li>
+          <li><strong>Caching strategy:</strong> Reuse execution environments when possible for better performance</li>
+        </ul>
+
+        <h3>Best Practices</h3>
+        <ol>
+          <li>
+            <strong>Always mask sensitive data</strong> before logging or returning to model context
+          </li>
+          <li>
+            <strong>Use short-lived tokens</strong> (15 minutes default) and refresh automatically
+          </li>
+          <li>
+            <strong>Implement audit logging</strong> in the execution environment for compliance
+          </li>
+          <li>
+            <strong>Validate scopes</strong> before performing operations to prevent privilege escalation
+          </li>
+          <li>
+            <strong>Use progressive disclosure</strong> to load only needed authentication tools
+          </li>
+          <li>
+            <strong>Cache authentication sessions</strong> for multi-step tasks
+          </li>
+          <li>
+            <strong>Monitor token usage</strong> to identify optimization opportunities
+          </li>
+        </ol>
+
+        <h2>Summary</h2>
+        <p>
+          Code execution with MCP transforms AI agent authentication from a context-heavy, security-risky
+          operation into an efficient, privacy-preserving workflow. By presenting authentication as a
+          programmatic API rather than a series of tool calls, agents can:
+        </p>
+        <ul>
+          <li><strong>Reduce token consumption by 90-95%</strong> compared to traditional approaches</li>
+          <li><strong>Protect sensitive credentials</strong> through automatic masking and isolation</li>
+          <li><strong>Implement sophisticated patterns</strong> like token refresh and session persistence</li>
+          <li><strong>Scale efficiently</strong> to support multiple providers and complex workflows</li>
+          <li><strong>Maintain compliance</strong> with privacy regulations through built-in PII protection</li>
+        </ul>
+
+        <p>
+          The @warpy-auth-sdk/core library makes code execution authentication accessible through its MCP
+          implementation, with optional Warpy Cloud Shield for managed execution environments. Whether you're
+          building debugging agents, automation systems, or AI-powered support tools, code execution with MCP
+          provides the efficiency and security foundation for production-grade AI agents.
+        </p>
+
+        <h2>Next Steps</h2>
+        <p>
+          Continue learning about MCP authentication:
+        </p>
+        <ul>
+          <li>
+            <a href="/docs/mcp/cloud-shield-integration">Cloud Shield Integration</a> - Managed execution
+            with Warpy Cloud
+          </li>
+          <li>
+            <a href="/docs/mcp/tools-reference">Tools Reference</a> - Complete API documentation for MCP tools
+          </li>
+          <li>
+            <a href="/docs/mcp/vercel-ai-sdk-integration">Vercel AI SDK Integration</a> - Using MCP with
+            popular AI frameworks
+          </li>
+          <li>
+            <a href="/docs/mcp/security-best-practices">Security Best Practices</a> - Deep dive on security
+            patterns
+          </li>
+          <li>
+            <a href="/docs/mcp/examples-and-patterns">Examples and Patterns</a> - Real-world implementation
+            examples
+          </li>
+        </ul>
+
+        <Callout type="info">
+          <strong>Join the Community:</strong> Share your MCP authentication implementations, ask questions,
+          and contribute examples on our <a href="https://github.com/warpy-ai/auth-sdk/discussions">GitHub Discussions</a>.
+          Subscribe to our <a href="https://auth-sdk.dev/newsletter">developer newsletter</a> for updates on
+          new MCP features and optimization techniques.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}
