@@ -1,0 +1,551 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Google OAuth Flow Example - @warpy-auth-sdk/core',
+  description: 'Complete example of implementing Google OAuth authentication flow.',
+};
+
+export default function GoogleOAuthFlowExample() {
+  return (
+    <DocsLayout
+      title="Google OAuth Flow Example"
+      description="Complete example of implementing Google OAuth authentication flow."
+      prevPage={{ title: 'Next.js App Router', href: '/docs/examples/nextjs-app-router' }}
+      nextPage={{ title: 'Email Passwordless', href: '/docs/examples/email-passwordless' }}
+    >
+      <div>
+        <h2>Complete Google OAuth Flow</h2>
+        <p>
+          This example demonstrates a complete Google OAuth authentication flow with @warpy-auth-sdk/core,
+          including setup, implementation, and best practices for production deployment.
+        </p>
+
+        <h2>Prerequisites</h2>
+        <p>
+          Before starting, make sure you have:
+        </p>
+        <ul>
+          <li>A Google Cloud Console project</li>
+          <li>OAuth 2.0 credentials (Client ID and Client Secret)</li>
+          <li>Configured authorized redirect URIs</li>
+        </ul>
+
+        <Callout type="info" title="Google Cloud Setup">
+          If you haven't set up Google OAuth yet, follow the <a href="/docs/providers/google-oauth">Google OAuth Setup Guide</a> first.
+        </Callout>
+
+        <h2>Environment Configuration</h2>
+        <p>
+          Create a <code>.env.local</code> file with your Google OAuth credentials:
+        </p>
+
+        <CodeBlock language="bash">
+{`# Authentication
+AUTH_SECRET=your-secret-key-min-32-chars-long
+
+# Google OAuth
+GOOGLE_CLIENT_ID=123456789-abcdefghijklmnop.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-your-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+
+# Production
+# GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google`}
+        </CodeBlock>
+
+        <h2>Next.js Implementation</h2>
+        <p>
+          Implement Google OAuth in Next.js 16 using the Proxy pattern:
+        </p>
+
+        <Example
+          title="proxy.ts"
+          description="Next.js 16 Proxy configuration for Google OAuth"
+          code={`import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+      // Optional: customize OAuth scopes
+      scope: [
+        'openid',
+        'email',
+        'profile',
+        'https://www.googleapis.com/auth/userinfo.email',
+        'https://www.googleapis.com/auth/userinfo.profile'
+      ],
+    }),
+    callbacks: {
+      // Resolve/upsert user in your database
+      async user(oauthUser) {
+        console.log('OAuth user:', oauthUser);
+
+        // Example: Save to database
+        // const user = await db.user.upsert({
+        //   where: { email: oauthUser.email },
+        //   create: {
+        //     email: oauthUser.email,
+        //     name: oauthUser.name,
+        //     picture: oauthUser.picture,
+        //     googleId: oauthUser.id,
+        //   },
+        //   update: {
+        //     name: oauthUser.name,
+        //     picture: oauthUser.picture,
+        //   },
+        // });
+
+        return {
+          id: oauthUser.id,
+          email: oauthUser.email,
+          name: oauthUser.name,
+          picture: oauthUser.picture,
+        };
+      },
+      // Add custom JWT claims
+      jwt: (token) => {
+        token.provider = 'google';
+        return token;
+      },
+      // Customize session data
+      session: (session) => {
+        return session;
+      },
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login?error=auth_failed",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Handle authentication routes
+  if (pathname.startsWith("/api/auth")) {
+    return handler(request);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};`}
+        />
+
+        <h2>Login Page</h2>
+        <p>
+          Create a login page with Google OAuth sign-in button:
+        </p>
+
+        <Example
+          title="app/login/page.tsx"
+          description="Login page with Google OAuth button"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
+
+export default function LoginPage() {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const error = searchParams.get('error');
+
+  useEffect(() => {
+    if (session) {
+      router.push("/dashboard");
+    }
+  }, [session, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  if (session) {
+    return null; // Will redirect to dashboard
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-bold text-gray-900">
+            Sign in to your account
+          </h2>
+          <p className="mt-2 text-center text-sm text-gray-600">
+            Sign in with your Google account
+          </p>
+        </div>
+
+        {error && (
+          <div className="rounded-md bg-red-50 p-4">
+            <div className="flex">
+              <div className="ml-3">
+                <h3 className="text-sm font-medium text-red-800">
+                  Authentication failed
+                </h3>
+                <div className="mt-2 text-sm text-red-700">
+                  <p>
+                    {error === 'auth_failed'
+                      ? 'Unable to sign in with Google. Please try again.'
+                      : 'An error occurred during authentication.'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div>
+          <a
+            href="/api/auth/signin/google"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          >
+            <svg className="h-5 w-5" viewBox="0 0 24 24">
+              <path
+                fill="#4285F4"
+                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+              />
+              <path
+                fill="#34A853"
+                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+              />
+              <path
+                fill="#FBBC05"
+                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+              />
+              <path
+                fill="#EA4335"
+                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+              />
+            </svg>
+            Continue with Google
+          </a>
+        </div>
+
+        <div className="text-xs text-center text-gray-500">
+          By signing in, you agree to our Terms of Service and Privacy Policy.
+        </div>
+      </div>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Express Implementation</h2>
+        <p>
+          Implement Google OAuth with Express:
+        </p>
+
+        <Example
+          title="Express Server"
+          description="Express server with Google OAuth"
+          code={`import express from "express";
+import cookieParser from "cookie-parser";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/express";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+const app = express();
+
+// Middleware
+app.use(express.json());
+app.use(cookieParser());
+
+// Configure Google OAuth
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+  callbacks: {
+    async user(oauthUser) {
+      console.log('OAuth user:', oauthUser);
+
+      // Save to database
+      return {
+        id: oauthUser.id,
+        email: oauthUser.email,
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      };
+    },
+  },
+};
+
+// Register auth routes
+const { requireAuth } = registerAuthRoutes(app, authConfig, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Protected route
+app.get("/api/user", requireAuth, (req, res) => {
+  res.json({ user: (req as any).session.user });
+});
+
+// Start server
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+  console.log("Visit http://localhost:3000/api/auth/signin/google to sign in");
+});`}
+        />
+
+        <h2>Hono Implementation</h2>
+        <p>
+          Implement Google OAuth with Hono (multi-runtime):
+        </p>
+
+        <Example
+          title="Hono Server"
+          description="Hono server with Google OAuth"
+          code={`import { Hono } from "hono";
+import { getCookie, setCookie } from "hono/cookie";
+import { createAuthHandler } from "@warpy-auth-sdk/core/adapters/hono";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+// Configure Google OAuth
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+// Create auth handler
+const { handler, requireAuth } = createAuthHandler(authConfig, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Register auth routes
+app.route("/api/auth", handler);
+
+// Protected route
+app.get("/api/user", requireAuth, (c) => {
+  return c.json({ user: c.get("session").user });
+});
+
+export default app;`}
+        />
+
+        <h2>Testing the OAuth Flow</h2>
+        <p>
+          Follow these steps to test your Google OAuth implementation:
+        </p>
+
+        <h3>1. Start Development Server</h3>
+        <CodeBlock language="bash">
+{`npm run dev`}
+        </CodeBlock>
+
+        <h3>2. Initiate OAuth Flow</h3>
+        <p>
+          Visit <code>http://localhost:3000/api/auth/signin/google</code> or click the
+          "Continue with Google" button on your login page.
+        </p>
+
+        <h3>3. Complete Google OAuth</h3>
+        <ol>
+          <li>You'll be redirected to Google's OAuth consent screen</li>
+          <li>Select your Google account</li>
+          <li>Grant permissions to your application</li>
+          <li>You'll be redirected back to your app</li>
+        </ol>
+
+        <h3>4. Verify Session</h3>
+        <p>
+          Check the session by visiting <code>/api/auth/session</code>:
+        </p>
+
+        <CodeBlock language="bash">
+{`curl http://localhost:3000/api/auth/session \\
+  -H "Cookie: auth-token=YOUR_SESSION_TOKEN"`}
+        </CodeBlock>
+
+        <h2>OAuth Flow Diagram</h2>
+        <CodeBlock language="mermaid">
+{`sequenceDiagram
+    participant User
+    participant App
+    participant SDK
+    participant Google
+
+    User->>App: Click "Sign in with Google"
+    App->>SDK: GET /api/auth/signin/google
+    SDK->>SDK: Generate PKCE challenge
+    SDK->>Google: Redirect with client_id & challenge
+    Google->>User: Show consent screen
+    User->>Google: Grant permissions
+    Google->>SDK: Redirect with auth code
+    SDK->>Google: Exchange code for token (with PKCE verifier)
+    Google->>SDK: Return access token & user info
+    SDK->>SDK: Create JWT session
+    SDK->>App: Set session cookie & redirect
+    App->>User: Show dashboard`}
+        </CodeBlock>
+
+        <h2>Security Features</h2>
+        <p>
+          The Google OAuth implementation includes these security features:
+        </p>
+
+        <ul>
+          <li><strong>PKCE (S256):</strong> Proof Key for Code Exchange enabled by default</li>
+          <li><strong>CSRF Protection:</strong> State parameter validation</li>
+          <li><strong>Secure Cookies:</strong> HttpOnly, Secure, SameSite attributes</li>
+          <li><strong>JWT Signing:</strong> Cryptographically signed session tokens</li>
+          <li><strong>Token Verification:</strong> Google access token validation</li>
+        </ul>
+
+        <Callout type="info" title="PKCE Protection">
+          PKCE (Proof Key for Code Exchange) is automatically enabled to prevent authorization
+          code interception attacks. The SDK generates a cryptographically secure code challenge
+          and verifier for each OAuth flow.
+        </Callout>
+
+        <h2>Error Handling</h2>
+        <p>
+          Handle common OAuth errors gracefully:
+        </p>
+
+        <Example
+          title="Error Handling"
+          description="Handle OAuth errors in your application"
+          code={`'use client';
+
+import { useSearchParams } from 'next/navigation';
+
+export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const error = searchParams.get('error');
+
+  const getErrorMessage = (error: string | null) => {
+    switch (error) {
+      case 'auth_failed':
+        return 'Authentication failed. Please try again.';
+      case 'access_denied':
+        return 'You denied access. Please grant permissions to continue.';
+      case 'invalid_request':
+        return 'Invalid request. Please contact support.';
+      default:
+        return error ? \`Error: \${error}\` : null;
+    }
+  };
+
+  const errorMessage = getErrorMessage(error);
+
+  return (
+    <div>
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
+          {errorMessage}
+        </div>
+      )}
+
+      <a href="/api/auth/signin/google">
+        Continue with Google
+      </a>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Production Deployment</h2>
+        <p>
+          Checklist for deploying Google OAuth to production:
+        </p>
+
+        <h3>1. Update Environment Variables</h3>
+        <CodeBlock language="bash">
+{`# Production environment variables
+AUTH_SECRET=production-secret-min-32-chars-long
+GOOGLE_CLIENT_ID=prod-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=GOCSPX-prod-client-secret
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google`}
+        </CodeBlock>
+
+        <h3>2. Configure Google Cloud Console</h3>
+        <ul>
+          <li>Add production domain to authorized domains</li>
+          <li>Add production redirect URI</li>
+          <li>Verify OAuth consent screen</li>
+          <li>Consider OAuth app verification for public apps</li>
+        </ul>
+
+        <h3>3. Security Checklist</h3>
+        <ul>
+          <li>Enable HTTPS for all OAuth redirects</li>
+          <li>Set secure cookie attributes in production</li>
+          <li>Implement rate limiting on auth endpoints</li>
+          <li>Monitor failed authentication attempts</li>
+          <li>Set up logging for OAuth errors</li>
+        </ul>
+
+        <Callout type="success" title="OAuth Flow Complete">
+          You've successfully implemented Google OAuth authentication with PKCE security
+          and best practices. Users can now sign in securely with their Google accounts.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Enhance your authentication implementation:
+        </p>
+
+        <ul>
+          <li><a href="/docs/examples/email-passwordless">Add Email Passwordless</a> as an alternative sign-in method</li>
+          <li><a href="/docs/examples/protected-routes">Implement Protected Routes</a> to secure your application</li>
+          <li><a href="/docs/guides/database-adapters">Add Database Adapters</a> for session persistence</li>
+          <li><a href="/docs/guides/two-factor-authentication">Enable Two-Factor Authentication</a> for enhanced security</li>
+        </ul>
+
+        <h2>Troubleshooting</h2>
+        <h3>Redirect URI Mismatch</h3>
+        <p>
+          If you get a "redirect_uri_mismatch" error, ensure your redirect URI in Google Cloud
+          Console exactly matches the one in your environment variables.
+        </p>
+
+        <h3>Invalid Client</h3>
+        <p>
+          Check that your <code>GOOGLE_CLIENT_ID</code> and <code>GOOGLE_CLIENT_SECRET</code>
+          are correct and haven't expired.
+        </p>
+
+        <h3>Session Not Persisting</h3>
+        <p>
+          Make sure cookies are enabled in your browser and the <code>AUTH_SECRET</code> is
+          consistent across server restarts.
+        </p>
+      </div>
+    </DocsLayout>
+  );
+}

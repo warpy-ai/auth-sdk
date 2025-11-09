@@ -1,0 +1,628 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+
+export const metadata = {
+  title: 'TypeScript Types - @warpy-auth-sdk/core',
+  description: 'TypeScript type definitions and interfaces for @warpy-auth-sdk/core.',
+};
+
+export default function TypeScriptTypes() {
+  return (
+    <DocsLayout
+      title="TypeScript Types"
+      description="TypeScript type definitions and interfaces."
+      previousPage={{ title: 'Next.js Integration', href: '/docs/api-reference/next-integration' }}
+    >
+      <div>
+        <h2>Core Types</h2>
+        <p>
+          The SDK is fully typed with TypeScript. All types are exported from the main package
+          and subpath exports.
+        </p>
+
+        <h3>AuthConfig</h3>
+        <p>
+          Main configuration object for the authentication system.
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface AuthConfig {
+  // JWT signing secret (min 32 characters)
+  secret: string;
+
+  // Authentication provider (OAuth, email, or 2FA)
+  provider: Provider;
+
+  // Optional database adapter for session persistence
+  adapter?: Adapter;
+
+  // Optional MCP (Model Context Protocol) configuration
+  mcp?: {
+    enabled: boolean;
+    scopes?: string[];
+  };
+
+  // Optional Warpy Cloud Shield configuration
+  warpy?: {
+    apiKey?: string;
+    baseUrl?: string;
+  };
+
+  // Optional CAPTCHA configuration
+  captcha?: CaptchaEnforcement;
+
+  // Lifecycle callbacks
+  callbacks?: {
+    // Resolve/upsert user (called after OAuth or email verification)
+    user?: (
+      user: { id?: string; email: string; name?: string; picture?: string },
+      context?: { provider?: string }
+    ) =>
+      | Promise<{ id: string; email: string; name?: string; picture?: string }>
+      | { id: string; email: string; name?: string; picture?: string };
+
+    // Mutate JWT claims before signing
+    jwt?: (token: JWTPayload) => JWTPayload | Promise<JWTPayload>;
+
+    // Mutate session before returning to client
+    session?: (session: Session) => Session | Promise<Session>;
+  };
+}`}
+        </CodeBlock>
+
+        <h3>Session</h3>
+        <p>
+          Represents an authenticated user session.
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface Session {
+  // User information
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+
+  // Session expiration date
+  expires: Date;
+
+  // JWT token (present for MCP agent sessions)
+  token?: string;
+
+  // Session type
+  type?: "standard" | "mcp-agent";
+
+  // Scopes (for MCP agent sessions)
+  scopes?: string[];
+
+  // Agent ID (for MCP agent sessions)
+  agentId?: string;
+}`}
+        </CodeBlock>
+
+        <h3>AuthenticateResult</h3>
+        <p>
+          Result of the authenticate() function.
+        </p>
+
+        <CodeBlock language="typescript">
+{`interface AuthenticateResult {
+  // Successful authentication session
+  session?: Session;
+
+  // Error message if authentication failed
+  error?: string;
+
+  // Redirect URL (for OAuth flows)
+  redirectUrl?: string;
+
+  // Set-Cookie headers to send to client
+  cookies?: string[];
+
+  // For 2FA: identifier to verify code
+  identifier?: string;
+
+  // For 2FA: code expiration time in milliseconds
+  expiresIn?: number;
+}`}
+        </CodeBlock>
+
+        <h2>Provider Types</h2>
+
+        <h3>Provider Union</h3>
+        <CodeBlock language="typescript">
+{`type Provider =
+  | OAuthProviderConfig
+  | EmailProviderConfig
+  | TwoFactorProviderConfig;`}
+        </CodeBlock>
+
+        <h3>OAuthProviderConfig</h3>
+        <CodeBlock language="typescript">
+{`interface OAuthProviderConfig {
+  type: "oauth";
+  clientId: string;
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  redirectUri: string;
+  scope?: string[];
+
+  // PKCE method: "S256" (SHA-256), "plain", or false (disabled)
+  pkce?: "S256" | "plain" | false;
+
+  // Function to map provider user info to standard UserProfile
+  getUser: (accessToken: string) => Promise<UserProfile>;
+}`}
+        </CodeBlock>
+
+        <h3>EmailProviderConfig</h3>
+        <CodeBlock language="typescript">
+{`interface EmailProviderConfig {
+  type: "email";
+  server: string; // Email service type
+  from: string;   // From email address
+
+  // Send magic link to user's email
+  sendMagicLink: (email: string, url: string) => Promise<void>;
+
+  // Verify magic link token
+  verify: (token: string) => Promise<{ email: string; userId?: string } | null>;
+}`}
+        </CodeBlock>
+
+        <h3>TwoFactorProviderConfig</h3>
+        <CodeBlock language="typescript">
+{`interface TwoFactorProviderConfig {
+  type: "twofa";
+  from: string; // From email address
+
+  // Send 6-digit verification code
+  sendCode: (
+    email: string
+  ) => Promise<{ identifier: string; expiresIn: number }>;
+
+  // Verify code
+  verifyCode: (
+    identifier: string,
+    code: string
+  ) => Promise<{ email: string; userId?: string } | null>;
+}`}
+        </CodeBlock>
+
+        <h3>UserProfile</h3>
+        <CodeBlock language="typescript">
+{`interface UserProfile {
+  id: string;      // Provider's user ID
+  email: string;   // User's email
+  name?: string;   // User's display name
+  picture?: string; // User's profile picture URL
+}`}
+        </CodeBlock>
+
+        <h2>Adapter Types</h2>
+
+        <h3>Adapter Interface</h3>
+        <CodeBlock language="typescript">
+{`interface Adapter {
+  // Session methods
+  createSession(session: Omit<Session, "sessionToken">): Promise<Session>;
+  getSession(sessionToken: string): Promise<Session | null>;
+  updateSession(
+    sessionToken: string,
+    session: Partial<Session>
+  ): Promise<Session | null>;
+  deleteSession(sessionToken: string): Promise<void>;
+
+  // User methods
+  createUser(user: Omit<User, "id">): Promise<User>;
+  getUser(id: string): Promise<User | null>;
+  getUserByEmail(email: string): Promise<User | null>;
+  updateUser(id: string, user: Partial<User>): Promise<User | null>;
+
+  // Account methods (OAuth provider accounts)
+  createAccount(account: Omit<Account, "id">): Promise<Account>;
+  getAccount(
+    provider: string,
+    providerAccountId: string
+  ): Promise<Account | null>;
+  deleteAccount(provider: string, providerAccountId: string): Promise<void>;
+}`}
+        </CodeBlock>
+
+        <h3>Database Models</h3>
+        <CodeBlock language="typescript">
+{`interface Session {
+  sessionToken: string;
+  userId: string;
+  expires: Date;
+}
+
+interface User {
+  id: string;
+  email: string;
+  name?: string;
+  picture?: string;
+}
+
+interface Account {
+  id: string;
+  userId: string;
+  provider: string; // e.g., "google", "github"
+  providerAccountId: string;
+  accessToken?: string;
+  refreshToken?: string;
+  expiresAt?: Date;
+}`}
+        </CodeBlock>
+
+        <h2>MCP Types</h2>
+
+        <h3>MCPLoginPayload</h3>
+        <CodeBlock language="typescript">
+{`interface MCPLoginPayload {
+  userId: string;       // User ID to login as
+  scopes: string[];     // Scopes for the agent (e.g., ["read", "debug"])
+  agentId: string;      // Agent identifier
+  expiresIn: string;    // Expiration time (e.g., "15m", "1h")
+}`}
+        </CodeBlock>
+
+        <h3>MCPShieldConfig</h3>
+        <CodeBlock language="typescript">
+{`interface MCPShieldConfig {
+  secret: string;
+  adapter?: Adapter;
+
+  // Warpy Cloud Shield configuration
+  warpy?: {
+    apiKey?: string;
+    baseUrl?: string; // Default: "https://platform.warpy.co"
+  };
+
+  // Metrics configuration
+  metrics?: {
+    enabled: boolean;
+    flushIntervalMs?: number; // Default: 10000 (10 seconds)
+  };
+}`}
+        </CodeBlock>
+
+        <h2>CAPTCHA Types</h2>
+
+        <h3>CaptchaEnforcement</h3>
+        <CodeBlock language="typescript">
+{`interface CaptchaEnforcement {
+  // CAPTCHA provider configuration
+  provider: CaptchaProvider;
+
+  // Which authentication methods require CAPTCHA
+  enforce: {
+    email?: boolean;  // Email magic links
+    twofa?: boolean;  // Two-factor codes
+    oauth?: boolean;  // OAuth flows (handled by provider)
+  };
+}`}
+        </CodeBlock>
+
+        <h3>CaptchaProvider</h3>
+        <CodeBlock language="typescript">
+{`interface CaptchaProvider {
+  type: 'recaptcha-v2' | 'recaptcha-v3' | 'hcaptcha' | 'turnstile';
+
+  // Verify CAPTCHA token
+  verify(token: string, remoteIp?: string): Promise<CaptchaVerificationResult>;
+}
+
+interface CaptchaVerificationResult {
+  success: boolean;
+  score?: number;      // reCAPTCHA v3 score (0.0 to 1.0)
+  errors?: string[];   // Error messages if verification failed
+}`}
+        </CodeBlock>
+
+        <h3>CAPTCHA Provider Configs</h3>
+        <CodeBlock language="typescript">
+{`// reCAPTCHA v2 (checkbox)
+interface RecaptchaV2Config {
+  type: 'recaptcha-v2';
+  secretKey: string;
+}
+
+// reCAPTCHA v3 (invisible, score-based)
+interface RecaptchaV3Config {
+  type: 'recaptcha-v3';
+  secretKey: string;
+  minimumScore?: number; // Default: 0.5 (0.0 to 1.0)
+}
+
+// hCaptcha
+interface HCaptchaConfig {
+  type: 'hcaptcha';
+  secretKey: string;
+}
+
+// Cloudflare Turnstile
+interface TurnstileConfig {
+  type: 'turnstile';
+  secretKey: string;
+}`}
+        </CodeBlock>
+
+        <h2>React Types</h2>
+
+        <h3>AuthProviderProps</h3>
+        <CodeBlock language="typescript">
+{`interface AuthProviderProps {
+  children: ReactNode;
+  secret: string;
+  onSignIn?: (session: Session) => void;
+  onSignOut?: () => void;
+}`}
+        </CodeBlock>
+
+        <h3>AuthContextValue</h3>
+        <CodeBlock language="typescript">
+{`interface AuthContextValue {
+  session: Session | null;
+  loading: boolean;
+  signIn: (email: string, captchaToken?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshSession: () => Promise<void>;
+}`}
+        </CodeBlock>
+
+        <h2>Framework Adapter Types</h2>
+
+        <h3>Express</h3>
+        <CodeBlock language="typescript">
+{`interface ExpressAuthOptions {
+  basePath?: string;
+  successRedirect?: string;
+  errorRedirect?: string;
+  mcp?: {
+    enabled?: boolean;
+    path?: string;
+    shield?: MCPShieldConfig;
+  };
+}
+
+type RequireAuth = (
+  req: ExpressRequest,
+  res: ExpressResponse,
+  next: ExpressNextFunction
+) => Promise<void>;`}
+        </CodeBlock>
+
+        <h3>Fastify</h3>
+        <CodeBlock language="typescript">
+{`interface FastifyAuthOptions {
+  basePath?: string;
+  successRedirect?: string;
+  errorRedirect?: string;
+  mcp?: {
+    enabled?: boolean;
+    path?: string;
+    shield?: MCPShieldConfig;
+  };
+}
+
+type RequireAuth = (
+  req: FastifyRequest,
+  reply: FastifyReply
+) => Promise<void>;`}
+        </CodeBlock>
+
+        <h3>Hono</h3>
+        <CodeBlock language="typescript">
+{`interface HonoAuthOptions {
+  basePath?: string;
+  successRedirect?: string;
+  errorRedirect?: string;
+  mcp?: {
+    enabled?: boolean;
+    path?: string;
+    shield?: MCPShieldConfig;
+  };
+}
+
+type RequireAuth = HonoMiddleware;
+
+type HonoMiddleware = (
+  c: HonoContext,
+  next: () => Promise<void>
+) => Promise<Response | void>;`}
+        </CodeBlock>
+
+        <h3>Node.js HTTP</h3>
+        <CodeBlock language="typescript">
+{`interface NodeAuthOptions {
+  basePath?: string;
+  successRedirect?: string;
+  errorRedirect?: string;
+  mcp?: {
+    enabled?: boolean;
+    path?: string;
+    shield?: MCPShieldConfig;
+  };
+}
+
+type AuthHandler = (
+  req: IncomingMessage,
+  res: ServerResponse
+) => Promise<boolean>;`}
+        </CodeBlock>
+
+        <h2>Next.js Types</h2>
+
+        <h3>NextAuthHandlerOptions</h3>
+        <CodeBlock language="typescript">
+{`interface NextAuthHandlerOptions {
+  basePath?: string;        // Default: "/auth"
+  successRedirect?: string; // Default: "/dashboard"
+  errorRedirect?: string;   // Default: "/login"
+}`}
+        </CodeBlock>
+
+        <h3>AuthMiddlewareOptions</h3>
+        <CodeBlock language="typescript">
+{`interface AuthMiddlewareOptions extends NextAuthHandlerOptions {
+  basePath?: string;
+  successRedirect?: string;
+  errorRedirect?: string;
+  publicRoutes?: string[];
+  protectedRoutes?: string[];
+}`}
+        </CodeBlock>
+
+        <h2>Utility Types</h2>
+
+        <h3>JWTPayload</h3>
+        <CodeBlock language="typescript">
+{`interface JWTPayload {
+  userId: string;
+  email?: string;
+  name?: string;
+  picture?: string;
+  type?: "standard" | "mcp-agent";
+  scopes?: string[];
+  agentId?: string;
+  exp?: number; // Expiration timestamp
+  iat?: number; // Issued at timestamp
+  [key: string]: unknown; // Custom claims
+}`}
+        </CodeBlock>
+
+        <h3>Email Service Types</h3>
+        <CodeBlock language="typescript">
+{`type EmailServiceConfig =
+  | NodemailerConfig
+  | ResendConfig;
+
+interface NodemailerConfig {
+  type: 'nodemailer';
+  server: string; // SMTP server (e.g., "smtp.gmail.com:587")
+  auth: {
+    user: string;
+    pass: string;
+  };
+}
+
+interface ResendConfig {
+  type: 'resend';
+  apiKey: string;
+}
+
+interface EmailService {
+  send(params: {
+    to: string;
+    subject: string;
+    html: string;
+    from: string;
+  }): Promise<void>;
+}`}
+        </CodeBlock>
+
+        <h3>Custom Email Template</h3>
+        <CodeBlock language="typescript">
+{`interface CustomEmailTemplate {
+  component: (props: { magicLink: string }) => React.ReactElement;
+  subject: string;
+}
+
+interface CustomTwoFactorTemplate {
+  component: (props: { code: string }) => React.ReactElement;
+  subject: string;
+}`}
+        </CodeBlock>
+
+        <Callout type="info" title="Type Imports">
+          <p>
+            Import types from the appropriate subpath:
+          </p>
+          <CodeBlock language="typescript">
+{`// Core types
+import type { AuthConfig, Session, Provider } from '@warpy-auth-sdk/core';
+
+// Adapter types
+import type { Adapter, User, Account } from '@warpy-auth-sdk/core/adapters/types';
+
+// Provider types
+import type { OAuthProviderConfig, UserProfile } from '@warpy-auth-sdk/core/providers/types';
+
+// React types
+import type { AuthContextValue } from '@warpy-auth-sdk/core/hooks';
+
+// CAPTCHA types
+import type { CaptchaProvider, CaptchaEnforcement } from '@warpy-auth-sdk/core/captcha/types';
+
+// MCP types
+import type { MCPLoginPayload, MCPShieldConfig } from '@warpy-auth-sdk/core';`}
+          </CodeBlock>
+        </Callout>
+
+        <Callout type="tip" title="Generic Type Parameters">
+          <p>
+            Some types support generic parameters for customization:
+          </p>
+          <CodeBlock language="typescript">
+{`// Extend Session with custom fields
+interface CustomSession extends Session {
+  user: Session['user'] & {
+    role: 'admin' | 'user';
+    tenantId: string;
+  };
+}
+
+// Extend JWTPayload with custom claims
+interface CustomJWT extends JWTPayload {
+  role: 'admin' | 'user';
+  tenantId: string;
+  permissions: string[];
+}
+
+// Use in callbacks
+const config: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+  callbacks: {
+    jwt: (token): CustomJWT => {
+      return {
+        ...token,
+        role: 'admin',
+        tenantId: 'tenant-123',
+        permissions: ['read', 'write'],
+      } as CustomJWT;
+    },
+    session: (session): CustomSession => {
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          role: 'admin',
+          tenantId: 'tenant-123',
+        },
+      } as CustomSession;
+    },
+  },
+};`}
+          </CodeBlock>
+        </Callout>
+
+        <Callout type="warning" title="Type Safety">
+          <ul>
+            <li>All types are fully typed with TypeScript for type safety</li>
+            <li>Use type assertions carefully when extending interfaces</li>
+            <li>Provider configs use discriminated unions for type narrowing</li>
+            <li>Framework adapter types use minimal shims to avoid peer dependencies</li>
+            <li>Session and User types should match your database schema</li>
+          </ul>
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}

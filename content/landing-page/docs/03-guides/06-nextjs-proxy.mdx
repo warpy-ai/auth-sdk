@@ -1,0 +1,650 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Next.js Proxy - @warpy-auth-sdk/core',
+  description: 'Using Next.js 16 Proxy for zero-config authentication',
+};
+
+export default function NextJSProxy() {
+  return (
+    <DocsLayout
+      title="Next.js Proxy"
+      description="Using Next.js 16 Proxy for zero-config authentication"
+      prevPage={{ title: 'Next.js Integration', href: '/docs/guides/nextjs-integration' }}
+      nextPage={{ title: 'React Hooks', href: '/docs/guides/react-hooks' }}
+    >
+      <div>
+        <h2>Next.js 16 Proxy</h2>
+
+        <p>
+          The Next.js 16 Proxy feature (formerly called Middleware) provides a zero-config, Clerk-like authentication experience. With a single <code>proxy.ts</code> file, you get automatic route handling, OAuth flows, session management, and more.
+        </p>
+
+        <Callout type="info" title="What is Proxy?">
+          In Next.js 16, the Proxy function runs on the edge before requests reach your application. It's perfect for authentication because it can intercept, validate, and redirect requests efficiently.
+        </Callout>
+
+        <h2>Quick Start</h2>
+
+        <h3>1. Create the Proxy File</h3>
+
+        <p>Create a <code>proxy.ts</code> file at the root of your project:</p>
+
+        <Example
+          title="proxy.ts"
+          description="Basic Proxy configuration"
+          code={`import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      async user(u) {
+        return {
+          id: u.id || u.email,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+      jwt: (t) => t,
+      session: (s) => s,
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};`}
+        />
+
+        <h3>2. Set Environment Variables</h3>
+
+        <CodeBlock language="bash">{`# .env.local
+AUTH_SECRET=your-secret-key-at-least-32-characters
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google`}</CodeBlock>
+
+        <h3>3. That's It!</h3>
+
+        <p>Your authentication routes are now automatically available:</p>
+
+        <ul>
+          <li><code>GET /api/auth/session</code> - Get current session</li>
+          <li><code>POST /api/auth/signout</code> - Sign out</li>
+          <li><code>GET /api/auth/signin/google</code> - Start OAuth</li>
+          <li><code>GET /api/auth/callback/google</code> - OAuth callback</li>
+        </ul>
+
+        <h2>Configuration Options</h2>
+
+        <h3>Authentication Config</h3>
+
+        <p>The first parameter to <code>authMiddleware</code> is the authentication configuration:</p>
+
+        <CodeBlock language="typescript">{`interface AuthConfig {
+  // Required: JWT signing secret (min 32 characters)
+  secret: string;
+
+  // Required: OAuth provider configuration
+  provider: Provider;
+
+  // Optional: Database adapter for session persistence
+  adapter?: Adapter;
+
+  // Optional: Customize user resolution, JWT claims, and session shape
+  callbacks?: {
+    user?: (oauthUser: OAuthUser) => Promise<User> | User;
+    jwt?: (token: JWTPayload) => JWTPayload;
+    session?: (session: Session) => Session;
+  };
+
+  // Optional: CAPTCHA configuration for bot protection
+  captcha?: CaptchaConfig;
+
+  // Optional: MCP configuration for AI agent authentication
+  mcp?: MCPConfig;
+}`}</CodeBlock>
+
+        <h3>Proxy Options</h3>
+
+        <p>The second parameter configures Proxy behavior:</p>
+
+        <CodeBlock language="typescript">{`interface ProxyOptions {
+  // Base path for all auth routes (default: "/api/auth")
+  basePath?: string;
+
+  // Redirect after successful authentication (default: "/")
+  successRedirect?: string;
+
+  // Redirect after authentication failure (default: "/login")
+  errorRedirect?: string;
+
+  // Enable/disable specific features
+  features?: {
+    session?: boolean;      // GET /session endpoint
+    signout?: boolean;      // POST /signout endpoint
+    oauth?: boolean;        // OAuth flow endpoints
+    email?: boolean;        // Email magic link endpoints
+  };
+}`}</CodeBlock>
+
+        <h2>Advanced Examples</h2>
+
+        <h3>With Database Adapter</h3>
+
+        <Example
+          title="proxy.ts with Prisma"
+          description="Persist sessions to database"
+          code={`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    adapter: PrismaAdapter(prisma),
+    callbacks: {
+      async user(u) {
+        // Prisma adapter will handle user creation/update
+        return {
+          id: u.id || u.email,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}`}
+        />
+
+        <h3>With Email Magic Links</h3>
+
+        <Example
+          title="proxy.ts with email provider"
+          description="Email magic link authentication"
+          code={`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { email } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: email({
+      from: process.env.EMAIL_FROM!,
+      service: {
+        type: "resend",
+        apiKey: process.env.RESEND_API_KEY!,
+      },
+    }),
+    callbacks: {
+      async user(u) {
+        return {
+          id: u.email,
+          email: u.email,
+          name: u.name,
+        };
+      },
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+// Note: Email endpoints require Node runtime
+// Proxy runs on Node runtime by default in Next.js 16`}
+        />
+
+        <h3>With Two-Factor Authentication</h3>
+
+        <Example
+          title="proxy.ts with 2FA"
+          description="Two-factor email authentication"
+          code={`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { twofa } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: twofa({
+      from: process.env.EMAIL_FROM!,
+      service: {
+        type: "resend",
+        apiKey: process.env.RESEND_API_KEY!,
+      },
+      expirationMinutes: 5,
+    }),
+    callbacks: {
+      async user(u) {
+        return {
+          id: u.email,
+          email: u.email,
+          name: u.name,
+        };
+      },
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+// Endpoints:
+// GET /api/auth/signin/twofa?email=user@example.com - Send code
+// GET /api/auth/signin/twofa?identifier=xxx&code=123456 - Verify`}
+        />
+
+        <h3>With CAPTCHA Protection</h3>
+
+        <Example
+          title="proxy.ts with CAPTCHA"
+          description="Bot protection with reCAPTCHA"
+          code={`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+import { createCaptchaProvider } from "@warpy-auth-sdk/core/captcha";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    captcha: {
+      provider: createCaptchaProvider({
+        type: "recaptcha-v3",
+        secretKey: process.env.RECAPTCHA_SECRET_KEY!,
+      }),
+      enabledMethods: ["email", "twofa"], // Enable for email/2FA only
+      scoreThreshold: 0.5, // For reCAPTCHA v3
+    },
+    callbacks: {
+      async user(u) {
+        return {
+          id: u.email,
+          email: u.email,
+          name: u.name,
+        };
+      },
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);`}
+        />
+
+        <h3>With MCP Tools (AI Agents)</h3>
+
+        <Example
+          title="proxy.ts with MCP"
+          description="Enable AI agent authentication"
+          code={`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    mcp: {
+      enabled: true,
+      path: "/api/mcp",
+      warpy: {
+        apiKey: process.env.WARPY_API_KEY, // Optional: Warpy Cloud Shield
+      },
+    },
+    callbacks: {
+      async user(u) {
+        return {
+          id: u.email,
+          email: u.email,
+          name: u.name,
+        };
+      },
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  if (p.startsWith("/api/mcp")) return handler(request); // MCP endpoint
+  return NextResponse.next();
+}`}
+        />
+
+        <h2>Route Handling</h2>
+
+        <h3>Available Routes</h3>
+
+        <p>The Proxy automatically creates these routes based on the provider:</p>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Method</th>
+              <th>Path</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>GET</td>
+              <td><code>{`{basePath}`}/session</code></td>
+              <td>Get current session</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>{`{basePath}`}/signout</code></td>
+              <td>Sign out and clear session</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>{`{basePath}`}/signin/:provider</code></td>
+              <td>Start OAuth flow</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>{`{basePath}`}/callback/:provider</code></td>
+              <td>OAuth callback handler</td>
+            </tr>
+            <tr>
+              <td>POST</td>
+              <td><code>{`{basePath}`}/signin/email</code></td>
+              <td>Send magic link (email provider)</td>
+            </tr>
+            <tr>
+              <td>GET</td>
+              <td><code>{`{basePath}`}/signin/twofa</code></td>
+              <td>Send/verify 2FA code</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <h3>Custom Route Matching</h3>
+
+        <p>Control which requests the Proxy handles:</p>
+
+        <CodeBlock language="typescript">{`export function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Handle all auth routes
+  if (pathname.startsWith("/api/auth")) {
+    return handler(request);
+  }
+
+  // Protect specific routes
+  if (pathname.startsWith("/dashboard") || pathname.startsWith("/admin")) {
+    // Check authentication
+    const session = request.cookies.get("auth-session");
+    if (!session) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+  }
+
+  // Allow all other requests
+  return NextResponse.next();
+}`}</CodeBlock>
+
+        <h2>Callbacks</h2>
+
+        <h3>User Callback</h3>
+
+        <p>The <code>user</code> callback is called after OAuth authentication to resolve or create the user:</p>
+
+        <CodeBlock language="typescript">{`callbacks: {
+  async user(oauthUser) {
+    // oauthUser contains: id, email, name, picture
+
+    // Example: Save to database
+    const user = await db.user.upsert({
+      where: { email: oauthUser.email },
+      create: {
+        email: oauthUser.email,
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      },
+      update: {
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      },
+    });
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+    };
+  },
+}`}</CodeBlock>
+
+        <h3>JWT Callback</h3>
+
+        <p>The <code>jwt</code> callback customizes the JWT token payload:</p>
+
+        <CodeBlock language="typescript">{`callbacks: {
+  jwt(token) {
+    // Add custom claims
+    token.role = "admin";
+    token.subscriptionTier = "pro";
+
+    return token;
+  },
+}`}</CodeBlock>
+
+        <h3>Session Callback</h3>
+
+        <p>The <code>session</code> callback shapes the session object returned to clients:</p>
+
+        <CodeBlock language="typescript">{`callbacks: {
+  session(session) {
+    // Add custom session data
+    session.preferences = {
+      theme: "dark",
+      language: "en",
+    };
+
+    return session;
+  },
+}`}</CodeBlock>
+
+        <h2>PKCE Support</h2>
+
+        <p>The Proxy automatically handles PKCE (Proof Key for Code Exchange) for all OAuth providers:</p>
+
+        <ul>
+          <li><strong>Automatic Generation</strong>: PKCE verifier and challenge are generated automatically</li>
+          <li><strong>Secure Storage</strong>: Verifier stored in HttpOnly cookie</li>
+          <li><strong>S256 Method</strong>: Uses SHA-256 by default (most secure)</li>
+          <li><strong>Cleanup</strong>: Verifier deleted after successful token exchange</li>
+        </ul>
+
+        <Callout type="success" title="PKCE by Default">
+          All OAuth providers use PKCE with S256 by default, following OAuth 2.1 security best practices. No configuration needed!
+        </Callout>
+
+        <h2>Error Handling</h2>
+
+        <p>The Proxy handles errors gracefully with automatic redirects:</p>
+
+        <ul>
+          <li><strong>OAuth Errors</strong>: Redirects to <code>errorRedirect</code> with error query param</li>
+          <li><strong>Session Errors</strong>: Returns 401 for invalid sessions</li>
+          <li><strong>CSRF Errors</strong>: Returns 403 for CSRF validation failures</li>
+        </ul>
+
+        <CodeBlock language="typescript">{`// Example error redirect
+// User denied OAuth: /login?error=access_denied
+// Invalid callback: /login?error=callback_failed`}</CodeBlock>
+
+        <h2>Security Considerations</h2>
+
+        <h3>CSRF Protection</h3>
+
+        <p>CSRF protection is automatic for OAuth flows:</p>
+
+        <ul>
+          <li>State parameter generated and validated</li>
+          <li>In-memory storage with cookie fallback</li>
+          <li>Automatic cleanup after validation</li>
+        </ul>
+
+        <h3>Cookie Security</h3>
+
+        <p>Session cookies use secure defaults:</p>
+
+        <ul>
+          <li><code>httpOnly: true</code> - Not accessible via JavaScript</li>
+          <li><code>secure: true</code> - HTTPS only (production)</li>
+          <li><code>sameSite: "lax"</code> - CSRF protection</li>
+          <li><code>maxAge: 30 days</code> - Configurable expiration</li>
+        </ul>
+
+        <h3>Secret Management</h3>
+
+        <CodeBlock language="bash">{`# Generate a secure secret (min 32 chars)
+openssl rand -base64 32
+
+# Store in .env.local
+AUTH_SECRET=your-generated-secret`}</CodeBlock>
+
+        <Callout type="warning" title="Keep Secrets Secret">
+          Never commit <code>.env.local</code> to version control. Use environment variables in production.
+        </Callout>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>Proxy Not Running</h3>
+
+        <p>Ensure the Proxy is properly exported:</p>
+
+        <CodeBlock language="typescript">{`// Must be named "proxy" (lowercase)
+export function proxy(request: NextRequest) {
+  // ...
+}
+
+// Must include matcher config
+export const config = {
+  matcher: [/* ... */],
+};`}</CodeBlock>
+
+        <h3>OAuth Callback Errors</h3>
+
+        <p>Verify redirect URI matches exactly:</p>
+
+        <CodeBlock language="bash">{`# .env.local
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+
+# Google Cloud Console: Must match exactly, including protocol and path`}</CodeBlock>
+
+        <h3>Session Not Persisting</h3>
+
+        <p>Check cookie settings and domain:</p>
+
+        <CodeBlock language="typescript">{`// Development: localhost works fine
+// Production: Ensure secure: true and proper domain`}</CodeBlock>
+
+        <h2>Performance</h2>
+
+        <p>The Proxy is highly optimized:</p>
+
+        <ul>
+          <li><strong>Edge Runtime</strong>: Runs on Vercel Edge (super fast)</li>
+          <li><strong>Minimal Overhead</strong>: Only processes auth routes</li>
+          <li><strong>In-Memory CSRF</strong>: Fast state validation</li>
+          <li><strong>JWT Tokens</strong>: Stateless session validation</li>
+        </ul>
+
+        <h2>Migration from Middleware</h2>
+
+        <p>If you're migrating from Next.js 15 Middleware:</p>
+
+        <CodeBlock language="typescript">{`// Old: middleware.ts (Next.js 15)
+export function middleware(request: NextRequest) {
+  // ...
+}
+
+// New: proxy.ts (Next.js 16)
+export function proxy(request: NextRequest) {
+  // Same logic, just renamed
+}`}</CodeBlock>
+
+        <Callout type="info" title="Naming Change">
+          Next.js 16 renamed "Middleware" to "Proxy". The functionality is identical, just use <code>proxy.ts</code> instead of <code>middleware.ts</code>.
+        </Callout>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/react-hooks">React Hooks</a> - Use session in your components</li>
+          <li><a href="/docs/guides/session-management">Session Management</a> - Understand JWT and cookies</li>
+          <li><a href="/docs/guides/database-adapters">Database Adapters</a> - Persist sessions to database</li>
+          <li><a href="/docs/guides/security-best-practices">Security Best Practices</a> - Production security</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

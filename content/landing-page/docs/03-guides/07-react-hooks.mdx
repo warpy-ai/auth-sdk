@@ -1,0 +1,732 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'React Hooks - @warpy-auth-sdk/core',
+  description: 'Using useAuth, AuthProvider, and getServerSession',
+};
+
+export default function ReactHooks() {
+  return (
+    <DocsLayout
+      title="React Hooks"
+      description="Using useAuth, AuthProvider, and getServerSession"
+      prevPage={{ title: 'Next.js Proxy', href: '/docs/guides/nextjs-proxy' }}
+      nextPage={{ title: 'Session Management', href: '/docs/guides/session-management' }}
+    >
+      <div>
+        <h2>React Hooks</h2>
+
+        <p>
+          The SDK provides React hooks for seamless client-side authentication in React and Next.js applications. These hooks handle session management, loading states, and authentication actions automatically.
+        </p>
+
+        <h2>Overview</h2>
+
+        <p>The SDK includes three main components for React integration:</p>
+
+        <ul>
+          <li><code>AuthProvider</code> - Context provider for managing session state</li>
+          <li><code>useAuth()</code> - Hook for accessing session, loading state, and auth methods</li>
+          <li><code>getServerSession()</code> - Server-side session helper for Server Components</li>
+        </ul>
+
+        <h2>Installation</h2>
+
+        <CodeBlock language="bash">{`npm install @warpy-auth-sdk/core
+# The hooks are included in the core package`}</CodeBlock>
+
+        <h2>AuthProvider</h2>
+
+        <p>
+          The <code>AuthProvider</code> must wrap your application to provide authentication context to all child components.
+        </p>
+
+        <h3>Basic Setup</h3>
+
+        <Example
+          title="app/layout.tsx"
+          description="Root layout with AuthProvider"
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+import "./globals.css";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}`}
+        />
+
+        <h3>How It Works</h3>
+
+        <p>The <code>AuthProvider</code>:</p>
+
+        <ul>
+          <li>Fetches the current session from <code>GET /api/auth/session</code></li>
+          <li>Stores session state in React Context</li>
+          <li>Provides <code>signOut</code> and <code>refetch</code> methods</li>
+          <li>Handles loading states automatically</li>
+          <li>Re-fetches session on mount and window focus</li>
+        </ul>
+
+        <h2>useAuth Hook</h2>
+
+        <p>
+          The <code>useAuth</code> hook provides access to the current session, loading state, and authentication methods.
+        </p>
+
+        <h3>Return Values</h3>
+
+        <CodeBlock language="typescript">{`interface UseAuthReturn {
+  // Current session (null if not authenticated)
+  session: Session | null;
+
+  // Loading state (true during initial fetch)
+  loading: boolean;
+
+  // Sign out the current user
+  signOut: () => Promise<void>;
+
+  // Manually refetch the session
+  refetch: () => Promise<void>;
+}`}</CodeBlock>
+
+        <h3>Basic Usage</h3>
+
+        <Example
+          title="Profile Component"
+          description="Display user information"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+
+export default function Profile() {
+  const { session, loading } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return <div>Not authenticated</div>;
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {session.user.name}!</h1>
+      <p>Email: {session.user.email}</p>
+      {session.user.picture && (
+        <img src={session.user.picture} alt="Profile" />
+      )}
+    </div>
+  );
+}`}
+        />
+
+        <h3>Protected Component</h3>
+
+        <Example
+          title="Protected Dashboard"
+          description="Redirect unauthenticated users"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function Dashboard() {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push("/login");
+    }
+  }, [session, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null; // Will redirect
+  }
+
+  return (
+    <div>
+      <h1>Dashboard</h1>
+      <p>Welcome, {session.user.name}</p>
+    </div>
+  );
+}`}
+        />
+
+        <h3>Sign Out Button</h3>
+
+        <Example
+          title="Sign Out Component"
+          description="Sign out the current user"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+
+export default function SignOutButton() {
+  const { signOut } = useAuth();
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    await signOut();
+    router.push("/login");
+  };
+
+  return (
+    <button
+      onClick={handleSignOut}
+      className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+    >
+      Sign Out
+    </button>
+  );
+}`}
+        />
+
+        <h3>Conditional Rendering</h3>
+
+        <Example
+          title="Conditional Navigation"
+          description="Show different UI based on auth state"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import Link from "next/link";
+
+export default function Navigation() {
+  const { session, loading, signOut } = useAuth();
+
+  if (loading) {
+    return (
+      <nav>
+        <div className="animate-pulse bg-gray-200 h-10 w-20 rounded" />
+      </nav>
+    );
+  }
+
+  return (
+    <nav className="flex items-center justify-between p-4 bg-white shadow">
+      <Link href="/" className="text-xl font-bold">
+        My App
+      </Link>
+
+      <div className="space-x-4">
+        {session ? (
+          <>
+            <span>Hello, {session.user.name}</span>
+            <Link
+              href="/dashboard"
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Dashboard
+            </Link>
+            <button
+              onClick={signOut}
+              className="text-red-600 hover:text-red-800"
+            >
+              Sign Out
+            </button>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/login"
+              className="text-blue-600 hover:text-blue-800"
+            >
+              Sign In
+            </Link>
+            <Link
+              href="/signup"
+              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700"
+            >
+              Sign Up
+            </Link>
+          </>
+        )}
+      </div>
+    </nav>
+  );
+}`}
+        />
+
+        <h2>getServerSession</h2>
+
+        <p>
+          The <code>getServerSession</code> helper retrieves the session in Server Components, Server Actions, and Route Handlers.
+        </p>
+
+        <h3>Server Component</h3>
+
+        <Example
+          title="app/profile/page.tsx"
+          description="Server component with session access"
+          code={`import { getServerSession } from "@warpy-auth-sdk/core/hooks/server";
+import { redirect } from "next/navigation";
+
+export default async function ProfilePage() {
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  return (
+    <div>
+      <h1>Profile</h1>
+      <p>Name: {session.user.name}</p>
+      <p>Email: {session.user.email}</p>
+      <p>User ID: {session.user.id}</p>
+    </div>
+  );
+}`}
+        />
+
+        <h3>Server Action</h3>
+
+        <Example
+          title="app/actions.ts"
+          description="Server action with session validation"
+          code={`'use server';
+
+import { getServerSession } from "@warpy-auth-sdk/core/hooks/server";
+import { revalidatePath } from "next/cache";
+
+export async function updateProfile(formData: FormData) {
+  const session = await getServerSession();
+
+  if (!session) {
+    throw new Error("Unauthorized");
+  }
+
+  const name = formData.get("name") as string;
+
+  // Update user in database
+  await db.user.update({
+    where: { id: session.user.id },
+    data: { name },
+  });
+
+  revalidatePath("/profile");
+
+  return { success: true };
+}`}
+        />
+
+        <h3>Route Handler</h3>
+
+        <Example
+          title="app/api/user/route.ts"
+          description="API route with session validation"
+          code={`import { getServerSession } from "@warpy-auth-sdk/core/hooks/server";
+import { NextRequest } from "next/server";
+
+export async function GET(request: NextRequest) {
+  const session = await getServerSession();
+
+  if (!session) {
+    return Response.json(
+      { error: "Unauthorized" },
+      { status: 401 }
+    );
+  }
+
+  // Fetch user data from database
+  const user = await db.user.findUnique({
+    where: { id: session.user.id },
+    include: { posts: true },
+  });
+
+  return Response.json({ user });
+}`}
+        />
+
+        <h2>Session Type</h2>
+
+        <p>The session object has the following structure:</p>
+
+        <CodeBlock language="typescript">{`interface Session {
+  // User information
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+
+  // Session metadata
+  expires: string; // ISO timestamp
+  type?: string;   // 'oauth', 'email', 'mcp-agent', etc.
+
+  // Custom fields (from session callback)
+  [key: string]: any;
+}`}</CodeBlock>
+
+        <h2>Advanced Patterns</h2>
+
+        <h3>Custom Loading Component</h3>
+
+        <Example
+          title="LoadingGuard Component"
+          description="Reusable loading guard"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { ReactNode } from "react";
+
+interface LoadingGuardProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+export function LoadingGuard({ children, fallback }: LoadingGuardProps) {
+  const { loading } = useAuth();
+
+  if (loading) {
+    return fallback || (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900" />
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// Usage:
+// <LoadingGuard fallback={<Spinner />}>
+//   <Dashboard />
+// </LoadingGuard>`}
+        />
+
+        <h3>Auth Guard Component</h3>
+
+        <Example
+          title="AuthGuard Component"
+          description="Protect routes with a reusable guard"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { ReactNode, useEffect } from "react";
+
+interface AuthGuardProps {
+  children: ReactNode;
+  redirectTo?: string;
+}
+
+export function AuthGuard({ children, redirectTo = "/login" }: AuthGuardProps) {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push(redirectTo);
+    }
+  }, [session, loading, router, redirectTo]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return null; // Will redirect
+  }
+
+  return <>{children}</>;
+}
+
+// Usage:
+// <AuthGuard redirectTo="/login">
+//   <ProtectedContent />
+// </AuthGuard>`}
+        />
+
+        <h3>Role-Based Access</h3>
+
+        <Example
+          title="Role Guard Component"
+          description="Protect routes by user role"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { ReactNode, useEffect } from "react";
+
+interface RoleGuardProps {
+  children: ReactNode;
+  requiredRole: string;
+  fallback?: ReactNode;
+}
+
+export function RoleGuard({
+  children,
+  requiredRole,
+  fallback
+}: RoleGuardProps) {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push("/login");
+    }
+  }, [session, loading, router]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  // Check role from JWT claims (set in jwt callback)
+  const userRole = (session as any).role;
+
+  if (userRole !== requiredRole) {
+    return fallback || (
+      <div>
+        <h1>Access Denied</h1>
+        <p>You don't have permission to view this page.</p>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
+
+// Usage:
+// <RoleGuard requiredRole="admin" fallback={<AccessDenied />}>
+//   <AdminPanel />
+// </RoleGuard>`}
+        />
+
+        <h3>Refetch on Action</h3>
+
+        <Example
+          title="Profile Update with Refetch"
+          description="Refetch session after profile update"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useState } from "react";
+
+export default function ProfileForm() {
+  const { session, refetch } = useAuth();
+  const [name, setName] = useState(session?.user.name || "");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      await fetch("/api/user/update", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+
+      // Refetch session to get updated user data
+      await refetch();
+
+      alert("Profile updated!");
+    } catch (error) {
+      alert("Failed to update profile");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="border rounded px-3 py-2"
+      />
+      <button
+        type="submit"
+        disabled={saving}
+        className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 disabled:opacity-50"
+      >
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </form>
+  );
+}`}
+        />
+
+        <h2>TypeScript Support</h2>
+
+        <p>The hooks include full TypeScript support with type inference:</p>
+
+        <CodeBlock language="typescript">{`import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import type { Session } from "@warpy-auth-sdk/core";
+
+function MyComponent() {
+  const { session, loading } = useAuth();
+
+  // session is typed as Session | null
+  // TypeScript knows session.user.email exists
+  if (session) {
+    const email: string = session.user.email; // ✓ Type-safe
+  }
+}`}</CodeBlock>
+
+        <h3>Custom Session Type</h3>
+
+        <p>Extend the session type with custom fields:</p>
+
+        <CodeBlock language="typescript">{`import type { Session as BaseSession } from "@warpy-auth-sdk/core";
+
+// Extend base session type
+interface CustomSession extends BaseSession {
+  role: string;
+  subscriptionTier: "free" | "pro" | "enterprise";
+}
+
+// Use in component
+function MyComponent() {
+  const { session } = useAuth();
+  const customSession = session as CustomSession | null;
+
+  if (customSession) {
+    // TypeScript knows about custom fields
+    const role = customSession.role;
+    const tier = customSession.subscriptionTier;
+  }
+}`}</CodeBlock>
+
+        <h2>Best Practices</h2>
+
+        <h3>1. Handle Loading States</h3>
+
+        <p>Always check the loading state before rendering content:</p>
+
+        <CodeBlock language="typescript">{`const { session, loading } = useAuth();
+
+if (loading) {
+  return <LoadingSpinner />;
+}
+
+// Now safe to use session`}</CodeBlock>
+
+        <h3>2. Protect Routes Client-Side</h3>
+
+        <p>Redirect unauthenticated users in useEffect:</p>
+
+        <CodeBlock language="typescript">{`useEffect(() => {
+  if (!loading && !session) {
+    router.push("/login");
+  }
+}, [session, loading, router]);`}</CodeBlock>
+
+        <h3>3. Validate Server-Side</h3>
+
+        <p>Never trust client-side authentication alone. Always validate server-side:</p>
+
+        <CodeBlock language="typescript">{`// Server Component or API Route
+const session = await getServerSession();
+if (!session) {
+  redirect("/login"); // or return 401
+}`}</CodeBlock>
+
+        <h3>4. Use AuthProvider at Root</h3>
+
+        <p>Place AuthProvider as high as possible in your component tree:</p>
+
+        <CodeBlock language="typescript">{`// app/layout.tsx
+<AuthProvider>
+  {children}
+</AuthProvider>`}</CodeBlock>
+
+        <h3>5. Minimize Re-renders</h3>
+
+        <p>Use session data efficiently to avoid unnecessary re-renders:</p>
+
+        <CodeBlock language="typescript">{`// Extract only what you need
+const { session } = useAuth();
+const userName = session?.user.name;
+
+// Instead of passing entire session
+<Component name={userName} />`}</CodeBlock>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>Hook Not Working</h3>
+
+        <p>Ensure AuthProvider is wrapping your component:</p>
+
+        <CodeBlock language="typescript">{`// ✗ Wrong
+<MyComponent />
+
+// ✓ Correct
+<AuthProvider>
+  <MyComponent />
+</AuthProvider>`}</CodeBlock>
+
+        <h3>Session Not Updating</h3>
+
+        <p>Call <code>refetch()</code> after actions that update the session:</p>
+
+        <CodeBlock language="typescript">{`const { refetch } = useAuth();
+
+await updateUserProfile();
+await refetch(); // Refresh session`}</CodeBlock>
+
+        <h3>Infinite Redirect Loop</h3>
+
+        <p>Check loading state before redirecting:</p>
+
+        <CodeBlock language="typescript">{`// ✗ Wrong - infinite loop
+useEffect(() => {
+  if (!session) {
+    router.push("/login");
+  }
+}, [session]);
+
+// ✓ Correct - check loading
+useEffect(() => {
+  if (!loading && !session) {
+    router.push("/login");
+  }
+}, [session, loading]);`}</CodeBlock>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/session-management">Session Management</a> - Understand JWT and cookies</li>
+          <li><a href="/docs/guides/nextjs-integration">Next.js Integration</a> - Complete Next.js setup</li>
+          <li><a href="/docs/api-reference/core-functions">API Reference</a> - Full API documentation</li>
+          <li><a href="/docs/examples/nextjs-app-router">Next.js Example</a> - Complete working example</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -1,0 +1,675 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Security Best Practices - @warpy-auth-sdk/core',
+  description: 'Production-ready security practices for authentication',
+};
+
+export default function SecurityBestPractices() {
+  return (
+    <DocsLayout
+      title="Security Best Practices"
+      description="Production-ready security practices for authentication"
+      prevPage={{ title: 'Database Adapters', href: '/docs/guides/database-adapters' }}
+      nextPage={{ title: 'Deployment Guide', href: '/docs/guides/deployment' }}
+    >
+      <div>
+        <h2>Security Best Practices</h2>
+
+        <p>
+          Authentication security is critical for protecting user data and preventing unauthorized access. This guide covers essential security practices for production deployments.
+        </p>
+
+        <h2>Secret Management</h2>
+
+        <h3>Strong Secret Generation</h3>
+
+        <p>The <code>AUTH_SECRET</code> is the foundation of your security. It must be:</p>
+
+        <ul>
+          <li>At least 32 characters long</li>
+          <li>Cryptographically random</li>
+          <li>Unique per environment (dev, staging, prod)</li>
+          <li>Never committed to version control</li>
+        </ul>
+
+        <CodeBlock language="bash">{`# Generate a secure secret (32+ bytes)
+openssl rand -base64 32
+
+# Output example:
+# h8vF2xK9mN5pQ7rT3wY6zA1bC4dE8fG2hJ5kL7mN9pQ=
+
+# Store in .env.local (development)
+AUTH_SECRET=h8vF2xK9mN5pQ7rT3wY6zA1bC4dE8fG2hJ5kL7mN9pQ=
+
+# Use environment variables (production)
+# Set in Vercel, AWS, etc. - never hardcode`}</CodeBlock>
+
+        <Callout type="warning" title="Critical Security Warning">
+          If your <code>AUTH_SECRET</code> is compromised, attackers can forge session tokens and impersonate any user. Rotate secrets immediately if exposure is suspected.
+        </Callout>
+
+        <h3>Secret Rotation</h3>
+
+        <p>Implement secret rotation for added security:</p>
+
+        <Example
+          title="Secret Rotation Strategy"
+          description="Support old and new secrets during transition"
+          code={`// Support multiple secrets during rotation
+const secrets = [
+  process.env.AUTH_SECRET!,        // Current secret
+  process.env.AUTH_SECRET_OLD,     // Previous secret (grace period)
+].filter(Boolean);
+
+// Try each secret when verifying tokens
+async function verifyToken(token: string) {
+  for (const secret of secrets) {
+    try {
+      const payload = await verify(token, secret);
+      return payload;
+    } catch (err) {
+      continue; // Try next secret
+    }
+  }
+  throw new Error("Invalid token");
+}
+
+// Always sign with current secret
+const token = await sign(payload, process.env.AUTH_SECRET!);`}
+        />
+
+        <h2>HTTPS Everywhere</h2>
+
+        <h3>Enforce HTTPS in Production</h3>
+
+        <p>Always use HTTPS in production to prevent man-in-the-middle attacks:</p>
+
+        <CodeBlock language="typescript">{`// Next.js middleware/proxy
+export function proxy(request: NextRequest) {
+  // Redirect HTTP to HTTPS in production
+  if (
+    process.env.NODE_ENV === "production" &&
+    request.headers.get("x-forwarded-proto") !== "https"
+  ) {
+    return NextResponse.redirect(
+      \`https://\${request.headers.get("host")}\${request.nextUrl.pathname}\`,
+      301
+    );
+  }
+
+  // Continue with auth handling
+  return authHandler(request);
+}`}</CodeBlock>
+
+        <h3>Secure Cookie Settings</h3>
+
+        <p>The SDK uses secure cookie defaults, but verify in production:</p>
+
+        <CodeBlock language="typescript">{`{
+  httpOnly: true,     // ✓ Prevents XSS attacks
+  secure: true,       // ✓ HTTPS only
+  sameSite: "lax",    // ✓ CSRF protection
+  maxAge: 2592000,    // ✓ 30 days
+  path: "/",          // ✓ Available on all routes
+}`}</CodeBlock>
+
+        <h2>PKCE for OAuth</h2>
+
+        <p>The SDK implements PKCE (Proof Key for Code Exchange) by default for all OAuth providers:</p>
+
+        <ul>
+          <li><strong>S256 Method</strong>: Uses SHA-256 challenge (most secure)</li>
+          <li><strong>Automatic</strong>: No configuration needed</li>
+          <li><strong>RFC 7636 Compliant</strong>: Follows OAuth 2.1 best practices</li>
+        </ul>
+
+        <CodeBlock language="typescript">{`// PKCE is automatic - nothing to configure
+const provider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  // pkce: "S256" is the default
+});`}</CodeBlock>
+
+        <Callout type="success" title="PKCE Benefits">
+          PKCE prevents authorization code interception attacks, even if the code is stolen. It's especially important for public clients (mobile apps, SPAs).
+        </Callout>
+
+        <h2>CSRF Protection</h2>
+
+        <h3>OAuth State Parameter</h3>
+
+        <p>The SDK automatically handles CSRF protection for OAuth flows:</p>
+
+        <ul>
+          <li>Generates random state parameter</li>
+          <li>Stores in-memory with cookie fallback</li>
+          <li>Validates on callback</li>
+          <li>Prevents cross-site request forgery</li>
+        </ul>
+
+        <CodeBlock language="typescript">{`// Automatic CSRF protection
+// 1. User clicks "Sign in with Google"
+const state = generateSecureToken(); // Random 32-byte token
+csrfStore.set(state, true);          // Store server-side
+
+// 2. Redirect to Google with state
+const authUrl = \`https://accounts.google.com/o/oauth2/v2/auth?state=\${state}...\`;
+
+// 3. Google redirects back with state
+const callbackState = request.url.searchParams.get("state");
+
+// 4. Validate state matches
+if (!csrfStore.has(callbackState)) {
+  throw new Error("CSRF validation failed");
+}
+
+// 5. Clean up
+csrfStore.delete(callbackState);`}</CodeBlock>
+
+        <h3>Custom Form CSRF</h3>
+
+        <p>For custom forms (email sign-in, etc.), implement CSRF tokens:</p>
+
+        <Example
+          title="CSRF Token for Forms"
+          description="Protect custom authentication forms"
+          code={`// Generate CSRF token
+import { generateCsrfToken, validateCsrfToken } from "@warpy-auth-sdk/core/utils/csrf";
+
+// 1. Generate token when rendering form
+const csrfToken = generateCsrfToken();
+
+// 2. Include in form
+<form method="POST" action="/api/auth/signin/email">
+  <input type="hidden" name="csrfToken" value={csrfToken} />
+  <input type="email" name="email" required />
+  <button type="submit">Sign In</button>
+</form>
+
+// 3. Validate on submission
+export async function POST(request: NextRequest) {
+  const formData = await request.formData();
+  const csrfToken = formData.get("csrfToken") as string;
+
+  if (!validateCsrfToken(csrfToken)) {
+    return Response.json({ error: "Invalid CSRF token" }, { status: 403 });
+  }
+
+  // Proceed with authentication
+}`}
+        />
+
+        <h2>Rate Limiting</h2>
+
+        <h3>Authentication Endpoints</h3>
+
+        <p>Implement rate limiting to prevent brute force attacks:</p>
+
+        <Example
+          title="Rate Limiting with Upstash"
+          description="Limit authentication attempts"
+          code={`import { Ratelimit } from "@upstash/ratelimit";
+import { Redis } from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_URL!,
+  token: process.env.UPSTASH_REDIS_TOKEN!,
+});
+
+const ratelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(5, "1 m"), // 5 requests per minute
+});
+
+export async function POST(request: NextRequest) {
+  // Get client IP
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+
+  // Check rate limit
+  const { success } = await ratelimit.limit(ip);
+
+  if (!success) {
+    return Response.json(
+      { error: "Too many requests. Please try again later." },
+      { status: 429 }
+    );
+  }
+
+  // Proceed with authentication
+  const result = await authenticate(config, request);
+  // ...
+}`}
+        />
+
+        <h3>Per-User Rate Limiting</h3>
+
+        <Example
+          title="User-Specific Rate Limits"
+          description="Limit failed login attempts per user"
+          code={`import { Redis } from "@upstash/redis";
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_URL!,
+  token: process.env.UPSTASH_REDIS_TOKEN!,
+});
+
+async function checkFailedAttempts(email: string): Promise<boolean> {
+  const key = \`failed-login:\${email}\`;
+  const attempts = await redis.get(key) || 0;
+
+  if (attempts >= 5) {
+    // Check if lockout period has passed
+    const ttl = await redis.ttl(key);
+    if (ttl > 0) {
+      throw new Error(\`Account locked. Try again in \${Math.ceil(ttl / 60)} minutes.\`);
+    }
+  }
+
+  return true;
+}
+
+async function recordFailedAttempt(email: string): Promise<void> {
+  const key = \`failed-login:\${email}\`;
+  await redis.incr(key);
+  await redis.expire(key, 900); // 15 minute lockout
+}
+
+async function clearFailedAttempts(email: string): Promise<void> {
+  const key = \`failed-login:\${email}\`;
+  await redis.del(key);
+}
+
+// Usage
+try {
+  await checkFailedAttempts(email);
+  const result = await authenticate(config, request);
+
+  if (result.session) {
+    await clearFailedAttempts(email);
+  } else {
+    await recordFailedAttempts(email);
+  }
+} catch (error) {
+  await recordFailedAttempts(email);
+  throw error;
+}`}
+        />
+
+        <h2>Input Validation</h2>
+
+        <h3>Email Validation</h3>
+
+        <Example
+          title="Validate Email Input"
+          description="Prevent injection attacks"
+          code={`import { z } from "zod";
+
+const emailSchema = z.string().email().max(255);
+
+export async function POST(request: NextRequest) {
+  const { email } = await request.json();
+
+  // Validate email format
+  const result = emailSchema.safeParse(email);
+
+  if (!result.success) {
+    return Response.json(
+      { error: "Invalid email address" },
+      { status: 400 }
+    );
+  }
+
+  // Sanitize email (lowercase, trim)
+  const sanitizedEmail = result.data.toLowerCase().trim();
+
+  // Proceed with authentication
+  const authResult = await authenticate(config, request, {
+    email: sanitizedEmail,
+  });
+}`}
+        />
+
+        <h3>Prevent SQL Injection</h3>
+
+        <p>Always use parameterized queries or ORM:</p>
+
+        <CodeBlock language="typescript">{`// ✗ NEVER do this (vulnerable to SQL injection)
+const user = await db.execute(
+  \`SELECT * FROM users WHERE email = '\${email}'\`
+);
+
+// ✓ Use parameterized queries
+const user = await db.execute(
+  "SELECT * FROM users WHERE email = ?",
+  [email]
+);
+
+// ✓ Or use an ORM like Prisma
+const user = await prisma.user.findUnique({
+  where: { email },
+});`}</CodeBlock>
+
+        <h2>XSS Prevention</h2>
+
+        <h3>Content Security Policy</h3>
+
+        <Example
+          title="CSP Headers"
+          description="Prevent XSS attacks"
+          code={`// Next.js config
+export const config = {
+  headers: async () => [
+    {
+      source: "/:path*",
+      headers: [
+        {
+          key: "Content-Security-Policy",
+          value: [
+            "default-src 'self'",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+            "style-src 'self' 'unsafe-inline'",
+            "img-src 'self' data: https:",
+            "font-src 'self' data:",
+            "connect-src 'self' https://accounts.google.com",
+          ].join("; "),
+        },
+      ],
+    },
+  ],
+};`}
+        />
+
+        <h3>Sanitize User Input</h3>
+
+        <CodeBlock language="typescript">{`// ✗ Don't render raw HTML from user input
+<div dangerouslySetInnerHTML={{ __html: userInput }} />
+
+// ✓ Escape user input automatically
+<div>{userInput}</div>
+
+// ✓ Or use a sanitization library
+import DOMPurify from "dompurify";
+<div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(userInput) }} />`}</CodeBlock>
+
+        <h2>Session Security</h2>
+
+        <h3>Short-Lived Tokens</h3>
+
+        <p>Use appropriate token expiration times:</p>
+
+        <CodeBlock language="typescript">{`// Standard user sessions: 30 days
+maxAge: 60 * 60 * 24 * 30
+
+// Admin/sensitive operations: 1 hour
+maxAge: 60 * 60
+
+// MCP agent tokens: 15 minutes
+expiresIn: "15m"
+
+// API tokens: 7 days
+maxAge: 60 * 60 * 24 * 7`}</CodeBlock>
+
+        <h3>Session Revocation</h3>
+
+        <p>Enable immediate session revocation with database adapter:</p>
+
+        <Example
+          title="Revoke Sessions on Password Change"
+          description="Sign out all devices when password changes"
+          code={`async function changePassword(userId: string, newPassword: string) {
+  // Update password
+  await db.user.update({
+    where: { id: userId },
+    data: { password: await hash(newPassword) },
+  });
+
+  // Revoke all existing sessions
+  await adapter.deleteUserSessions(userId);
+
+  // Force user to re-authenticate
+}`}
+        />
+
+        <h3>Detect Session Hijacking</h3>
+
+        <Example
+          title="Track Session Metadata"
+          description="Detect suspicious session activity"
+          code={`// Store session metadata
+interface SessionMetadata {
+  userAgent: string;
+  ip: string;
+  createdAt: Date;
+  lastActivityAt: Date;
+}
+
+// Check for changes
+async function validateSessionSecurity(
+  session: Session,
+  request: NextRequest
+): Promise<boolean> {
+  const currentIp = request.headers.get("x-forwarded-for");
+  const currentUserAgent = request.headers.get("user-agent");
+
+  const metadata = await getSessionMetadata(session.token);
+
+  // Flag if IP or user agent changed
+  if (
+    metadata.ip !== currentIp ||
+    metadata.userAgent !== currentUserAgent
+  ) {
+    // Log suspicious activity
+    await logSecurityEvent({
+      type: "session_hijack_attempt",
+      sessionId: session.token,
+      oldIp: metadata.ip,
+      newIp: currentIp,
+    });
+
+    // Optionally revoke session
+    await adapter.deleteSession(session.token);
+
+    return false;
+  }
+
+  return true;
+}`}
+        />
+
+        <h2>CAPTCHA Protection</h2>
+
+        <p>Use CAPTCHA to prevent bot attacks:</p>
+
+        <Example
+          title="CAPTCHA for Email Sign-in"
+          description="Protect against automated attacks"
+          code={`import { createCaptchaProvider } from "@warpy-auth-sdk/core/captcha";
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: email({ /* ... */ }),
+  captcha: {
+    provider: createCaptchaProvider({
+      type: "recaptcha-v3",
+      secretKey: process.env.RECAPTCHA_SECRET_KEY!,
+    }),
+    enabledMethods: ["email", "twofa"], // Only for email/2FA
+    scoreThreshold: 0.5, // Minimum score for reCAPTCHA v3
+  },
+};
+
+// Client-side
+const captchaToken = await grecaptcha.execute(siteKey, { action: "login" });
+
+await fetch("/api/auth/signin/email", {
+  method: "POST",
+  body: JSON.stringify({ email, captchaToken }),
+});`}
+        />
+
+        <h2>Audit Logging</h2>
+
+        <Example
+          title="Log Security Events"
+          description="Track authentication events"
+          code={`interface SecurityEvent {
+  type: "login_success" | "login_failure" | "logout" | "session_revoked" | "suspicious_activity";
+  userId?: string;
+  email?: string;
+  ip: string;
+  userAgent: string;
+  timestamp: Date;
+  metadata?: Record<string, any>;
+}
+
+async function logSecurityEvent(event: SecurityEvent) {
+  await db.securityLog.create({
+    data: event,
+  });
+
+  // Alert on suspicious patterns
+  if (event.type === "login_failure") {
+    const recentFailures = await db.securityLog.count({
+      where: {
+        email: event.email,
+        type: "login_failure",
+        timestamp: { gt: new Date(Date.now() - 5 * 60 * 1000) },
+      },
+    });
+
+    if (recentFailures >= 5) {
+      await sendSecurityAlert({
+        type: "brute_force_attempt",
+        email: event.email,
+        failureCount: recentFailures,
+      });
+    }
+  }
+}
+
+// Usage
+try {
+  const result = await authenticate(config, request);
+  await logSecurityEvent({
+    type: "login_success",
+    userId: result.session.user.id,
+    email: result.session.user.email,
+    ip: request.headers.get("x-forwarded-for") || "unknown",
+    userAgent: request.headers.get("user-agent") || "unknown",
+    timestamp: new Date(),
+  });
+} catch (error) {
+  await logSecurityEvent({
+    type: "login_failure",
+    email: email,
+    ip: request.headers.get("x-forwarded-for") || "unknown",
+    userAgent: request.headers.get("user-agent") || "unknown",
+    timestamp: new Date(),
+    metadata: { error: error.message },
+  });
+}`}
+        />
+
+        <h2>OAuth Security</h2>
+
+        <h3>Redirect URI Validation</h3>
+
+        <p>Always validate redirect URIs in OAuth providers:</p>
+
+        <CodeBlock language="bash">{`# Must match EXACTLY in OAuth provider settings
+GOOGLE_REDIRECT_URI=https://yourdomain.com/api/auth/callback/google
+
+# NOT:
+# http://yourdomain.com/... (wrong protocol)
+# https://yourdomain.com/callback/google (wrong path)
+# https://www.yourdomain.com/... (wrong subdomain)`}</CodeBlock>
+
+        <h3>State Parameter</h3>
+
+        <p>The SDK automatically includes and validates the state parameter for CSRF protection.</p>
+
+        <h3>Token Storage</h3>
+
+        <p>Store OAuth tokens securely:</p>
+
+        <CodeBlock language="typescript">{`// ✓ Store access tokens in database (encrypted)
+const encryptedToken = await encrypt(accessToken);
+await db.account.update({
+  where: { id: account.id },
+  data: { accessToken: encryptedToken },
+});
+
+// ✗ Never expose access tokens to client
+// ✗ Never log access tokens
+// ✗ Never commit access tokens to version control`}</CodeBlock>
+
+        <h2>Production Checklist</h2>
+
+        <Callout type="info" title="Security Checklist">
+          Before deploying to production, verify:
+        </Callout>
+
+        <ul>
+          <li>✓ <code>AUTH_SECRET</code> is 32+ characters and cryptographically random</li>
+          <li>✓ HTTPS is enforced on all pages</li>
+          <li>✓ Secure cookies (<code>httpOnly: true, secure: true, sameSite: "lax"</code>)</li>
+          <li>✓ PKCE enabled for OAuth (automatic in SDK)</li>
+          <li>✓ CSRF protection for all forms</li>
+          <li>✓ Rate limiting on authentication endpoints</li>
+          <li>✓ Input validation and sanitization</li>
+          <li>✓ Content Security Policy headers</li>
+          <li>✓ Session revocation mechanism (with database adapter)</li>
+          <li>✓ Audit logging for security events</li>
+          <li>✓ Regular security updates and dependency patches</li>
+          <li>✓ OAuth redirect URIs whitelisted in provider settings</li>
+          <li>✓ Environment variables (not hardcoded secrets)</li>
+          <li>✓ CAPTCHA protection for public endpoints</li>
+        </ul>
+
+        <h2>Incident Response</h2>
+
+        <h3>If Secrets Are Compromised</h3>
+
+        <ol>
+          <li>Immediately rotate <code>AUTH_SECRET</code></li>
+          <li>Revoke all active sessions</li>
+          <li>Force all users to re-authenticate</li>
+          <li>Review audit logs for suspicious activity</li>
+          <li>Notify affected users if necessary</li>
+        </ol>
+
+        <h3>If User Account Is Compromised</h3>
+
+        <ol>
+          <li>Revoke all sessions for the user</li>
+          <li>Force password reset (if applicable)</li>
+          <li>Review recent activity and API calls</li>
+          <li>Notify the user</li>
+          <li>Enable 2FA if not already enabled</li>
+        </ol>
+
+        <h2>Resources</h2>
+
+        <ul>
+          <li><a href="https://owasp.org/www-project-top-ten/" target="_blank">OWASP Top 10</a> - Common security vulnerabilities</li>
+          <li><a href="https://datatracker.ietf.org/doc/html/rfc7636" target="_blank">RFC 7636 (PKCE)</a> - PKCE specification</li>
+          <li><a href="https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html" target="_blank">OWASP Authentication Cheat Sheet</a></li>
+          <li><a href="https://datatracker.ietf.org/doc/html/rfc6749" target="_blank">RFC 6749 (OAuth 2.0)</a> - OAuth 2.0 specification</li>
+        </ul>
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/deployment">Deployment Guide</a> - Deploy securely to production</li>
+          <li><a href="/docs/guides/session-management">Session Management</a> - Understand JWT and cookies</li>
+          <li><a href="/docs/guides/database-adapters">Database Adapters</a> - Enable session revocation</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

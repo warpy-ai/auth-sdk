@@ -1,0 +1,442 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { ApiMethod } from '@/components/docs/api-method';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'React Hooks API - @warpy-auth-sdk/core',
+  description: 'React hooks and components API reference for @warpy-auth-sdk/core.',
+};
+
+export default function ReactHooksAPI() {
+  return (
+    <DocsLayout
+      title="React Hooks API"
+      description="React hooks and components for client-side authentication."
+      previousPage={{ title: 'Adapter API', href: '/docs/api-reference/adapter-api' }}
+      nextPage={{ title: 'Next.js Integration', href: '/docs/api-reference/next-integration' }}
+    >
+      <div>
+        <h2>Client Hooks</h2>
+        <p>
+          The SDK provides React hooks for managing authentication state in client-side applications.
+          Import from <code>@warpy-auth-sdk/core/hooks</code>.
+        </p>
+
+        <ApiMethod
+          name="AuthProvider"
+          description="Context provider for managing session state in React apps"
+          signature="AuthProvider(props: AuthProviderProps): ReactElement"
+          parameters={[
+            {
+              name: 'children',
+              type: 'ReactNode',
+              description: 'Child components',
+              required: true,
+            },
+            {
+              name: 'secret',
+              type: 'string',
+              description: 'JWT signing secret (not used client-side, for compatibility)',
+              required: true,
+            },
+            {
+              name: 'onSignIn',
+              type: '(session: Session) => void',
+              description: 'Callback when user signs in',
+              required: false,
+            },
+            {
+              name: 'onSignOut',
+              type: '() => void',
+              description: 'Callback when user signs out',
+              required: false,
+            },
+          ]}
+          returns="ReactElement"
+          example={`import { AuthProvider } from '@warpy-auth-sdk/core/hooks';
+
+function App() {
+  return (
+    <AuthProvider
+      secret={process.env.NEXT_PUBLIC_AUTH_SECRET!}
+      onSignIn={(session) => {
+        console.log('User signed in:', session.user);
+      }}
+      onSignOut={() => {
+        console.log('User signed out');
+      }}
+    >
+      <YourApp />
+    </AuthProvider>
+  );
+}`}
+        />
+
+        <ApiMethod
+          name="useAuth"
+          description="Hook for accessing session state and auth methods"
+          signature="useAuth(): AuthContextValue"
+          parameters={[]}
+          returns="AuthContextValue"
+          example={`import { useAuth } from '@warpy-auth-sdk/core/hooks';
+
+function ProfilePage() {
+  const { session, loading, signIn, signOut, refreshSession } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+
+  if (!session) {
+    return (
+      <div>
+        <h1>Sign In</h1>
+        <button onClick={() => signIn('user@example.com')}>
+          Sign in with Email
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Welcome, {session.user.name}!</h1>
+      <p>Email: {session.user.email}</p>
+      <button onClick={signOut}>Sign Out</button>
+    </div>
+  );
+}`}
+        />
+
+        <h3>useAuth Return Value</h3>
+        <CodeBlock language="typescript">
+{`interface AuthContextValue {
+  // Current session (null if not authenticated)
+  session: Session | null;
+
+  // Loading state (true during initial session fetch)
+  loading: boolean;
+
+  // Sign in with email (sends magic link)
+  signIn: (email: string, captchaToken?: string) => Promise<void>;
+
+  // Sign out current user
+  signOut: () => Promise<void>;
+
+  // Manually refresh session from server
+  refreshSession: () => Promise<void>;
+}`}
+        </CodeBlock>
+
+        <h2>Server Hooks</h2>
+        <p>
+          Server-side helper for getting session in React Server Components.
+          Import from <code>@warpy-auth-sdk/core/hooks/server</code>.
+        </p>
+
+        <ApiMethod
+          name="getServerSession"
+          description="Get session in React Server Components or API routes"
+          signature="getServerSession(request: Request, secret: string): Promise<Session | null>"
+          parameters={[
+            {
+              name: 'request',
+              type: 'Request',
+              description: 'HTTP request object with cookies',
+              required: true,
+            },
+            {
+              name: 'secret',
+              type: 'string',
+              description: 'JWT signing secret',
+              required: true,
+            },
+          ]}
+          returns="Promise<Session | null>"
+          example={`import { getServerSession } from '@warpy-auth-sdk/core/hooks/server';
+import { cookies } from 'next/headers';
+
+export default async function ServerPage() {
+  // In Next.js App Router
+  const cookieStore = await cookies();
+  const cookieHeader = cookieStore.toString();
+  const request = new Request('http://localhost', {
+    headers: { cookie: cookieHeader },
+  });
+
+  const session = await getServerSession(request, process.env.AUTH_SECRET!);
+
+  if (!session) {
+    return <div>Not authenticated</div>;
+  }
+
+  return (
+    <div>
+      <h1>Server Component</h1>
+      <p>User: {session.user.email}</p>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Session Type</h2>
+        <CodeBlock language="typescript">
+{`interface Session {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+  expires: Date;
+  token?: string; // JWT token (for MCP agents)
+  type?: "standard" | "mcp-agent";
+  scopes?: string[]; // For MCP agents
+  agentId?: string; // For MCP agents
+}`}
+        </CodeBlock>
+
+        <Example title="Complete Client Setup">
+{`'use client';
+
+import { AuthProvider, useAuth } from '@warpy-auth-sdk/core/hooks';
+import { useState } from 'react';
+
+// Root layout
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider secret={process.env.NEXT_PUBLIC_AUTH_SECRET!}>
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}
+
+// Login page
+function LoginPage() {
+  const { signIn, loading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await signIn(email);
+    setSubmitted(true);
+  };
+
+  if (submitted) {
+    return (
+      <div>
+        <h1>Check your email</h1>
+        <p>We sent a magic link to {email}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <h1>Sign In</h1>
+      <form onSubmit={handleSubmit}>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@example.com"
+          required
+        />
+        <button type="submit" disabled={loading}>
+          Sign In
+        </button>
+      </form>
+
+      <div>
+        <p>Or sign in with:</p>
+        <a href="/api/auth/signin/google">
+          <button>Google</button>
+        </a>
+        <a href="/api/auth/signin/github">
+          <button>GitHub</button>
+        </a>
+      </div>
+    </div>
+  );
+}
+
+// Dashboard page
+function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return <LoginPage />;
+  }
+
+  return (
+    <div>
+      <header>
+        <h1>Dashboard</h1>
+        <div>
+          {session.user.picture && (
+            <img src={session.user.picture} alt={session.user.name} />
+          )}
+          <span>{session.user.name || session.user.email}</span>
+          <button onClick={signOut}>Sign Out</button>
+        </div>
+      </header>
+
+      <main>
+        <h2>Welcome back!</h2>
+        <p>Email: {session.user.email}</p>
+        <p>User ID: {session.user.id}</p>
+      </main>
+    </div>
+  );
+}`}
+        </Example>
+
+        <Example title="With CAPTCHA Protection">
+{`'use client';
+
+import { useAuth } from '@warpy-auth-sdk/core/hooks';
+import { useState } from 'react';
+import ReCAPTCHA from 'react-google-recaptcha';
+
+function LoginWithCaptcha() {
+  const { signIn, loading } = useAuth();
+  const [email, setEmail] = useState('');
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!captchaToken) {
+      alert('Please complete the CAPTCHA');
+      return;
+    }
+
+    // Pass captchaToken to signIn
+    await signIn(email, captchaToken);
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        placeholder="you@example.com"
+        required
+      />
+
+      <ReCAPTCHA
+        sitekey={process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY!}
+        onChange={(token) => setCaptchaToken(token)}
+      />
+
+      <button type="submit" disabled={loading || !captchaToken}>
+        Sign In
+      </button>
+    </form>
+  );
+}`}
+        </Example>
+
+        <Example title="Protected Route Component">
+{`'use client';
+
+import { useAuth } from '@warpy-auth-sdk/core/hooks';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+function ProtectedPage({ children }) {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push('/login');
+    }
+  }, [session, loading, router]);
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
+
+  if (!session) {
+    return null; // Will redirect
+  }
+
+  return <>{children}</>;
+}
+
+// Usage
+export default function AdminPage() {
+  return (
+    <ProtectedPage>
+      <h1>Admin Dashboard</h1>
+      <p>This page is protected!</p>
+    </ProtectedPage>
+  );
+}`}
+        </Example>
+
+        <Callout type="info" title="Automatic Session Management">
+          <p>
+            The <code>AuthProvider</code> automatically:
+          </p>
+          <ul>
+            <li>Fetches session from <code>/api/auth/session</code> on mount</li>
+            <li>Caches session state in React context</li>
+            <li>Handles loading states during authentication</li>
+            <li>Provides callbacks for sign in/out events</li>
+          </ul>
+        </Callout>
+
+        <Callout type="warning" title="Server vs Client">
+          <p>
+            Use the correct import for your environment:
+          </p>
+          <ul>
+            <li><code>@warpy-auth-sdk/core/hooks</code> - Client components (useAuth, AuthProvider)</li>
+            <li><code>@warpy-auth-sdk/core/hooks/server</code> - Server components (getServerSession)</li>
+            <li>Never use <code>useAuth</code> in React Server Components</li>
+            <li>Never use <code>getServerSession</code> in client components</li>
+          </ul>
+        </Callout>
+
+        <h2>API Endpoints</h2>
+        <p>
+          The React hooks expect the following API endpoints to be available:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Session endpoint
+GET /api/auth/session
+Response: { session: Session | null }
+
+// Sign in endpoint (email)
+POST /api/auth/signin/email
+Body: { email: string, captchaToken?: string }
+Response: { success: true } or { error: string }
+
+// Sign out endpoint
+POST /api/auth/signout
+Response: { success: true }
+
+// OAuth endpoints
+GET /api/auth/signin/:provider  // Redirects to OAuth provider
+GET /api/auth/callback/:provider // OAuth callback (sets session cookie)`}
+        </CodeBlock>
+
+        <p>
+          These endpoints are automatically created when using framework adapters or Next.js middleware.
+        </p>
+      </div>
+    </DocsLayout>
+  );
+}

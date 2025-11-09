@@ -1,0 +1,591 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Session Management - @warpy-auth-sdk/core',
+  description: 'Understanding JWT tokens, cookies, and session lifecycle',
+};
+
+export default function SessionManagement() {
+  return (
+    <DocsLayout
+      title="Session Management"
+      description="Understanding JWT tokens, cookies, and session lifecycle"
+      prevPage={{ title: 'React Hooks', href: '/docs/guides/react-hooks' }}
+      nextPage={{ title: 'Database Adapters', href: '/docs/guides/database-adapters' }}
+    >
+      <div>
+        <h2>Session Management</h2>
+
+        <p>
+          The SDK uses JWT (JSON Web Tokens) and HTTP-only cookies for secure, stateless session management. This approach provides the best balance of security, performance, and scalability.
+        </p>
+
+        <h2>Session Architecture</h2>
+
+        <p>The session system consists of three main components:</p>
+
+        <ul>
+          <li><strong>JWT Tokens</strong> - Self-contained session data signed with your secret</li>
+          <li><strong>HTTP-Only Cookies</strong> - Secure storage mechanism for tokens</li>
+          <li><strong>Session Validation</strong> - Server-side verification of token authenticity</li>
+        </ul>
+
+        <h2>JWT Tokens</h2>
+
+        <h3>Token Structure</h3>
+
+        <p>JWT tokens have three parts separated by dots:</p>
+
+        <CodeBlock language="text">{`header.payload.signature
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.
+eyJ1c2VyIjp7ImlkIjoiMSIsImVtYWlsIjoidXNlckBleGFtcGxlLmNvbSJ9LCJpYXQiOjE3MDk1ODk2MDAsImV4cCI6MTcxMjE4MTYwMH0.
+signature-hash`}</CodeBlock>
+
+        <h3>Token Payload</h3>
+
+        <p>The payload contains session data:</p>
+
+        <CodeBlock language="json">{`{
+  // User information
+  "user": {
+    "id": "user-123",
+    "email": "user@example.com",
+    "name": "John Doe",
+    "picture": "https://..."
+  },
+
+  // Standard JWT claims
+  "iat": 1709589600,  // Issued at (timestamp)
+  "exp": 1712181600,  // Expiration (timestamp)
+
+  // Custom claims (from jwt callback)
+  "role": "admin",
+  "subscriptionTier": "pro"
+}`}</CodeBlock>
+
+        <h3>Token Creation</h3>
+
+        <p>Tokens are created automatically during authentication:</p>
+
+        <CodeBlock language="typescript">{`import { authenticate, createSessionCookie } from "@warpy-auth-sdk/core";
+
+const result = await authenticate(config, request);
+
+if (result.session) {
+  // Token is signed with your AUTH_SECRET
+  const cookie = createSessionCookie(result.session, config.secret);
+
+  // Set the cookie in the response
+  response.headers.set("Set-Cookie", cookie);
+}`}</CodeBlock>
+
+        <h3>Token Verification</h3>
+
+        <p>Tokens are verified on every request:</p>
+
+        <CodeBlock language="typescript">{`import { getSession } from "@warpy-auth-sdk/core";
+
+// Automatically verifies signature and expiration
+const session = await getSession(request, secret);
+
+if (session) {
+  // Token is valid and not expired
+  console.log(session.user.email);
+} else {
+  // Token is invalid, expired, or missing
+  return Response.json({ error: "Unauthorized" }, { status: 401 });
+}`}</CodeBlock>
+
+        <h2>Cookie Configuration</h2>
+
+        <h3>Cookie Attributes</h3>
+
+        <p>The SDK uses secure cookie defaults:</p>
+
+        <CodeBlock language="typescript">{`{
+  name: "auth-session",           // Cookie name
+  httpOnly: true,                 // Not accessible via JavaScript
+  secure: true,                   // HTTPS only (production)
+  sameSite: "lax",                // CSRF protection
+  maxAge: 60 * 60 * 24 * 30,      // 30 days in seconds
+  path: "/"                       // Available on all routes
+}`}</CodeBlock>
+
+        <h3>Cookie Creation</h3>
+
+        <Example
+          title="Creating a Session Cookie"
+          description="Manual cookie creation"
+          code={`import { createSessionCookie } from "@warpy-auth-sdk/core";
+
+const session = {
+  user: {
+    id: "user-123",
+    email: "user@example.com",
+    name: "John Doe",
+  },
+  expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+};
+
+const cookie = createSessionCookie(session, process.env.AUTH_SECRET!);
+
+// Cookie string:
+// "auth-session=<jwt-token>; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=2592000"`}
+        />
+
+        <h3>Cookie Clearing</h3>
+
+        <Example
+          title="Clearing a Session Cookie"
+          description="Sign out by clearing the cookie"
+          code={`import { clearSessionCookie } from "@warpy-auth-sdk/core";
+
+// Returns an expired cookie to clear the session
+const cookie = clearSessionCookie();
+
+// Cookie string:
+// "auth-session=; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=0"`}
+        />
+
+        <h2>Session Lifecycle</h2>
+
+        <h3>1. Authentication (Login)</h3>
+
+        <p>User authenticates and receives a session token:</p>
+
+        <CodeBlock language="typescript">{`// 1. User clicks "Sign in with Google"
+// 2. OAuth flow completes
+// 3. authenticate() is called
+const result = await authenticate(config, request);
+
+// 4. Session is created
+const session = result.session;
+
+// 5. JWT token is signed
+// 6. Cookie is set in response
+const cookie = createSessionCookie(session, secret);
+response.headers.set("Set-Cookie", cookie);
+
+// 7. User is redirected to dashboard`}</CodeBlock>
+
+        <h3>2. Session Validation (Every Request)</h3>
+
+        <p>Every request validates the session token:</p>
+
+        <CodeBlock language="typescript">{`// 1. Request includes session cookie
+// 2. getSession() extracts and verifies JWT
+const session = await getSession(request, secret);
+
+// 3. If valid, session data is available
+if (session) {
+  // User is authenticated
+  return Response.json({ user: session.user });
+}
+
+// 4. If invalid/expired, session is null
+return Response.json({ error: "Unauthorized" }, { status: 401 });`}</CodeBlock>
+
+        <h3>3. Token Refresh (Optional)</h3>
+
+        <p>Tokens can be refreshed before expiration:</p>
+
+        <Example
+          title="Token Refresh Example"
+          description="Extend session expiration"
+          code={`import { getSession, createSessionCookie } from "@warpy-auth-sdk/core";
+
+const session = await getSession(request, secret);
+
+if (session) {
+  // Check if session is close to expiring (e.g., < 7 days)
+  const expiresAt = new Date(session.expires);
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+  if (expiresAt < sevenDaysFromNow) {
+    // Create new session with extended expiration
+    const newSession = {
+      ...session,
+      expires: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+    };
+
+    // Set new cookie
+    const cookie = createSessionCookie(newSession, secret);
+    response.headers.set("Set-Cookie", cookie);
+  }
+}`}
+        />
+
+        <h3>4. Sign Out (Logout)</h3>
+
+        <p>User signs out and session is cleared:</p>
+
+        <CodeBlock language="typescript">{`// 1. User clicks "Sign Out"
+// 2. signOut() is called
+await signOut(request, secret);
+
+// 3. Optional: Revoke token (if using adapter)
+// 4. Cookie is cleared
+const cookie = clearSessionCookie();
+response.headers.set("Set-Cookie", cookie);
+
+// 5. User is redirected to login`}</CodeBlock>
+
+        <h2>Session Callbacks</h2>
+
+        <p>Customize session behavior with callbacks:</p>
+
+        <h3>User Callback</h3>
+
+        <p>Resolve or create user after authentication:</p>
+
+        <Example
+          title="User Callback"
+          description="Save user to database"
+          code={`callbacks: {
+  async user(oauthUser) {
+    // Called after successful OAuth
+    // oauthUser: { id, email, name, picture }
+
+    // Save to database
+    const user = await db.user.upsert({
+      where: { email: oauthUser.email },
+      create: {
+        email: oauthUser.email,
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      },
+      update: {
+        name: oauthUser.name,
+        picture: oauthUser.picture,
+      },
+    });
+
+    // Return user for session
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      picture: user.picture,
+    };
+  },
+}`}
+        />
+
+        <h3>JWT Callback</h3>
+
+        <p>Add custom claims to the JWT token:</p>
+
+        <Example
+          title="JWT Callback"
+          description="Add role and permissions"
+          code={`callbacks: {
+  jwt(token) {
+    // Add custom claims to JWT payload
+
+    // Example: Add role from database
+    token.role = "admin";
+    token.permissions = ["read", "write", "delete"];
+
+    // Example: Add subscription tier
+    token.subscriptionTier = "pro";
+
+    return token;
+  },
+}`}
+        />
+
+        <h3>Session Callback</h3>
+
+        <p>Shape the session object returned to clients:</p>
+
+        <Example
+          title="Session Callback"
+          description="Customize session object"
+          code={`callbacks: {
+  session(session) {
+    // Add custom data to session
+
+    // Example: Add preferences
+    session.preferences = {
+      theme: "dark",
+      language: "en",
+    };
+
+    // Example: Add metadata
+    session.metadata = {
+      lastLoginAt: new Date().toISOString(),
+    };
+
+    return session;
+  },
+}`}
+        />
+
+        <h2>Session Storage</h2>
+
+        <h3>Stateless (Default)</h3>
+
+        <p>By default, sessions are stateless (JWT-only):</p>
+
+        <ul>
+          <li><strong>Pros</strong>: Fast, scalable, no database required</li>
+          <li><strong>Cons</strong>: Cannot revoke tokens before expiration</li>
+        </ul>
+
+        <CodeBlock language="typescript">{`// No adapter - sessions are stateless JWT tokens
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+  // No adapter specified
+};`}</CodeBlock>
+
+        <h3>Stateful (With Adapter)</h3>
+
+        <p>Use a database adapter for stateful sessions:</p>
+
+        <ul>
+          <li><strong>Pros</strong>: Can revoke sessions, track active sessions</li>
+          <li><strong>Cons</strong>: Requires database, slight performance overhead</li>
+        </ul>
+
+        <CodeBlock language="typescript">{`import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* ... */ }),
+  adapter: PrismaAdapter(prisma), // Sessions stored in database
+};`}</CodeBlock>
+
+        <h2>Security Best Practices</h2>
+
+        <h3>1. Strong Secret</h3>
+
+        <p>Use a strong, random secret (min 32 characters):</p>
+
+        <CodeBlock language="bash">{`# Generate a secure secret
+openssl rand -base64 32
+
+# Store in .env.local
+AUTH_SECRET=your-generated-secret-here`}</CodeBlock>
+
+        <Callout type="warning" title="Keep Secret Secure">
+          The <code>AUTH_SECRET</code> is used to sign JWT tokens. If compromised, attackers can forge sessions. Never commit to version control or expose in client code.
+        </Callout>
+
+        <h3>2. HTTPS Only</h3>
+
+        <p>Always use HTTPS in production:</p>
+
+        <CodeBlock language="typescript">{`// Cookies are only sent over HTTPS when secure: true
+const cookie = createSessionCookie(session, secret);
+
+// In production, this prevents man-in-the-middle attacks`}</CodeBlock>
+
+        <h3>3. HttpOnly Cookies</h3>
+
+        <p>Prevent XSS attacks with httpOnly:</p>
+
+        <CodeBlock language="typescript">{`// httpOnly: true prevents JavaScript access
+// Protects against XSS (cross-site scripting)
+
+// ✗ This won't work (httpOnly cookie)
+document.cookie; // Cannot read auth-session
+
+// ✓ Correct - let the server handle cookies`}</CodeBlock>
+
+        <h3>4. SameSite Protection</h3>
+
+        <p>Prevent CSRF attacks with sameSite:</p>
+
+        <CodeBlock language="typescript">{`// sameSite: "lax" prevents CSRF attacks
+// Cookie only sent with same-site requests
+
+// ✗ Malicious site cannot trigger authenticated requests
+// ✓ Your site can make authenticated requests`}</CodeBlock>
+
+        <h3>5. Short Expiration</h3>
+
+        <p>Use appropriate token expiration times:</p>
+
+        <CodeBlock language="typescript">{`// Standard sessions: 30 days
+maxAge: 60 * 60 * 24 * 30
+
+// Sensitive operations: 1 hour
+maxAge: 60 * 60
+
+// MCP agent tokens: 15 minutes
+expiresIn: "15m"`}</CodeBlock>
+
+        <h2>Session Types</h2>
+
+        <p>The SDK supports different session types:</p>
+
+        <h3>Standard Sessions</h3>
+
+        <CodeBlock language="typescript">{`{
+  type: "oauth",
+  user: { id, email, name, picture },
+  expires: "2024-12-31T23:59:59.000Z"
+}`}</CodeBlock>
+
+        <h3>MCP Agent Sessions</h3>
+
+        <CodeBlock language="typescript">{`{
+  type: "mcp-agent",
+  user: { id, email },
+  scopes: ["debug", "read"],
+  agentId: "claude-dev",
+  expires: "2024-03-15T12:30:00.000Z" // Short-lived
+}`}</CodeBlock>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>Session Not Persisting</h3>
+
+        <p>Check cookie configuration:</p>
+
+        <CodeBlock language="typescript">{`// Ensure cookies are enabled in browser
+// Check cookie domain matches your app
+// Verify HTTPS in production (required for secure cookies)`}</CodeBlock>
+
+        <h3>Session Expired</h3>
+
+        <p>Handle expired sessions gracefully:</p>
+
+        <Example
+          title="Handle Expired Sessions"
+          description="Redirect to login on expiration"
+          code={`const session = await getSession(request, secret);
+
+if (!session) {
+  // Session expired or invalid
+  return NextResponse.redirect(new URL("/login", request.url));
+}
+
+// Session is valid
+return NextResponse.next();`}
+        />
+
+        <h3>Token Too Large</h3>
+
+        <p>Keep JWT payload small:</p>
+
+        <CodeBlock language="typescript">{`// ✗ Don't store large data in JWT
+jwt(token) {
+  token.allUserPosts = /* hundreds of posts */; // Too large!
+  return token;
+}
+
+// ✓ Store references only
+jwt(token) {
+  token.userId = "user-123"; // Small reference
+  return token;
+}
+
+// Fetch full data from database when needed`}</CodeBlock>
+
+        <h3>Cannot Read Cookie</h3>
+
+        <p>Remember: httpOnly cookies cannot be read from JavaScript:</p>
+
+        <CodeBlock language="typescript">{`// ✗ This won't work
+const token = document.cookie; // Cannot access httpOnly cookie
+
+// ✓ Use the SDK's hooks/functions
+const { session } = useAuth(); // Works!
+const session = await getSession(request, secret); // Works!`}</CodeBlock>
+
+        <h2>Advanced Topics</h2>
+
+        <h3>Custom Token Expiration</h3>
+
+        <Example
+          title="Custom Expiration Times"
+          description="Different expiration for different user types"
+          code={`callbacks: {
+  jwt(token) {
+    // Admin sessions last 7 days
+    if (token.role === "admin") {
+      token.exp = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
+    }
+    // Regular users: 30 days
+    else {
+      token.exp = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+    }
+
+    return token;
+  },
+}`}
+        />
+
+        <h3>Session Revocation</h3>
+
+        <p>Revoke sessions immediately (requires adapter):</p>
+
+        <Example
+          title="Revoke User Sessions"
+          description="Sign out user from all devices"
+          code={`import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+// Delete all sessions for a user
+await prisma.session.deleteMany({
+  where: { userId: "user-123" },
+});
+
+// User will be signed out on next request`}
+        />
+
+        <h3>Multi-Device Sessions</h3>
+
+        <p>Track sessions across multiple devices:</p>
+
+        <Example
+          title="List Active Sessions"
+          description="Show user their active sessions"
+          code={`// Fetch all active sessions for user
+const sessions = await prisma.session.findMany({
+  where: {
+    userId: session.user.id,
+    expires: { gt: new Date() },
+  },
+  orderBy: { createdAt: "desc" },
+});
+
+// Display to user with option to revoke
+return (
+  <div>
+    <h2>Active Sessions</h2>
+    {sessions.map((s) => (
+      <div key={s.id}>
+        <p>Device: {s.userAgent}</p>
+        <p>Last Active: {s.updatedAt}</p>
+        <button onClick={() => revokeSession(s.id)}>
+          Revoke
+        </button>
+      </div>
+    ))}
+  </div>
+);`}
+        />
+
+        <h2>Next Steps</h2>
+
+        <ul>
+          <li><a href="/docs/guides/database-adapters">Database Adapters</a> - Persist sessions to database</li>
+          <li><a href="/docs/guides/security-best-practices">Security Best Practices</a> - Production security</li>
+          <li><a href="/docs/guides/react-hooks">React Hooks</a> - Client-side session access</li>
+          <li><a href="/docs/api-reference/core-functions">API Reference</a> - Full API documentation</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

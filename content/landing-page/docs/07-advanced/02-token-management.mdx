@@ -1,0 +1,558 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Token Management - @warpy-auth-sdk/core',
+  description: 'JWT lifecycle, customization, and security best practices',
+};
+
+export default function TokenManagement() {
+  return (
+    <DocsLayout
+      title="Token Management"
+      description="JWT lifecycle, customization, and security best practices"
+      prevPage={{ title: 'Callbacks', href: '/docs/advanced/callbacks' }}
+      nextPage={{ title: 'Error Handling', href: '/docs/advanced/error-handling' }}
+    >
+      <div>
+        <h2>Token Management</h2>
+        <p>
+          @warpy-auth-sdk/core uses JSON Web Tokens (JWT) for session management.
+          This guide covers token lifecycle, customization, security, and advanced patterns.
+        </p>
+
+        <h2>Token Types</h2>
+        <p>
+          The SDK supports two types of tokens:
+        </p>
+
+        <ul>
+          <li><strong>Standard Tokens</strong> - User sessions created via OAuth or email authentication (7-day expiration)</li>
+          <li><strong>MCP Agent Tokens</strong> - Short-lived tokens for AI agent delegation (15-minute expiration)</li>
+        </ul>
+
+        <h3>Standard Token Structure</h3>
+        <CodeBlock language="typescript">
+{`interface StandardTokenPayload {
+  userId: string;
+  email: string;
+  name?: string;
+  type: 'standard';
+  iat: number;  // Issued at (Unix timestamp)
+  exp: number;  // Expiration (Unix timestamp)
+  // Custom claims added via jwt callback
+  [key: string]: any;
+}`}
+        </CodeBlock>
+
+        <h3>MCP Agent Token Structure</h3>
+        <CodeBlock language="typescript">
+{`interface MCPAgentTokenPayload {
+  userId: string;
+  agentId: string;
+  scopes: string[];
+  type: 'mcp-agent';
+  iat: number;
+  exp: number;
+}`}
+        </CodeBlock>
+
+        <h2>Token Lifecycle</h2>
+
+        <h3>1. Token Creation</h3>
+        <p>
+          Tokens are created during authentication flows:
+        </p>
+
+        <Example
+          title="OAuth Token Creation"
+          description="Standard tokens created after OAuth callback"
+          code={`// Internal flow (automatic)
+// 1. User completes OAuth
+// 2. callbacks.user resolves user
+// 3. callbacks.jwt adds custom claims
+const jwtPayload = {
+  userId: user.id,
+  email: user.email,
+  name: user.name,
+  type: 'standard',
+};
+
+// 4. SDK signs JWT with secret
+const token = signJWT(jwtPayload, config.secret);
+
+// 5. Token stored in HttpOnly cookie
+const cookie = createSessionCookie({ token, expires });`}
+        />
+
+        <h3>2. Token Storage</h3>
+        <p>
+          Tokens are stored in secure, HttpOnly cookies:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Cookie configuration (automatic)
+{
+  httpOnly: true,      // Not accessible via JavaScript
+  secure: true,        // HTTPS only (production)
+  sameSite: 'lax',     // CSRF protection
+  path: '/',           // Available site-wide
+  maxAge: 604800,      // 7 days (standard tokens)
+}`}
+        </CodeBlock>
+
+        <Callout type="info" title="HttpOnly Cookies">
+          Tokens are stored in HttpOnly cookies by default, making them inaccessible to client-side JavaScript.
+          This protects against XSS attacks.
+        </Callout>
+
+        <h3>3. Token Verification</h3>
+        <p>
+          Tokens are verified on every protected request:
+        </p>
+
+        <Example
+          title="Automatic Token Verification"
+          description="SDK verifies tokens in getSession()"
+          code={`import { getSession } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  // SDK automatically:
+  // 1. Extracts token from cookie header
+  // 2. Verifies JWT signature with secret
+  // 3. Checks expiration
+  // 4. Returns session or null
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return Response.json({ user: session.user });
+}`}
+        />
+
+        <h3>4. Token Expiration</h3>
+        <p>
+          Tokens have configurable expiration times:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Standard tokens: 7 days
+const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+// MCP agent tokens: 15 minutes (configurable)
+const mcpExpires = new Date(Date.now() + 15 * 60 * 1000);
+
+// Custom expiration via expiresIn parameter
+const customToken = signJWT(payload, secret, '1h'); // 1 hour
+const customToken2 = signJWT(payload, secret, '30d'); // 30 days`}
+        </CodeBlock>
+
+        <h3>5. Token Revocation</h3>
+        <p>
+          Tokens can be revoked explicitly:
+        </p>
+
+        <Example
+          title="Token Revocation"
+          description="Revoke tokens immediately on sign out"
+          code={`import { signOut, clearSessionCookie } from '@warpy-auth-sdk/core';
+
+export async function POST(request: Request) {
+  // Revoke token (deletes from adapter if present)
+  await signOut(request, {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({ /* ... */ }),
+    adapter: PrismaAdapter(prisma), // Optional
+  });
+
+  // Clear cookie
+  const headers = new Headers();
+  headers.append('Set-Cookie', clearSessionCookie());
+
+  return Response.json({ success: true }, { headers });
+}`}
+        />
+
+        <h2>JWT Customization</h2>
+
+        <h3>Adding Custom Claims</h3>
+        <p>
+          Use the <code>jwt</code> callback to add custom claims:
+        </p>
+
+        <Example
+          title="Custom JWT Claims"
+          description="Embed roles, permissions, and metadata"
+          code={`import { authMiddleware } from '@warpy-auth-sdk/core/next';
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({ /* ... */ }),
+    callbacks: {
+      async jwt(token) {
+        // Fetch user data
+        const user = await prisma.user.findUnique({
+          where: { id: token.userId },
+          include: {
+            roles: true,
+            organization: true,
+            subscription: true,
+          },
+        });
+
+        // Add custom claims
+        return {
+          ...token,
+          // Role-based access control
+          roles: user?.roles.map(r => r.name) ?? [],
+          isAdmin: user?.roles.some(r => r.name === 'admin') ?? false,
+
+          // Organization context
+          organizationId: user?.organization?.id,
+          organizationSlug: user?.organization?.slug,
+
+          // Subscription info
+          subscriptionTier: user?.subscription?.tier,
+          subscriptionStatus: user?.subscription?.status,
+
+          // Metadata
+          createdAt: user?.createdAt.toISOString(),
+          lastLogin: new Date().toISOString(),
+        };
+      },
+    },
+  },
+  { basePath: '/api/auth' }
+);`}
+        />
+
+        <h3>Accessing JWT Claims</h3>
+        <p>
+          Decode tokens to access custom claims:
+        </p>
+
+        <Example
+          title="Decoding JWT Claims"
+          description="Access custom claims in your application"
+          code={`import jwt from 'jsonwebtoken';
+import { getSession } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+
+  if (!session?.token) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Decode token to access custom claims
+  const decoded = jwt.decode(session.token) as any;
+
+  // Access custom claims
+  const isAdmin = decoded.isAdmin;
+  const organizationId = decoded.organizationId;
+  const subscriptionTier = decoded.subscriptionTier;
+
+  // Authorization logic
+  if (!isAdmin) {
+    return Response.json({ error: 'Forbidden' }, { status: 403 });
+  }
+
+  return Response.json({
+    user: session.user,
+    roles: decoded.roles,
+    organization: organizationId,
+  });
+}`}
+        />
+
+        <Callout type="warning" title="Token Size Limits">
+          JWT tokens are stored in cookies, which have a 4KB limit in most browsers.
+          Keep custom claims minimal. For large datasets, store IDs in the token and fetch data server-side.
+        </Callout>
+
+        <h2>MCP Agent Tokens</h2>
+
+        <h3>Creating Agent Tokens</h3>
+        <p>
+          MCP agent tokens are created via the <code>agent_login</code> tool:
+        </p>
+
+        <Example
+          title="Creating Agent Tokens"
+          description="Short-lived tokens for AI agent delegation"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!,
+});
+
+// AI agent calls agent_login tool
+const result = await mcpTools.agent_login.execute({
+  userId: 'user-123',
+  scopes: ['debug', 'read'],
+  agentId: 'dev-agent',
+  expiresIn: '15m', // 15 minutes (default)
+});
+
+// Returns short-lived JWT
+console.log(result.token); // eyJhbGci...`}
+        />
+
+        <h3>Verifying Agent Tokens</h3>
+        <p>
+          Use <code>verifyAgentToken</code> for Bearer token authentication:
+        </p>
+
+        <Example
+          title="Verifying Agent Tokens"
+          description="Validate and check scopes for agent requests"
+          code={`import { verifyAgentToken } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  // Verify token from Authorization header
+  const session = await verifyAgentToken(
+    request,
+    process.env.AUTH_SECRET!
+  );
+
+  if (!session) {
+    return Response.json({ error: 'Invalid token' }, { status: 401 });
+  }
+
+  // Check token type
+  if (session.type !== 'mcp-agent') {
+    return Response.json({ error: 'Not an agent token' }, { status: 403 });
+  }
+
+  // Check scopes
+  if (!session.scopes?.includes('debug')) {
+    return Response.json({ error: 'Missing debug scope' }, { status: 403 });
+  }
+
+  // Agent is authorized
+  return Response.json({
+    agentId: session.agentId,
+    scopes: session.scopes,
+  });
+}`}
+        />
+
+        <h3>Agent Token Revocation</h3>
+        <p>
+          Revoke agent tokens immediately with the <code>revoke_token</code> tool:
+        </p>
+
+        <Example
+          title="Revoking Agent Tokens"
+          description="Immediately invalidate agent tokens"
+          code={`import { createMCPTools } from '@warpy-auth-sdk/core';
+
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!,
+});
+
+// Revoke token
+await mcpTools.revoke_token.execute({
+  token: 'eyJhbGci...',
+});
+
+// Token is now invalid
+// Subsequent verifyAgentToken() calls will fail`}
+        />
+
+        <h2>Token Security Best Practices</h2>
+
+        <h3>1. Secure Secret Management</h3>
+        <Example
+          title="Strong Secret Generation"
+          description="Generate cryptographically secure secrets"
+          code={`# Generate a strong secret (Node.js)
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Or use openssl
+openssl rand -hex 32
+
+# Store in environment variables
+# .env.local
+AUTH_SECRET=your-generated-secret-here-minimum-32-characters`}
+        />
+
+        <Callout type="danger" title="Secret Security">
+          <ul>
+            <li>Use at least 32 characters for <code>AUTH_SECRET</code></li>
+            <li>Never commit secrets to version control</li>
+            <li>Use different secrets for development and production</li>
+            <li>Rotate secrets periodically</li>
+          </ul>
+        </Callout>
+
+        <h3>2. HttpOnly Cookies</h3>
+        <p>
+          Always use HttpOnly cookies for token storage (default in SDK):
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Automatic in SDK - tokens are HttpOnly by default
+{
+  httpOnly: true,  // ✅ Not accessible via document.cookie
+  secure: true,    // ✅ HTTPS only in production
+  sameSite: 'lax', // ✅ CSRF protection
+}`}
+        </CodeBlock>
+
+        <h3>3. Short Expiration for Sensitive Operations</h3>
+        <p>
+          Use shorter expiration times for admin or sensitive operations:
+        </p>
+
+        <Example
+          title="Short-Lived Admin Tokens"
+          description="Re-authenticate for sensitive operations"
+          code={`callbacks: {
+  async jwt(token) {
+    const user = await prisma.user.findUnique({
+      where: { id: token.userId },
+      include: { roles: true },
+    });
+
+    const isAdmin = user?.roles.some(r => r.name === 'admin');
+
+    if (isAdmin) {
+      // Admin tokens expire after 1 hour instead of 7 days
+      // Implement via custom expiration logic
+      return {
+        ...token,
+        isAdmin: true,
+        adminExpiresAt: Date.now() + 60 * 60 * 1000, // 1 hour
+      };
+    }
+
+    return token;
+  },
+
+  session(session) {
+    const decoded = jwt.decode(session.token!) as any;
+
+    // Check admin token expiration
+    if (decoded.isAdmin && decoded.adminExpiresAt < Date.now()) {
+      throw new Error('Admin session expired. Please re-authenticate.');
+    }
+
+    return session;
+  },
+}`}
+        />
+
+        <h3>4. Token Refresh</h3>
+        <p>
+          Implement token refresh for long-lived sessions:
+        </p>
+
+        <Example
+          title="Token Refresh Pattern"
+          description="Refresh tokens before expiration"
+          code={`// Client-side token refresh
+useEffect(() => {
+  const refreshInterval = setInterval(async () => {
+    // Refresh session before expiration
+    const response = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      credentials: 'include', // Include cookies
+    });
+
+    if (!response.ok) {
+      // Redirect to login if refresh fails
+      window.location.href = '/login';
+    }
+  }, 6 * 24 * 60 * 60 * 1000); // Refresh every 6 days (before 7-day expiration)
+
+  return () => clearInterval(refreshInterval);
+}, []);
+
+// Server-side refresh endpoint
+// app/api/auth/refresh/route.ts
+import { getSession, createSessionCookie } from '@warpy-auth-sdk/core';
+
+export async function POST(request: Request) {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Create new token with extended expiration
+  const newSession = {
+    ...session,
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+  };
+
+  const headers = new Headers();
+  headers.append('Set-Cookie', createSessionCookie(newSession));
+
+  return Response.json({ success: true }, { headers });
+}`}
+        />
+
+        <h2>Debugging Tokens</h2>
+
+        <h3>Inspecting Token Contents</h3>
+        <p>
+          Debug tokens during development:
+        </p>
+
+        <Example
+          title="Token Debugging"
+          description="Inspect token claims and expiration"
+          code={`import jwt from 'jsonwebtoken';
+
+// Decode without verification (for debugging only)
+const decoded = jwt.decode(token);
+console.log('Token payload:', decoded);
+
+// Verify and decode
+try {
+  const verified = jwt.verify(token, process.env.AUTH_SECRET!) as any;
+  console.log('Verified payload:', verified);
+  console.log('Issued at:', new Date(verified.iat * 1000));
+  console.log('Expires at:', new Date(verified.exp * 1000));
+  console.log('Time until expiration:', verified.exp * 1000 - Date.now());
+} catch (error) {
+  console.error('Token verification failed:', error);
+}`}
+        />
+
+        <h3>Using jwt.io</h3>
+        <p>
+          Decode and verify tokens using the <a href="https://jwt.io" target="_blank">jwt.io</a> debugger:
+        </p>
+
+        <ol>
+          <li>Copy your JWT token from cookies or logs</li>
+          <li>Paste into jwt.io debugger</li>
+          <li>Paste your <code>AUTH_SECRET</code> in the "Verify Signature" section</li>
+          <li>Inspect decoded payload and verify signature</li>
+        </ol>
+
+        <Callout type="warning" title="Security Warning">
+          Never paste production secrets or tokens into public tools. Use jwt.io only for development/debugging.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you understand token management, explore:
+        </p>
+
+        <ul>
+          <li><a href="/docs/advanced/callbacks">Callbacks</a> - Customize JWT claims</li>
+          <li><a href="/docs/advanced/error-handling">Error Handling</a> - Handle token errors</li>
+          <li><a href="/docs/mcp/introduction">MCP Integration</a> - AI agent delegation</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

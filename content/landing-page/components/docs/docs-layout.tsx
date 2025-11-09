@@ -70,13 +70,14 @@ const navigation = [
     ],
   },
   {
-    title: "MCP",
+    title: "MCP (Model Context Protocol)",
     items: [
-      { title: "Introduction", href: "/docs/mcp/introduction" },
-      { title: "Agent Authentication", href: "/docs/mcp/agent-authentication" },
+      { title: "Efficient AI Agent Authentication", href: "/docs/mcp/efficient-ai-agent-authentication" },
+      { title: "Cloud Shield Integration", href: "/docs/mcp/cloud-shield-integration" },
       { title: "Tools Reference", href: "/docs/mcp/tools-reference" },
-      { title: "AI SDK Integration", href: "/docs/mcp/ai-sdk-integration" },
-      { title: "Security Model", href: "/docs/mcp/security-model" },
+      { title: "Vercel AI SDK Integration", href: "/docs/mcp/vercel-ai-sdk-integration" },
+      { title: "Security Best Practices", href: "/docs/mcp/security-best-practices" },
+      { title: "Examples & Patterns", href: "/docs/mcp/examples-and-patterns" },
     ],
   },
   {

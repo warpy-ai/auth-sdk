@@ -1,0 +1,709 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Error Handling - @warpy-auth-sdk/core',
+  description: 'Handle authentication errors gracefully in production',
+};
+
+export default function ErrorHandling() {
+  return (
+    <DocsLayout
+      title="Error Handling"
+      description="Handle authentication errors gracefully in production"
+      prevPage={{ title: 'Token Management', href: '/docs/advanced/token-management' }}
+      nextPage={{ title: 'Testing', href: '/docs/advanced/testing' }}
+    >
+      <div>
+        <h2>Error Handling</h2>
+        <p>
+          Robust error handling is critical for production authentication systems.
+          This guide covers error types, handling patterns, and best practices for @warpy-auth-sdk/core.
+        </p>
+
+        <h2>Error Types</h2>
+
+        <h3>1. Authentication Errors</h3>
+        <p>
+          Errors that occur during the authentication flow:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Common authentication errors
+type AuthenticationError =
+  | 'invalid_provider'      // Unsupported provider type
+  | 'invalid_credentials'   // Wrong client ID/secret
+  | 'invalid_token'         // Expired or malformed magic link token
+  | 'invalid_code'          // Wrong 2FA verification code
+  | 'csrf_token_mismatch'   // CSRF validation failed
+  | 'redirect_uri_mismatch' // OAuth redirect URI doesn't match
+  | 'user_not_found'        // User doesn't exist
+  | 'user_creation_failed'  // Database error creating user
+  | 'captcha_failed';       // CAPTCHA verification failed`}
+        </CodeBlock>
+
+        <h3>2. Session Errors</h3>
+        <p>
+          Errors when retrieving or verifying sessions:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Common session errors
+type SessionError =
+  | 'no_session'           // No session cookie present
+  | 'invalid_session'      // JWT signature verification failed
+  | 'expired_session'      // JWT token expired
+  | 'session_revoked';     // Session explicitly revoked`}
+        </CodeBlock>
+
+        <h3>3. Configuration Errors</h3>
+        <p>
+          Errors in SDK configuration:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Common configuration errors
+type ConfigurationError =
+  | 'missing_secret'       // AUTH_SECRET not set
+  | 'weak_secret'          // AUTH_SECRET too short
+  | 'invalid_provider'     // Provider config missing required fields
+  | 'missing_callback';    // Required callback not provided`}
+        </CodeBlock>
+
+        <h2>Handling Authenticate Errors</h2>
+
+        <h3>Basic Error Handling</h3>
+        <p>
+          The <code>authenticate()</code> function returns errors in the result:
+        </p>
+
+        <Example
+          title="Basic Authentication Error Handling"
+          description="Check for errors after authentication"
+          code={`import { authenticate } from '@warpy-auth-sdk/core';
+
+const result = await authenticate(config, request);
+
+// Check for errors
+if (result.error) {
+  console.error('Authentication failed:', result.error);
+
+  return Response.json(
+    { error: result.error },
+    { status: 401 }
+  );
+}
+
+// Check for redirect (OAuth flow)
+if (result.redirectUrl) {
+  return Response.redirect(result.redirectUrl);
+}
+
+// Success - session available
+if (result.session) {
+  const headers = new Headers();
+  if (result.cookies) {
+    result.cookies.forEach(cookie => {
+      headers.append('Set-Cookie', cookie);
+    });
+  }
+
+  return Response.json(
+    { user: result.session.user },
+    { headers }
+  );
+}`}
+        />
+
+        <h3>Comprehensive Error Handling</h3>
+        <p>
+          Handle specific error cases with custom logic:
+        </p>
+
+        <Example
+          title="Detailed Error Handling"
+          description="Custom responses for different error types"
+          code={`import { authenticate } from '@warpy-auth-sdk/core';
+import { logAuthEvent } from '@/lib/logging';
+
+export async function POST(request: Request) {
+  try {
+    const result = await authenticate(config, request);
+
+    if (result.error) {
+      // Log error for monitoring
+      await logAuthEvent({
+        type: 'auth_error',
+        error: result.error,
+        timestamp: new Date(),
+        ip: request.headers.get('x-forwarded-for'),
+      });
+
+      // Handle specific error cases
+      switch (result.error) {
+        case 'Invalid or expired magic link':
+          return Response.json(
+            {
+              error: 'Magic link expired',
+              message: 'This link has expired. Please request a new one.',
+              code: 'LINK_EXPIRED',
+            },
+            { status: 401 }
+          );
+
+        case 'Invalid CSRF token':
+          return Response.json(
+            {
+              error: 'Security check failed',
+              message: 'Please try signing in again.',
+              code: 'CSRF_FAILED',
+            },
+            { status: 403 }
+          );
+
+        case 'CAPTCHA token required':
+        case 'CAPTCHA verification failed':
+          return Response.json(
+            {
+              error: 'CAPTCHA verification failed',
+              message: 'Please complete the CAPTCHA challenge.',
+              code: 'CAPTCHA_REQUIRED',
+            },
+            { status: 400 }
+          );
+
+        default:
+          // Generic error response
+          return Response.json(
+            {
+              error: 'Authentication failed',
+              message: 'Unable to authenticate. Please try again.',
+              code: 'AUTH_FAILED',
+            },
+            { status: 401 }
+          );
+      }
+    }
+
+    // Success handling
+    if (result.session) {
+      await logAuthEvent({
+        type: 'auth_success',
+        userId: result.session.user.id,
+        provider: config.provider.type,
+        timestamp: new Date(),
+      });
+
+      const headers = new Headers();
+      if (result.cookies) {
+        result.cookies.forEach(cookie => {
+          headers.append('Set-Cookie', cookie);
+        });
+      }
+
+      return Response.json({ user: result.session.user }, { headers });
+    }
+
+    // OAuth redirect
+    if (result.redirectUrl) {
+      return Response.redirect(result.redirectUrl);
+    }
+
+    // Fallback
+    return Response.json({ error: 'Unknown error' }, { status: 500 });
+
+  } catch (error) {
+    // Unexpected errors
+    console.error('Unexpected authentication error:', error);
+
+    await logAuthEvent({
+      type: 'auth_exception',
+      error: error instanceof Error ? error.message : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+      timestamp: new Date(),
+    });
+
+    return Response.json(
+      {
+        error: 'Internal server error',
+        message: 'An unexpected error occurred. Please try again later.',
+        code: 'INTERNAL_ERROR',
+      },
+      { status: 500 }
+    );
+  }
+}`}
+        />
+
+        <h2>Handling Session Errors</h2>
+
+        <h3>Basic Session Error Handling</h3>
+        <p>
+          The <code>getSession()</code> function returns <code>null</code> on error:
+        </p>
+
+        <Example
+          title="Session Error Handling"
+          description="Handle missing or invalid sessions"
+          code={`import { getSession } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+
+  // No session or invalid session
+  if (!session) {
+    return Response.json(
+      { error: 'Not authenticated' },
+      { status: 401 }
+    );
+  }
+
+  // Session exists and is valid
+  return Response.json({ user: session.user });
+}`}
+        />
+
+        <h3>Advanced Session Validation</h3>
+        <p>
+          Add custom validation logic for sessions:
+        </p>
+
+        <Example
+          title="Advanced Session Validation"
+          description="Validate session claims and revocation"
+          code={`import { getSession } from '@warpy-auth-sdk/core';
+import jwt from 'jsonwebtoken';
+
+export async function GET(request: Request) {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+
+  if (!session) {
+    return Response.json(
+      { error: 'No session found' },
+      { status: 401 }
+    );
+  }
+
+  // Decode token to check custom claims
+  const decoded = jwt.decode(session.token!) as any;
+
+  // Check if user still exists
+  const user = await prisma.user.findUnique({
+    where: { id: session.user.id },
+  });
+
+  if (!user) {
+    return Response.json(
+      {
+        error: 'User not found',
+        message: 'Your account no longer exists.',
+        code: 'USER_DELETED',
+      },
+      { status: 401 }
+    );
+  }
+
+  // Check if user is banned
+  if (user.status === 'banned') {
+    return Response.json(
+      {
+        error: 'Account suspended',
+        message: 'Your account has been suspended.',
+        code: 'USER_BANNED',
+      },
+      { status: 403 }
+    );
+  }
+
+  // Check admin token expiration
+  if (decoded.isAdmin && decoded.adminExpiresAt < Date.now()) {
+    return Response.json(
+      {
+        error: 'Admin session expired',
+        message: 'Please re-authenticate for admin access.',
+        code: 'ADMIN_SESSION_EXPIRED',
+      },
+      { status: 401 }
+    );
+  }
+
+  // Session is valid
+  return Response.json({ user: session.user });
+}`}
+        />
+
+        <h2>Callback Error Handling</h2>
+
+        <h3>Throwing Errors in Callbacks</h3>
+        <p>
+          Throw errors in callbacks to abort authentication:
+        </p>
+
+        <Example
+          title="User Callback Error Handling"
+          description="Validate and abort authentication"
+          code={`callbacks: {
+  async user(oauthUser) {
+    // Check if email domain is allowed
+    const allowedDomains = ['company.com', 'partner.com'];
+    const domain = oauthUser.email.split('@')[1];
+
+    if (!allowedDomains.includes(domain)) {
+      throw new Error(\`Email domain "\${domain}" is not allowed\`);
+    }
+
+    // Check if user is banned
+    const bannedUser = await prisma.bannedUser.findUnique({
+      where: { email: oauthUser.email },
+    });
+
+    if (bannedUser) {
+      throw new Error('Account has been suspended');
+    }
+
+    // Check account creation limits
+    const recentAccounts = await prisma.user.count({
+      where: {
+        email: { endsWith: \`@\${domain}\` },
+        createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+    });
+
+    if (recentAccounts > 10) {
+      throw new Error('Account creation limit exceeded for this domain');
+    }
+
+    // Continue with user creation
+    return await upsertUser(oauthUser);
+  },
+}`}
+        />
+
+        <h3>Handling Database Errors</h3>
+        <p>
+          Handle database errors gracefully in callbacks:
+        </p>
+
+        <Example
+          title="Database Error Handling"
+          description="Graceful handling of DB errors"
+          code={`callbacks: {
+  async user(oauthUser) {
+    try {
+      // Attempt to find or create user
+      let user = await prisma.user.findUnique({
+        where: { email: oauthUser.email },
+      });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            email: oauthUser.email,
+            name: oauthUser.name,
+            picture: oauthUser.picture,
+          },
+        });
+      }
+
+      return {
+        id: user.id,
+        email: user.email,
+        name: user.name ?? undefined,
+        picture: user.picture ?? undefined,
+      };
+
+    } catch (error) {
+      // Handle specific Prisma errors
+      if (error.code === 'P2002') {
+        // Unique constraint violation
+        throw new Error('An account with this email already exists');
+      }
+
+      if (error.code === 'P2003') {
+        // Foreign key constraint violation
+        throw new Error('Invalid organization or role');
+      }
+
+      if (error.code === 'P1001') {
+        // Database connection error
+        throw new Error('Database unavailable. Please try again later.');
+      }
+
+      // Generic database error
+      console.error('Database error in user callback:', error);
+      throw new Error('Failed to create user account');
+    }
+  },
+}`}
+        />
+
+        <h2>Client-Side Error Handling</h2>
+
+        <h3>React Hook Error Handling</h3>
+        <p>
+          Handle errors in the <code>useAuth</code> hook:
+        </p>
+
+        <Example
+          title="React Error Handling"
+          description="Handle authentication errors in React"
+          code={`'use client';
+
+import { useAuth } from '@warpy-auth-sdk/core/hooks';
+import { useState } from 'react';
+
+export default function LoginForm() {
+  const { signIn } = useAuth();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const formData = new FormData(e.currentTarget);
+    const email = formData.get('email') as string;
+
+    try {
+      const response = await fetch('/api/auth/signin/email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+
+        // Handle specific error codes
+        switch (data.code) {
+          case 'LINK_EXPIRED':
+            setError('Magic link expired. Please request a new one.');
+            break;
+          case 'CAPTCHA_REQUIRED':
+            setError('Please complete the CAPTCHA challenge.');
+            break;
+          case 'USER_BANNED':
+            setError('Your account has been suspended.');
+            break;
+          default:
+            setError(data.message || 'Authentication failed');
+        }
+
+        setLoading(false);
+        return;
+      }
+
+      // Success
+      setError(null);
+
+    } catch (err) {
+      console.error('Sign-in error:', err);
+      setError('Network error. Please check your connection.');
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {error && (
+        <div className="error-banner" role="alert">
+          {error}
+        </div>
+      )}
+
+      <input
+        type="email"
+        name="email"
+        placeholder="Email"
+        required
+        disabled={loading}
+      />
+
+      <button type="submit" disabled={loading}>
+        {loading ? 'Sending...' : 'Send Magic Link'}
+      </button>
+    </form>
+  );
+}`}
+        />
+
+        <h2>Error Logging and Monitoring</h2>
+
+        <h3>Structured Error Logging</h3>
+        <p>
+          Log errors with context for debugging:
+        </p>
+
+        <Example
+          title="Structured Error Logging"
+          description="Log authentication events for monitoring"
+          code={`// lib/logging.ts
+interface AuthLogEvent {
+  type: 'auth_success' | 'auth_error' | 'auth_exception' | 'session_error';
+  userId?: string;
+  email?: string;
+  provider?: string;
+  error?: string;
+  stack?: string;
+  ip?: string | null;
+  userAgent?: string | null;
+  timestamp: Date;
+}
+
+export async function logAuthEvent(event: AuthLogEvent) {
+  // Log to console in development
+  if (process.env.NODE_ENV === 'development') {
+    console.log('[Auth Event]', JSON.stringify(event, null, 2));
+  }
+
+  // Send to monitoring service in production
+  if (process.env.NODE_ENV === 'production') {
+    // Example: Send to Sentry, Datadog, etc.
+    await fetch(process.env.LOG_ENDPOINT!, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(event),
+    });
+  }
+
+  // Store in database for analytics
+  await prisma.authLog.create({
+    data: event,
+  });
+}
+
+// Usage in authentication handler
+const result = await authenticate(config, request);
+
+if (result.error) {
+  await logAuthEvent({
+    type: 'auth_error',
+    error: result.error,
+    provider: config.provider.type,
+    ip: request.headers.get('x-forwarded-for'),
+    userAgent: request.headers.get('user-agent'),
+    timestamp: new Date(),
+  });
+}`}
+        />
+
+        <h3>Error Monitoring with Sentry</h3>
+        <p>
+          Integrate with error monitoring services:
+        </p>
+
+        <Example
+          title="Sentry Integration"
+          description="Track authentication errors in Sentry"
+          code={`import * as Sentry from '@sentry/nextjs';
+
+export async function POST(request: Request) {
+  try {
+    const result = await authenticate(config, request);
+
+    if (result.error) {
+      // Report to Sentry with context
+      Sentry.captureMessage('Authentication failed', {
+        level: 'warning',
+        tags: {
+          provider: config.provider.type,
+          error_type: result.error,
+        },
+        extra: {
+          error: result.error,
+          timestamp: new Date().toISOString(),
+        },
+      });
+
+      return Response.json({ error: result.error }, { status: 401 });
+    }
+
+    // Handle success
+    return Response.json({ user: result.session?.user });
+
+  } catch (error) {
+    // Report unexpected errors to Sentry
+    Sentry.captureException(error, {
+      tags: {
+        provider: config.provider.type,
+        handler: 'authenticate',
+      },
+    });
+
+    return Response.json(
+      { error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}`}
+        />
+
+        <h2>Error Recovery Patterns</h2>
+
+        <h3>Retry with Exponential Backoff</h3>
+        <p>
+          Retry failed operations with backoff:
+        </p>
+
+        <Example
+          title="Retry Logic"
+          description="Retry with exponential backoff"
+          code={`async function authenticateWithRetry(
+  config: AuthConfig,
+  request: Request,
+  maxRetries = 3
+): Promise<AuthenticateResult> {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const result = await authenticate(config, request);
+
+      // Only retry on specific errors
+      if (result.error &&
+          (result.error.includes('Database unavailable') ||
+           result.error.includes('Network error'))) {
+
+        if (attempt < maxRetries - 1) {
+          // Exponential backoff: 100ms, 200ms, 400ms
+          const delay = Math.pow(2, attempt) * 100;
+          await new Promise(resolve => setTimeout(resolve, delay));
+          continue;
+        }
+      }
+
+      // Return result (success or non-retryable error)
+      return result;
+
+    } catch (error) {
+      // Unexpected error - retry
+      if (attempt < maxRetries - 1) {
+        const delay = Math.pow(2, attempt) * 100;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
+
+      // Max retries exceeded
+      return { error: 'Maximum retry attempts exceeded' };
+    }
+  }
+
+  return { error: 'Authentication failed after retries' };
+}`}
+        />
+
+        <h2>Next Steps</h2>
+        <p>
+          Now that you understand error handling, explore:
+        </p>
+
+        <ul>
+          <li><a href="/docs/advanced/testing">Testing</a> - Test authentication flows</li>
+          <li><a href="/docs/advanced/callbacks">Callbacks</a> - Customize authentication logic</li>
+          <li><a href="/docs/guides/captcha-integration">CAPTCHA Integration</a> - Bot protection</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}

@@ -1,0 +1,792 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Protected Routes Example - @warpy-auth-sdk/core',
+  description: 'Complete example of implementing protected routes and requireAuth middleware.',
+};
+
+export default function ProtectedRoutesExample() {
+  return (
+    <DocsLayout
+      title="Protected Routes Example"
+      description="Complete example of implementing protected routes and requireAuth middleware."
+      prevPage={{ title: 'Email Passwordless', href: '/docs/examples/email-passwordless' }}
+    >
+      <div>
+        <h2>Protecting Routes with Authentication</h2>
+        <p>
+          This example demonstrates how to protect routes and API endpoints using the requireAuth
+          middleware. Protected routes ensure only authenticated users can access specific pages
+          and API endpoints.
+        </p>
+
+        <h2>How Route Protection Works</h2>
+        <ol>
+          <li>User requests a protected route</li>
+          <li>Middleware checks for valid session cookie</li>
+          <li>If authenticated, request proceeds to route handler</li>
+          <li>If not authenticated, user is redirected to login</li>
+        </ol>
+
+        <h2>Next.js Client-Side Protection</h2>
+        <p>
+          Protect client-side routes using the useAuth hook:
+        </p>
+
+        <Example
+          title="Protected Dashboard Page"
+          description="Client-side route protection with useAuth"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+
+export default function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+  const router = useRouter();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push("/login");
+    }
+  }, [session, loading, router]);
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  // Don't render until we know we're authenticated
+  if (!session) {
+    return null; // Will redirect to login
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold">Dashboard</h1>
+            </div>
+            <div className="flex items-center space-x-4">
+              <span className="text-sm text-gray-700">
+                {session.user.email}
+              </span>
+              <button
+                onClick={signOut}
+                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700"
+              >
+                Sign Out
+              </button>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="px-4 py-6 sm:px-0">
+          <div className="bg-white rounded-lg shadow p-6">
+            <h2 className="text-2xl font-bold mb-4">
+              Welcome, {session.user.name}!
+            </h2>
+            <p className="text-gray-600">
+              This is a protected page. Only authenticated users can see this content.
+            </p>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Reusable Protection Component</h2>
+        <p>
+          Create a reusable component for protecting multiple pages:
+        </p>
+
+        <Example
+          title="components/auth/ProtectedRoute.tsx"
+          description="Reusable protected route wrapper component"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useRouter } from "next/navigation";
+import { useEffect, ReactNode } from "react";
+
+interface ProtectedRouteProps {
+  children: ReactNode;
+  redirectTo?: string;
+  requiredRole?: string;
+}
+
+export function ProtectedRoute({
+  children,
+  redirectTo = "/login",
+  requiredRole,
+}: ProtectedRouteProps) {
+  const { session, loading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && !session) {
+      router.push(redirectTo);
+    }
+
+    // Optional: Check for required role
+    if (!loading && session && requiredRole) {
+      const userRole = (session as any).role;
+      if (userRole !== requiredRole) {
+        router.push("/unauthorized");
+      }
+    }
+  }, [session, loading, router, redirectTo, requiredRole]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!session) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
+// Usage in a page:
+// export default function DashboardPage() {
+//   return (
+//     <ProtectedRoute>
+//       <div>Protected content here</div>
+//     </ProtectedRoute>
+//   );
+// }`}
+        />
+
+        <h2>Next.js Server-Side Protection</h2>
+        <p>
+          Protect server components and API routes:
+        </p>
+
+        <Example
+          title="app/dashboard/page.tsx (Server Component)"
+          description="Server-side route protection"
+          code={`import { getServerSession } from "@warpy-auth-sdk/core/hooks/server";
+import { redirect } from "next/navigation";
+
+export default async function DashboardPage() {
+  const session = await getServerSession();
+
+  if (!session) {
+    redirect("/login");
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <nav className="bg-white shadow">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-16">
+            <div className="flex items-center">
+              <h1 className="text-xl font-bold">Dashboard</h1>
+            </div>
+            <div className="flex items-center">
+              <span className="text-sm text-gray-700">
+                {session.user.email}
+              </span>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-lg shadow p-6">
+          <h2 className="text-2xl font-bold mb-4">
+            Welcome, {session.user.name}!
+          </h2>
+          <pre className="bg-gray-100 p-4 rounded overflow-auto">
+            {JSON.stringify(session, null, 2)}
+          </pre>
+        </div>
+      </main>
+    </div>
+  );
+}`}
+        />
+
+        <h2>Express Route Protection</h2>
+        <p>
+          Protect Express routes using the requireAuth middleware:
+        </p>
+
+        <Example
+          title="Express Protected Routes"
+          description="Implementing requireAuth in Express"
+          code={`import express from "express";
+import cookieParser from "cookie-parser";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/express";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+const app = express();
+
+app.use(express.json());
+app.use(cookieParser());
+
+// Configure authentication
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+// Register auth routes and get requireAuth middleware
+const { requireAuth } = registerAuthRoutes(app, authConfig, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Public route
+app.get("/api/public", (req, res) => {
+  res.json({ message: "This is public" });
+});
+
+// Protected single route
+app.get("/api/user", requireAuth, (req, res) => {
+  res.json({ user: (req as any).session.user });
+});
+
+// Protected route with additional middleware
+app.get("/api/admin",
+  requireAuth,
+  (req, res, next) => {
+    const session = (req as any).session;
+    if (session.user.role !== 'admin') {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  },
+  (req, res) => {
+    res.json({ message: "Admin only content" });
+  }
+);
+
+// Protect entire route group
+const protectedRouter = express.Router();
+protectedRouter.use(requireAuth);
+
+protectedRouter.get("/profile", (req, res) => {
+  res.json({ user: (req as any).session.user });
+});
+
+protectedRouter.get("/settings", (req, res) => {
+  res.json({ settings: "User settings" });
+});
+
+protectedRouter.post("/update", (req, res) => {
+  res.json({ success: true });
+});
+
+app.use("/api/protected", protectedRouter);
+
+app.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});`}
+        />
+
+        <h2>Fastify Route Protection</h2>
+        <p>
+          Protect Fastify routes using the preHandler hook:
+        </p>
+
+        <Example
+          title="Fastify Protected Routes"
+          description="Implementing requireAuth in Fastify"
+          code={`import fastify from "fastify";
+import fastifyCookie from "@fastify/cookie";
+import { registerAuthPlugin } from "@warpy-auth-sdk/core/adapters/fastify";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+const app = fastify({ logger: true });
+
+await app.register(fastifyCookie);
+
+// Configure authentication
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+// Register auth plugin and get requireAuth
+const { requireAuth } = registerAuthPlugin(app, authConfig, {
+  basePath: "/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Public route
+app.get("/api/public", async (request, reply) => {
+  return { message: "This is public" };
+});
+
+// Protected single route
+app.get("/api/user", { preHandler: requireAuth }, async (request) => {
+  return { user: (request as any).session.user };
+});
+
+// Protected route with custom role check
+app.get("/api/admin",
+  {
+    preHandler: [
+      requireAuth,
+      async (request, reply) => {
+        const session = (request as any).session;
+        if (session.user.role !== 'admin') {
+          reply.code(403).send({ error: "Forbidden" });
+        }
+      },
+    ],
+  },
+  async () => {
+    return { message: "Admin only content" };
+  }
+);
+
+// Protect route group with plugin
+await app.register(async (protectedRoutes) => {
+  protectedRoutes.addHook("preHandler", requireAuth);
+
+  protectedRoutes.get("/profile", async (request) => {
+    return { user: (request as any).session.user };
+  });
+
+  protectedRoutes.get("/settings", async () => {
+    return { settings: "User settings" };
+  });
+
+  protectedRoutes.post("/update", async () => {
+    return { success: true };
+  });
+}, { prefix: "/api/protected" });
+
+await app.listen({ port: 3000, host: "0.0.0.0" });`}
+        />
+
+        <h2>Hono Route Protection</h2>
+        <p>
+          Protect Hono routes using middleware:
+        </p>
+
+        <Example
+          title="Hono Protected Routes"
+          description="Implementing requireAuth in Hono"
+          code={`import { Hono } from "hono";
+import { createAuthHandler } from "@warpy-auth-sdk/core/adapters/hono";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+// Configure authentication
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+// Create auth handler and get requireAuth
+const { handler, requireAuth } = createAuthHandler(authConfig, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Register auth routes
+app.route("/api/auth", handler);
+
+// Public route
+app.get("/api/public", (c) => {
+  return c.json({ message: "This is public" });
+});
+
+// Protected single route
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+// Protected route with role check
+app.get("/api/admin", requireAuth, (c) => {
+  const session = c.get("session");
+  if (session.user.role !== 'admin') {
+    return c.json({ error: "Forbidden" }, 403);
+  }
+  return c.json({ message: "Admin only content" });
+});
+
+// Protect route group
+const protectedRoutes = new Hono();
+protectedRoutes.use("*", requireAuth);
+
+protectedRoutes.get("/profile", (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+protectedRoutes.get("/settings", (c) => {
+  return c.json({ settings: "User settings" });
+});
+
+protectedRoutes.post("/update", (c) => {
+  return c.json({ success: true });
+});
+
+app.route("/api/protected", protectedRoutes);
+
+export default app;`}
+        />
+
+        <h2>Node.js HTTP Route Protection</h2>
+        <p>
+          Protect pure Node.js routes:
+        </p>
+
+        <Example
+          title="Node.js Protected Routes"
+          description="Implementing requireAuth in pure Node.js"
+          code={`import { createServer } from "http";
+import { createAuthHandler } from "@warpy-auth-sdk/core/adapters/node";
+import { google, type AuthConfig } from "@warpy-auth-sdk/core";
+
+// Configure authentication
+const authConfig: AuthConfig = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+};
+
+// Create auth handler and get requireAuth
+const { handler: authHandler, requireAuth } = createAuthHandler(authConfig, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Helper to send JSON
+function sendJSON(res: any, data: unknown, status = 200) {
+  res.statusCode = status;
+  res.setHeader("content-type", "application/json");
+  res.end(JSON.stringify(data));
+}
+
+const server = createServer(async (req, res) => {
+  const url = new URL(req.url || "/", \`http://\${req.headers.host}\`);
+  const pathname = url.pathname;
+
+  // Try auth handler first
+  const handled = await authHandler(req, res);
+  if (handled) return;
+
+  // Public route
+  if (pathname === "/api/public" && req.method === "GET") {
+    return sendJSON(res, { message: "This is public" });
+  }
+
+  // Protected route
+  if (pathname === "/api/user" && req.method === "GET") {
+    const authenticated = await requireAuth(req, res);
+    if (!authenticated) return; // requireAuth already sent response
+    return sendJSON(res, { user: req.session?.user });
+  }
+
+  // Protected admin route
+  if (pathname === "/api/admin" && req.method === "GET") {
+    const authenticated = await requireAuth(req, res);
+    if (!authenticated) return;
+
+    const session = req.session;
+    if (session?.user.role !== 'admin') {
+      return sendJSON(res, { error: "Forbidden" }, 403);
+    }
+
+    return sendJSON(res, { message: "Admin only content" });
+  }
+
+  // Protected route group
+  if (pathname.startsWith("/api/protected/")) {
+    const authenticated = await requireAuth(req, res);
+    if (!authenticated) return;
+
+    if (pathname === "/api/protected/profile" && req.method === "GET") {
+      return sendJSON(res, { user: req.session?.user });
+    }
+
+    if (pathname === "/api/protected/settings" && req.method === "GET") {
+      return sendJSON(res, { settings: "User settings" });
+    }
+  }
+
+  // 404
+  res.statusCode = 404;
+  res.setHeader("content-type", "text/plain");
+  res.end("Not Found");
+});
+
+server.listen(3000, () => {
+  console.log("Server running on http://localhost:3000");
+});`}
+        />
+
+        <h2>Role-Based Access Control</h2>
+        <p>
+          Implement role-based authorization:
+        </p>
+
+        <Example
+          title="Role-Based Middleware"
+          description="Create middleware for role-based access control"
+          code={`import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@warpy-auth-sdk/core";
+
+// Define user roles
+type UserRole = 'user' | 'admin' | 'moderator';
+
+// Role hierarchy
+const roleHierarchy: Record<UserRole, number> = {
+  user: 1,
+  moderator: 2,
+  admin: 3,
+};
+
+export function requireRole(requiredRole: UserRole) {
+  return async (req: NextRequest) => {
+    const session = await getSession(req, process.env.AUTH_SECRET!);
+
+    if (!session) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userRole = (session as any).role as UserRole;
+    const userLevel = roleHierarchy[userRole] || 0;
+    const requiredLevel = roleHierarchy[requiredRole];
+
+    if (userLevel < requiredLevel) {
+      return NextResponse.json(
+        { error: "Forbidden: Insufficient permissions" },
+        { status: 403 }
+      );
+    }
+
+    return null; // Allow access
+  };
+}
+
+// Usage in API routes:
+export async function GET(req: NextRequest) {
+  const roleCheck = await requireRole('admin')(req);
+  if (roleCheck) return roleCheck;
+
+  // Admin-only logic here
+  return NextResponse.json({ message: "Admin content" });
+}
+
+// For Express:
+export function requireRoleExpress(requiredRole: UserRole) {
+  return (req: any, res: any, next: any) => {
+    const session = req.session;
+
+    if (!session) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const userRole = session.role as UserRole;
+    const userLevel = roleHierarchy[userRole] || 0;
+    const requiredLevel = roleHierarchy[requiredRole];
+
+    if (userLevel < requiredLevel) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    next();
+  };
+}
+
+// Usage:
+// app.get("/api/admin", requireAuth, requireRoleExpress('admin'), handler);`}
+        />
+
+        <h2>Permission-Based Access Control</h2>
+        <p>
+          Implement fine-grained permission checking:
+        </p>
+
+        <Example
+          title="Permission-Based Middleware"
+          description="Check specific permissions instead of roles"
+          code={`type Permission =
+  | 'read:users'
+  | 'write:users'
+  | 'delete:users'
+  | 'read:posts'
+  | 'write:posts'
+  | 'delete:posts';
+
+interface User {
+  id: string;
+  email: string;
+  permissions: Permission[];
+}
+
+export function requirePermission(...requiredPermissions: Permission[]) {
+  return async (req: any, res: any, next: any) => {
+    const session = req.session;
+
+    if (!session) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const user = session.user as User;
+    const hasPermissions = requiredPermissions.every(
+      (permission) => user.permissions.includes(permission)
+    );
+
+    if (!hasPermissions) {
+      return res.status(403).json({
+        error: "Forbidden: Missing required permissions",
+        required: requiredPermissions,
+      });
+    }
+
+    next();
+  };
+}
+
+// Usage:
+// app.delete("/api/users/:id",
+//   requireAuth,
+//   requirePermission('delete:users'),
+//   handler
+// );
+
+// Multiple permissions (AND logic):
+// app.post("/api/admin/users",
+//   requireAuth,
+//   requirePermission('write:users', 'read:users'),
+//   handler
+// );`}
+        />
+
+        <h2>Testing Protected Routes</h2>
+        <p>
+          Test your protected routes:
+        </p>
+
+        <h3>1. Test Without Authentication</h3>
+        <CodeBlock language="bash">
+{`# Should return 401 Unauthorized
+curl http://localhost:3000/api/user
+
+# Should redirect to login
+curl -I http://localhost:3000/dashboard`}
+        </CodeBlock>
+
+        <h3>2. Test With Authentication</h3>
+        <CodeBlock language="bash">
+{`# First, sign in and get the cookie
+curl -c cookies.txt -L http://localhost:3000/api/auth/signin/google
+
+# Then use the cookie for protected routes
+curl -b cookies.txt http://localhost:3000/api/user
+
+# Should return user data`}
+        </CodeBlock>
+
+        <h3>3. Test Role-Based Access</h3>
+        <CodeBlock language="bash">
+{`# With regular user session (should fail)
+curl -b cookies.txt http://localhost:3000/api/admin
+# Response: 403 Forbidden
+
+# With admin session (should succeed)
+curl -b admin-cookies.txt http://localhost:3000/api/admin
+# Response: 200 OK with admin content`}
+        </CodeBlock>
+
+        <Callout type="info" title="Testing Tips">
+          <ul>
+            <li>Use browser DevTools to inspect cookies</li>
+            <li>Test both successful and failed authentication scenarios</li>
+            <li>Verify redirect behavior for client-side routes</li>
+            <li>Check that 401/403 status codes are returned correctly</li>
+          </ul>
+        </Callout>
+
+        <h2>Best Practices</h2>
+        <ul>
+          <li><strong>Always validate on the server:</strong> Client-side checks are for UX only</li>
+          <li><strong>Use proper HTTP status codes:</strong> 401 for unauthenticated, 403 for unauthorized</li>
+          <li><strong>Implement rate limiting:</strong> Prevent brute force attacks</li>
+          <li><strong>Log authentication attempts:</strong> Monitor for suspicious activity</li>
+          <li><strong>Handle edge cases:</strong> Expired tokens, deleted users, revoked permissions</li>
+          <li><strong>Test thoroughly:</strong> Test all authentication and authorization paths</li>
+        </ul>
+
+        <h2>Security Checklist</h2>
+        <ul>
+          <li>Validate session on every protected request</li>
+          <li>Use HTTPS in production</li>
+          <li>Set secure cookie attributes (HttpOnly, Secure, SameSite)</li>
+          <li>Implement CSRF protection for state-changing operations</li>
+          <li>Log and monitor failed authentication attempts</li>
+          <li>Implement session expiration and refresh</li>
+          <li>Never trust client-side validation alone</li>
+        </ul>
+
+        <Callout type="success" title="Route Protection Complete">
+          You've successfully implemented route protection with authentication middleware.
+          Your application now securely restricts access to authenticated users only.
+        </Callout>
+
+        <h2>Next Steps</h2>
+        <p>
+          Enhance your application security:
+        </p>
+
+        <ul>
+          <li><a href="/docs/guides/two-factor-authentication">Add Two-Factor Authentication</a> for enhanced security</li>
+          <li><a href="/docs/guides/database-adapters">Implement Database Adapters</a> for persistent sessions</li>
+          <li><a href="/docs/guides/captcha-integration">Add CAPTCHA</a> to prevent bot attacks</li>
+          <li><a href="/docs/mcp/introduction">Explore MCP Integration</a> for AI agent authentication</li>
+        </ul>
+      </div>
+    </DocsLayout>
+  );
+}
