@@ -1,0 +1,345 @@
+import { DocsLayout } from '@/components/docs/docs-layout';
+import { CodeBlock } from '@/components/docs/code-block';
+import { Callout } from '@/components/docs/callout';
+import { Example } from '@/components/docs/example';
+
+export const metadata = {
+  title: 'Custom Route Paths - @warpy-auth-sdk/core',
+  description: 'Configure custom authentication route paths for your Next.js application.',
+};
+
+export default function CustomRoutePathsGuide() {
+  return (
+    <DocsLayout
+      title="Custom Route Paths"
+      description="Configure custom authentication route paths for your Next.js application."
+      previousPage={{ title: 'CAPTCHA Integration', href: '/docs/guides/captcha-integration' }}
+      nextPage={{ title: 'MCP Introduction', href: '/docs/mcp/introduction' }}
+    >
+      <div>
+        <h2>Overview</h2>
+        <p>
+          By default, @warpy-auth-sdk/core uses a standardized route structure for authentication
+          endpoints (e.g., <code>/api/auth/signin/google</code>, <code>/api/auth/callback/google</code>).
+          However, you can customize these paths to match your application's routing conventions.
+        </p>
+
+        <h2>Default Route Structure</h2>
+        <p>
+          The default routes follow this pattern:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// Default routes with basePath: "/api/auth"
+GET  /api/auth/session              // Get current session
+POST /api/auth/signout              // Sign out user
+GET  /api/auth/signin/{provider}    // Initiate sign-in (e.g., /api/auth/signin/google)
+POST /api/auth/signin/email         // Send magic link email
+GET  /api/auth/callback/{provider}  // OAuth callback (e.g., /api/auth/callback/google)`}
+        </CodeBlock>
+
+        <h2>Custom Route Configuration</h2>
+        <p>
+          You can override these routes using the <code>routes</code> option in <code>NextAuthHandlerOptions</code>:
+        </p>
+
+        <Example
+          title="Custom Route Paths"
+          description="Configure custom authentication routes"
+          code={`import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+  },
+  {
+    basePath: "/api/auth",
+
+    // Custom route paths
+    routes: {
+      session: "/api/user/session",           // Custom session endpoint
+      signOut: "/api/user/logout",            // Custom logout endpoint
+      signIn: "/login/{provider}",            // Custom sign-in pattern
+      callback: "/auth/verify/{provider}",    // Custom callback pattern
+    },
+
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);`}
+        />
+
+        <Callout type="info" title="Provider Placeholder">
+          The <code>{'{provider}'}</code> placeholder in <code>signIn</code> and <code>callback</code>
+          routes will be replaced with the actual provider name (e.g., <code>google</code>, <code>github</code>,
+          <code>email</code>, <code>twofa</code>).
+        </Callout>
+
+        <h2>Complete Example</h2>
+        <p>
+          Here's a complete example with custom routes in a Next.js 16 Proxy:
+        </p>
+
+        <Example
+          title="proxy.ts"
+          description="Next.js Proxy with custom authentication routes"
+          code={`import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google, github } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: "http://localhost:3000/auth/verify/google",
+    }),
+    callbacks: {
+      async user(u) {
+        return {
+          id: u.id || u.email,
+          email: u.email,
+          name: u.name,
+          picture: u.picture,
+        };
+      },
+    },
+  },
+  {
+    basePath: "/api/auth", // Not used when routes are fully customized
+
+    routes: {
+      session: "/api/user/me",
+      signOut: "/api/auth/logout",
+      signIn: "/login/{provider}",
+      callback: "/auth/verify/{provider}",
+    },
+
+    successRedirect: "/dashboard",
+    errorRedirect: "/",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+
+  // Match all custom routes
+  if (
+    p.startsWith("/login/") ||
+    p.startsWith("/auth/verify/") ||
+    p === "/api/user/me" ||
+    p === "/api/auth/logout"
+  ) {
+    return handler(request);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};`}
+        />
+
+        <h2>Client-Side Usage</h2>
+        <p>
+          When using custom routes, update your client-side code to use the new paths:
+        </p>
+
+        <Example
+          title="Custom Routes in React"
+          description="Using custom authentication routes in your components"
+          code={`'use client';
+
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+import { useState } from "react";
+
+export default function LoginPage() {
+  const { session, loading } = useAuth();
+  const [email, setEmail] = useState('');
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Use custom email sign-in endpoint
+    const response = await fetch('/login/email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+    });
+
+    // Handle response...
+  };
+
+  const handleSignOut = async () => {
+    // Use custom logout endpoint
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  };
+
+  return (
+    <div>
+      {session ? (
+        <div>
+          <p>Welcome, {session.user.name}</p>
+          <button onClick={handleSignOut}>Sign Out</button>
+        </div>
+      ) : (
+        <div>
+          {/* Use custom OAuth sign-in path */}
+          <a href="/login/google">
+            Sign in with Google
+          </a>
+
+          <a href="/login/github">
+            Sign in with GitHub
+          </a>
+
+          {/* Email sign-in form */}
+          <form onSubmit={handleEmailSubmit}>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+            <button type="submit">Send Magic Link</button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}`}
+        />
+
+        <h2>useAuth Hook Configuration</h2>
+        <p>
+          If you customize the <code>session</code> endpoint, you need to update the <code>AuthProvider</code>
+          configuration:
+        </p>
+
+        <Example
+          title="Custom Session Endpoint"
+          description="Configure AuthProvider with custom session endpoint"
+          code={`import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider sessionEndpoint="/api/user/me">
+          {children}
+        </AuthProvider>
+      </body>
+    </html>
+  );
+}`}
+        />
+
+        <h2>Common Patterns</h2>
+
+        <h3>RESTful API Style</h3>
+        <CodeBlock language="typescript">
+{`routes: {
+  session: "/api/user/session",
+  signOut: "/api/user/session",     // DELETE method on same endpoint
+  signIn: "/api/auth/{provider}",
+  callback: "/api/auth/{provider}/callback",
+}`}
+        </CodeBlock>
+
+        <h3>Simplified Paths</h3>
+        <CodeBlock language="typescript">
+{`routes: {
+  session: "/session",
+  signOut: "/logout",
+  signIn: "/signin/{provider}",
+  callback: "/callback/{provider}",
+}`}
+        </CodeBlock>
+
+        <h3>Clerk-like Convention</h3>
+        <CodeBlock language="typescript">
+{`routes: {
+  session: "/api/auth/session",
+  signOut: "/api/auth/sign-out",
+  signIn: "/api/auth/sign-in/{provider}",
+  callback: "/api/auth/callback/{provider}",
+}`}
+        </CodeBlock>
+
+        <h2>Important Considerations</h2>
+
+        <Callout type="warning" title="Update OAuth Redirect URIs">
+          When customizing the <code>callback</code> route, make sure to update your OAuth provider
+          redirect URIs to match the new pattern. For example, if you set
+          <code>callback: "/auth/verify/{'{provider}'}"</code>, your Google redirect URI should be
+          <code>http://yourdomain.com/auth/verify/google</code>.
+        </Callout>
+
+        <Callout type="info" title="Proxy Matcher">
+          When using custom routes outside of <code>basePath</code>, ensure your Next.js Proxy
+          <code>matcher</code> configuration or manual path checks cover the new route patterns.
+        </Callout>
+
+        <h3>Email Provider Callback</h3>
+        <p>
+          The email magic link provider automatically uses your custom callback route. The callback
+          URL will be built using the <code>callback</code> pattern with <code>email</code> as the provider:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// With routes.callback = "/auth/verify/{provider}"
+// Email magic link will redirect to: /auth/verify/email?token=...&email=...`}
+        </CodeBlock>
+
+        <h3>Two-Factor Authentication</h3>
+        <p>
+          Two-factor authentication uses the <code>signIn</code> route with <code>twofa</code> as the provider:
+        </p>
+
+        <CodeBlock language="typescript">
+{`// With routes.signIn = "/login/{provider}"
+// 2FA endpoint: GET /login/twofa?identifier=...&code=...`}
+        </CodeBlock>
+
+        <h2>Troubleshooting</h2>
+
+        <h3>404 Errors</h3>
+        <p>
+          If you're getting 404 errors with custom routes:
+        </p>
+        <ol>
+          <li>Verify your Proxy <code>matcher</code> includes the custom paths</li>
+          <li>Check that the handler is being called for the custom routes in your <code>proxy()</code> function</li>
+          <li>Ensure the <code>{'{provider}'}</code> placeholder is used correctly in patterns</li>
+        </ol>
+
+        <h3>OAuth Redirect Mismatch</h3>
+        <p>
+          If OAuth providers show redirect URI mismatch errors:
+        </p>
+        <ol>
+          <li>Update the <code>redirectUri</code> in your provider configuration</li>
+          <li>Add the new callback URL to your OAuth app's allowed redirect URIs</li>
+          <li>Restart your development server</li>
+        </ol>
+
+        <Callout type="success" title="Flexibility">
+          Custom route paths allow you to integrate @warpy-auth-sdk/core seamlessly with any
+          routing convention or API design pattern in your application.
+        </Callout>
+      </div>
+    </DocsLayout>
+  );
+}

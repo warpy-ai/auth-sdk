@@ -44,6 +44,14 @@ const handler = authMiddleware(
     basePath: "/api/auth",
     successRedirect: "/dashboard",
     errorRedirect: "/signin",
+
+    // Optional: Customize authentication route paths
+    // routes: {
+    //   session: "/api/user/session",
+    //   signOut: "/api/user/logout",
+    //   signIn: "/login/{provider}",
+    //   callback: "/auth/verify/{provider}",
+    // },
   }
 );
 
