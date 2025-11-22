@@ -23,6 +23,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export interface AuthProviderProps {
   children: ReactNode;
   secret: string;
+  sessionEndpoint?: string; // default: '/api/auth/session'
+  signInEndpoint?: string; // default: '/api/auth/signin/email'
+  signOutEndpoint?: string; // default: '/api/auth/signout'
   onSignIn?: (session: Session) => void;
   onSignOut?: () => void;
 }
@@ -30,6 +33,9 @@ export interface AuthProviderProps {
 export function AuthProvider({
   children,
   secret,
+  sessionEndpoint = "/api/auth/session",
+  signInEndpoint = "/api/auth/signin/email",
+  signOutEndpoint = "/api/auth/signout",
   onSignIn,
   onSignOut,
 }: AuthProviderProps) {
@@ -40,7 +46,7 @@ export function AuthProvider({
     try {
       setLoading(true);
       // In browser, we need to fetch from an API endpoint
-      const response = await fetch("/api/auth/session");
+      const response = await fetch(sessionEndpoint);
       if (response.ok) {
         const data = await response.json();
         setSession(data.session || null);
@@ -53,7 +59,7 @@ export function AuthProvider({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [sessionEndpoint]);
 
   useEffect(() => {
     refreshSession();
@@ -68,7 +74,7 @@ export function AuthProvider({
           body.captchaToken = captchaToken;
         }
 
-        const response = await fetch("/api/auth/signin/email", {
+        const response = await fetch(signInEndpoint, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
@@ -88,12 +94,12 @@ export function AuthProvider({
         throw error;
       }
     },
-    [onSignIn]
+    [signInEndpoint, onSignIn]
   );
 
   const signOut = useCallback(async () => {
     try {
-      await fetch("/api/auth/signout", { method: "POST" });
+      await fetch(signOutEndpoint, { method: "POST" });
       setSession(null);
       if (onSignOut) {
         onSignOut();
@@ -101,7 +107,7 @@ export function AuthProvider({
     } catch (error) {
       console.error("Sign out failed:", error);
     }
-  }, [onSignOut]);
+  }, [signOutEndpoint, onSignOut]);
 
   return (
     <AuthContext.Provider
