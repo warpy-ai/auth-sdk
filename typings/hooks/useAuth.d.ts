@@ -11,8 +11,11 @@ export interface AuthContextValue {
 export interface AuthProviderProps {
     children: ReactNode;
     secret: string;
+    sessionEndpoint?: string;
+    signInEndpoint?: string;
+    signOutEndpoint?: string;
     onSignIn?: (session: Session) => void;
     onSignOut?: () => void;
 }
-export declare function AuthProvider({ children, secret, onSignIn, onSignOut, }: AuthProviderProps): React.JSX.Element;
+export declare function AuthProvider({ children, secret, sessionEndpoint, signInEndpoint, signOutEndpoint, onSignIn, onSignOut, }: AuthProviderProps): React.JSX.Element;
 export declare function useAuth(): AuthContextValue;
