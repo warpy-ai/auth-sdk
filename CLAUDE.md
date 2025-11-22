@@ -135,12 +135,19 @@ The SDK is built around a provider-based architecture with MCP integration and P
    - `createNextAuthHandler(config, options)`: Route-handler-style function used by Proxy/Route Handlers
    - `authMiddleware(configOrOptions, options)`: Zero-config authentication for **Next.js 16 Proxy** (formerly Middleware)
      - Handles all flows under a base path (default `/auth`, recommended `/api/auth`)
-     - Endpoints:
+     - Default Endpoints:
        - `GET {basePath}/session` → session JSON
        - `POST {basePath}/signout` → clears cookie
        - `GET {basePath}/signin/{provider}` → start OAuth
        - `GET {basePath}/callback/{provider}` → finalize OAuth, set cookie, redirect
        - `POST {basePath}/signin/email` → send magic link (Node runtime recommended)
+     - **Custom Route Paths**: Configure custom authentication routes via `options.routes`:
+       - `session`: Custom session endpoint (default: `{basePath}/session`)
+       - `signOut`: Custom logout endpoint (default: `{basePath}/signout`)
+       - `signIn`: Custom sign-in pattern with `{provider}` placeholder (default: `{basePath}/signin/{provider}`)
+       - `callback`: Custom callback pattern with `{provider}` placeholder (default: `{basePath}/callback/{provider}`)
+       - Example: `routes: { session: "/api/user/me", signOut: "/api/auth/logout", signIn: "/login/{provider}", callback: "/auth/verify/{provider}" }`
+       - See [Custom Route Paths Guide](content/docs/03-guides/06-custom-route-paths.mdx) for details
    - Zero-config via env: `AUTH_SECRET`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`
    - Import: `import { authMiddleware } from '@warpy-auth-sdk/core/next'`
 
