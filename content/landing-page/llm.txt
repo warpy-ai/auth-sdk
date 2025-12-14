@@ -1,0 +1,1217 @@
+# @warpy-auth-sdk/core - LLM Reference Documentation
+
+> Authentication SDK for Node.js and React applications with OAuth, Email Magic Links, Two-Factor Authentication, and MCP (Model Context Protocol) for AI Agent Delegated Authentication.
+
+Package: `@warpy-auth-sdk/core`
+Subpath exports: `@warpy-auth-sdk/core`, `@warpy-auth-sdk/core/hooks`, `@warpy-auth-sdk/core/hooks/server`, `@warpy-auth-sdk/core/next`, `@warpy-auth-sdk/core/adapters/express`, `@warpy-auth-sdk/core/adapters/fastify`, `@warpy-auth-sdk/core/adapters/hono`, `@warpy-auth-sdk/core/adapters/node`
+
+---
+
+## TABLE OF CONTENTS
+
+1. Getting Started
+   - Installation
+   - Quickstart
+   - Environment Setup
+   - First Auth Flow
+
+2. Providers
+   - Overview
+   - Google OAuth
+   - GitHub OAuth
+   - GitLab OAuth
+   - LinkedIn OAuth
+   - Microsoft OAuth
+   - Facebook OAuth
+   - Discord OAuth
+   - Spotify OAuth
+   - Twitch OAuth
+   - Epic Games OAuth
+   - Email Magic Links
+   - Two-Factor Email Authentication
+   - Custom OAuth Providers
+
+3. Guides
+   - Express Adapter
+   - Fastify Adapter
+   - Hono Adapter
+   - Node.js HTTP Adapter
+   - Next.js Integration
+   - React Hooks
+   - Session Management
+   - Database Adapters
+   - Two-Factor Authentication
+   - CAPTCHA Integration
+   - Security Best Practices
+   - Deployment
+
+4. MCP (Model Context Protocol)
+   - Introduction
+   - Warpy Cloud Shield
+   - Tools Reference
+   - Efficient AI Agent Authentication
+
+5. API Reference
+   - Core Functions
+   - Provider API
+   - Adapter API
+   - React Hooks
+   - TypeScript Types
+
+6. Advanced
+   - Callbacks
+   - Token Management
+   - Error Handling
+   - Testing
+
+---
+
+## 1. GETTING STARTED
+
+### Installation
+
+Install the package:
+
+```bash
+npm install @warpy-auth-sdk/core
+# or
+yarn add @warpy-auth-sdk/core
+# or
+pnpm add @warpy-auth-sdk/core
+# or
+bun add @warpy-auth-sdk/core
+```
+
+**Peer Dependencies:**
+- Required: `react`, `next` (if using Next.js)
+- Optional: `@prisma/client`, `nodemailer`, `resend`, `ai`
+
+**Package Imports:**
+
+```typescript
+// Core authentication functions
+import { authenticate, getSession, signOut } from '@warpy-auth-sdk/core';
+
+// React hooks and components
+import { useAuth, AuthProvider } from '@warpy-auth-sdk/core/hooks';
+
+// Server-side session helpers
+import { getServerSession } from '@warpy-auth-sdk/core/hooks/server';
+
+// Next.js integration
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+
+// MCP tools for AI agents
+import { createMCPTools } from '@warpy-auth-sdk/core';
+```
+
+**Environment Requirements:**
+- Node.js: 18.0.0+
+- React: 18.0.0+
+- Next.js: 13.0.0+ (App Router recommended)
+- TypeScript: 4.9.0+
+
+---
+
+### Quickstart (5-Minute Setup)
+
+**1. Environment Variables (.env.local):**
+
+```bash
+AUTH_SECRET=your-secret-key-min-32-chars-long-replace-this-in-production
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+```
+
+**2. Next.js 16 Proxy (proxy.ts):**
+
+```typescript
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { authMiddleware } from "@warpy-auth-sdk/core/next";
+import { google } from "@warpy-auth-sdk/core";
+
+const handler = authMiddleware(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+    }),
+    callbacks: {
+      async user(u) {
+        return { id: "1", email: u.email, name: u.name, picture: u.picture };
+      },
+      jwt: (t) => t,
+      session: (s) => s,
+    },
+  },
+  {
+    basePath: "/api/auth",
+    successRedirect: "/dashboard",
+    errorRedirect: "/login",
+  }
+);
+
+export function proxy(request: NextRequest) {
+  const p = request.nextUrl.pathname;
+  if (p.startsWith("/api/auth")) return handler(request);
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/(api|trpc)(.*)",
+  ],
+};
+```
+
+**3. Auth Provider (app/layout.tsx):**
+
+```typescript
+import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
+    </html>
+  );
+}
+```
+
+**4. Login Page:**
+
+```typescript
+'use client';
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+
+export default function LoginPage() {
+  const { session, loading } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  if (session) return <div>Already signed in!</div>;
+
+  return (
+    <a href="/api/auth/signin/google">Sign in with Google</a>
+  );
+}
+```
+
+**5. Protected Dashboard:**
+
+```typescript
+'use client';
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+
+export default function DashboardPage() {
+  const { session, loading, signOut } = useAuth();
+  if (loading) return <div>Loading...</div>;
+  if (!session) return <div>Please sign in</div>;
+
+  return (
+    <div>
+      <h1>Welcome, {session.user.name}!</h1>
+      <button onClick={signOut}>Sign Out</button>
+    </div>
+  );
+}
+```
+
+---
+
+### Environment Variables Reference
+
+**Core Configuration:**
+
+```bash
+# Required: JWT signing secret (min 32 chars)
+AUTH_SECRET=your-production-secret-here
+
+# Generate secure secret:
+# node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+**Google OAuth:**
+
+```bash
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+GOOGLE_REDIRECT_URI=http://localhost:3000/api/auth/callback/google
+```
+
+**Email/SMTP Configuration:**
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASS=your-app-password
+SMTP_FROM=noreply@yourdomain.com
+```
+
+**Resend Email Service:**
+
+```bash
+RESEND_API_KEY=re_your_api_key
+```
+
+**MCP Configuration (Optional):**
+
+```bash
+MCP_ENABLED=true
+MCP_TOKEN_EXPIRES_IN=15m
+MCP_ALLOWED_SCOPES=debug,read,write
+WARPY_API_KEY=your-warpy-api-key  # For Cloud Shield
+```
+
+---
+
+## 2. PROVIDERS
+
+### Provider Overview
+
+All OAuth providers support PKCE (S256 by default) for enhanced security.
+
+**Available OAuth Providers:**
+- `google` - Google OAuth 2.0 (OpenID Connect)
+- `github` - GitHub OAuth 2.0 (handles private emails)
+- `gitlab` - GitLab OAuth 2.0 (supports self-hosted)
+- `linkedin` - LinkedIn OAuth 2.0 (OpenID Connect)
+- `microsoft` - Microsoft/Azure AD (multi-tenant)
+- `facebook` - Facebook OAuth 2.0
+- `discord` - Discord OAuth 2.0
+- `spotify` - Spotify OAuth 2.0
+- `twitch` - Twitch OAuth 2.0
+- `epic` - Epic Games OAuth 2.0
+- `custom` - Custom OAuth 2.0 provider
+
+**Email Providers:**
+- `email` - Magic link authentication
+- `twofa` - Two-factor email authentication (6-digit codes)
+
+---
+
+### Google OAuth
+
+```typescript
+import { google } from '@warpy-auth-sdk/core';
+
+const provider = google({
+  clientId: process.env.GOOGLE_CLIENT_ID!,
+  clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/google',
+  scope: ['openid', 'email', 'profile'], // Optional (defaults)
+  pkce: 'S256', // Optional (default)
+});
+```
+
+**Google User Data Structure:**
+
+```typescript
+interface GoogleUser {
+  id: string;
+  email: string;
+  name: string;
+  picture: string;
+  verified_email: boolean;
+  locale: string;
+}
+```
+
+---
+
+### GitHub OAuth
+
+```typescript
+import { github } from '@warpy-auth-sdk/core';
+
+const provider = github({
+  clientId: process.env.GITHUB_CLIENT_ID!,
+  clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/github',
+  scope: ['user:email'], // Includes private emails
+});
+```
+
+---
+
+### GitLab OAuth
+
+```typescript
+import { gitlab } from '@warpy-auth-sdk/core';
+
+// GitLab.com
+const provider = gitlab({
+  clientId: process.env.GITLAB_CLIENT_ID!,
+  clientSecret: process.env.GITLAB_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/gitlab',
+});
+
+// Self-hosted GitLab
+const selfHosted = gitlab({
+  clientId: process.env.GITLAB_CLIENT_ID!,
+  clientSecret: process.env.GITLAB_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/gitlab',
+  baseUrl: 'https://gitlab.company.com',
+});
+```
+
+---
+
+### Microsoft OAuth
+
+```typescript
+import { microsoft } from '@warpy-auth-sdk/core';
+
+// Multi-tenant
+const provider = microsoft({
+  clientId: process.env.MICROSOFT_CLIENT_ID!,
+  clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/microsoft',
+  tenant: 'common', // 'common', 'organizations', or specific tenant ID
+});
+```
+
+---
+
+### LinkedIn OAuth
+
+```typescript
+import { linkedin } from '@warpy-auth-sdk/core';
+
+const provider = linkedin({
+  clientId: process.env.LINKEDIN_CLIENT_ID!,
+  clientSecret: process.env.LINKEDIN_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/linkedin',
+  scope: ['openid', 'profile', 'email'],
+});
+```
+
+---
+
+### Discord OAuth
+
+```typescript
+import { discord } from '@warpy-auth-sdk/core';
+
+const provider = discord({
+  clientId: process.env.DISCORD_CLIENT_ID!,
+  clientSecret: process.env.DISCORD_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/discord',
+  scope: ['identify', 'email'],
+});
+```
+
+---
+
+### Spotify OAuth
+
+```typescript
+import { spotify } from '@warpy-auth-sdk/core';
+
+const provider = spotify({
+  clientId: process.env.SPOTIFY_CLIENT_ID!,
+  clientSecret: process.env.SPOTIFY_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/spotify',
+  scope: ['user-read-email', 'user-read-private'],
+});
+```
+
+---
+
+### Email Magic Links
+
+```typescript
+import { email } from '@warpy-auth-sdk/core';
+
+// With Resend
+const provider = email({
+  from: 'noreply@example.com',
+  service: {
+    type: 'resend',
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+  appName: 'MyApp',
+  companyName: 'Acme Inc',
+  expirationMinutes: 15,
+});
+
+// With Nodemailer (SMTP)
+const smtpProvider = email({
+  from: 'noreply@example.com',
+  service: {
+    type: 'nodemailer',
+    server: 'smtp.gmail.com:587',
+    auth: {
+      user: 'user@gmail.com',
+      pass: process.env.SMTP_PASSWORD!,
+    },
+  },
+});
+```
+
+---
+
+### Two-Factor Email Authentication
+
+```typescript
+import { twofa } from '@warpy-auth-sdk/core';
+
+const provider = twofa({
+  from: 'noreply@example.com',
+  service: {
+    type: 'resend',
+    apiKey: process.env.RESEND_API_KEY!,
+  },
+  expirationMinutes: 5,
+  appName: 'MyApp',
+});
+```
+
+**2FA Flow:**
+
+1. User enters email, requests 2FA code
+2. 6-digit code sent via email
+3. User enters code within expiration time
+4. Code verified, session created
+
+---
+
+### Custom OAuth Provider
+
+```typescript
+import { custom } from '@warpy-auth-sdk/core';
+
+const provider = custom({
+  clientId: process.env.CUSTOM_CLIENT_ID!,
+  clientSecret: process.env.CUSTOM_CLIENT_SECRET!,
+  redirectUri: 'https://example.com/api/auth/callback/custom',
+  authorizeUrl: 'https://auth.example.com/oauth/authorize',
+  tokenUrl: 'https://auth.example.com/oauth/token',
+  userInfoUrl: 'https://auth.example.com/oauth/userinfo',
+  scope: ['openid', 'email', 'profile'],
+  mapUser: (userInfo) => ({
+    id: userInfo.sub || userInfo.id,
+    email: userInfo.email,
+    name: userInfo.name || userInfo.displayName,
+    picture: userInfo.picture || userInfo.avatar,
+  }),
+});
+```
+
+---
+
+## 3. GUIDES
+
+### Express Adapter
+
+```typescript
+import express from "express";
+import cookieParser from "cookie-parser";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/express";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = express();
+app.use(express.json());
+app.use(cookieParser());
+
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: "http://localhost:3000/api/auth/callback/google",
+  }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+  errorRedirect: "/login",
+});
+
+// Protected route
+app.get("/api/user", requireAuth, (req, res) => {
+  res.json({ user: req.session.user });
+});
+
+app.listen(3000);
+```
+
+**Registered Routes:**
+- `GET {basePath}/session`
+- `POST {basePath}/signout`
+- `GET {basePath}/signin/:provider`
+- `GET {basePath}/callback/:provider`
+
+---
+
+### Fastify Adapter
+
+```typescript
+import fastify from "fastify";
+import fastifyCookie from "@fastify/cookie";
+import { registerAuthPlugin } from "@warpy-auth-sdk/core/adapters/fastify";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = fastify({ logger: true });
+await app.register(fastifyCookie);
+
+const { requireAuth } = registerAuthPlugin(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/auth",
+  successRedirect: "/dashboard",
+});
+
+app.get("/api/user", { preHandler: requireAuth }, async (req) => {
+  return { user: (req as any).session.user };
+});
+```
+
+---
+
+### Hono Adapter
+
+```typescript
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
+import { registerAuthRoutes } from "@warpy-auth-sdk/core/adapters/hono";
+import { google } from "@warpy-auth-sdk/core";
+
+const app = new Hono();
+
+const { requireAuth } = registerAuthRoutes(app, {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+});
+
+app.get("/api/user", requireAuth, (c) => {
+  const session = c.get("session");
+  return c.json({ user: session.user });
+});
+
+serve({ fetch: app.fetch, port: 3000 });
+```
+
+**Hono works on:** Node.js, Deno, Bun, Cloudflare Workers
+
+---
+
+### Node.js HTTP Adapter
+
+```typescript
+import { createServer } from "http";
+import { createAuthHandler } from "@warpy-auth-sdk/core/adapters/node";
+import { google } from "@warpy-auth-sdk/core";
+
+const { handler, requireAuth } = createAuthHandler({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+}, {
+  basePath: "/api/auth",
+  successRedirect: "/dashboard",
+});
+
+const server = createServer(async (req, res) => {
+  const handled = await handler(req, res);
+  if (handled) return;
+
+  if (req.url === "/api/user" && req.method === "GET") {
+    const authenticated = await requireAuth(req, res);
+    if (!authenticated) return;
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ user: req.session.user }));
+    return;
+  }
+
+  res.writeHead(404);
+  res.end("Not Found");
+});
+
+server.listen(3000);
+```
+
+---
+
+### React Hooks
+
+**AuthProvider:**
+
+```typescript
+import { AuthProvider } from "@warpy-auth-sdk/core/hooks";
+
+function App() {
+  return (
+    <AuthProvider
+      sessionEndpoint="/api/auth/session"    // Optional, default
+      signOutEndpoint="/api/auth/signout"    // Optional, default
+    >
+      <YourApp />
+    </AuthProvider>
+  );
+}
+```
+
+**useAuth Hook:**
+
+```typescript
+import { useAuth } from "@warpy-auth-sdk/core/hooks";
+
+function Component() {
+  const {
+    session,        // Session | null
+    loading,        // boolean
+    error,          // Error | null
+    signOut,        // () => Promise<void>
+    refreshSession, // () => Promise<void>
+  } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+  if (!session) return <div>Not authenticated</div>;
+
+  return (
+    <div>
+      <p>Welcome, {session.user.name}</p>
+      <p>Email: {session.user.email}</p>
+      <button onClick={signOut}>Sign Out</button>
+    </div>
+  );
+}
+```
+
+---
+
+### Session Management
+
+**Session Structure:**
+
+```typescript
+interface Session {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+  expires: Date;
+  token?: string;
+  type?: 'standard' | 'mcp-agent';
+  scopes?: string[];
+  agentId?: string;
+}
+```
+
+**Server-Side Session:**
+
+```typescript
+import { getSession } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const session = await getSession(request, process.env.AUTH_SECRET!);
+
+  if (!session) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return Response.json({ user: session.user });
+}
+```
+
+---
+
+### Database Adapters (Prisma)
+
+```typescript
+import { PrismaAdapter } from "@warpy-auth-sdk/core";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+
+const config = {
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  adapter: PrismaAdapter(prisma),
+};
+```
+
+**Prisma Schema:**
+
+```prisma
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  picture       String?
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  provider          String
+  providerAccountId String
+  user              User    @relation(fields: [userId], references: [id])
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id])
+}
+```
+
+---
+
+### CAPTCHA Integration
+
+**Supported Providers:**
+- reCAPTCHA v2 (checkbox)
+- reCAPTCHA v3 (invisible, score-based)
+- hCaptcha
+- Cloudflare Turnstile
+
+```typescript
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { createCaptchaProvider } from '@warpy-auth-sdk/core';
+
+const captcha = createCaptchaProvider({
+  provider: 'recaptcha-v3',
+  siteKey: process.env.RECAPTCHA_SITE_KEY!,
+  secretKey: process.env.RECAPTCHA_SECRET_KEY!,
+  minScore: 0.5,
+});
+
+const handler = authMiddleware({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({ /* config */ }),
+  captcha: {
+    provider: captcha,
+    enforceOn: ['email', '2fa'], // Selective enforcement
+  },
+});
+```
+
+**Client-Side Integration:**
+
+```typescript
+const { signInWithEmail, captchaToken } = useAuth();
+
+// Include captchaToken in auth requests
+await signInWithEmail(email, { captchaToken });
+```
+
+---
+
+## 4. MCP (MODEL CONTEXT PROTOCOL)
+
+### Introduction
+
+MCP enables AI agents to authenticate on behalf of users with scoped, time-limited access.
+
+**Key Features:**
+- Short-lived tokens (15 minutes default)
+- Scope-based access control
+- Token revocation support
+- Compatible with Vercel AI SDK
+
+**Creating MCP Tools:**
+
+```typescript
+import { createMCPTools, createMCPShield } from "@warpy-auth-sdk/core";
+
+// Self-host mode (local JWT)
+const mcpTools = createMCPTools({
+  secret: process.env.AUTH_SECRET!,
+});
+
+// Cloud mode (Warpy Shield)
+const shielded = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  warpy: { apiKey: process.env.WARPY_API_KEY },
+});
+```
+
+**Available MCP Tools:**
+- `agent_login` - Create short-lived agent tokens
+- `get_session` - Verify and retrieve session info
+- `revoke_token` - Invalidate tokens immediately
+
+---
+
+### MCP HTTP Endpoint
+
+```typescript
+// POST /api/mcp
+export async function POST(request: Request) {
+  const { tool, args } = await request.json();
+  const mcpTools = createMCPTools({ secret: process.env.AUTH_SECRET! });
+
+  switch (tool) {
+    case 'agent_login':
+      return Response.json(await mcpTools.agent_login.execute(args));
+    case 'get_session':
+      return Response.json(await mcpTools.get_session.execute(args));
+    case 'revoke_token':
+      return Response.json(await mcpTools.revoke_token.execute(args));
+  }
+}
+```
+
+**Agent Login Request:**
+
+```json
+{
+  "tool": "agent_login",
+  "args": {
+    "userId": "user-123",
+    "scopes": ["debug", "read"],
+    "agentId": "dev-agent",
+    "expiresIn": "15m"
+  }
+}
+```
+
+**Verify Agent Token:**
+
+```typescript
+import { verifyAgentToken } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const session = await verifyAgentToken(request, process.env.AUTH_SECRET!);
+
+  if (!session || !session.scopes?.includes('read')) {
+    return Response.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  return Response.json({ data: 'Protected data' });
+}
+```
+
+---
+
+### Warpy Cloud Shield
+
+Zero-config cloud security when `WARPY_API_KEY` is set:
+
+```typescript
+const shielded = createMCPShield({
+  secret: process.env.AUTH_SECRET!,
+  warpy: { apiKey: process.env.WARPY_API_KEY },
+  metrics: { enabled: true, flushIntervalMs: 10000 },
+});
+```
+
+**Features:**
+- Token validation at edge
+- Scope and intent scanning
+- Secure proxy execution
+- Real-time metrics dashboard
+- Automatic token revocation
+
+---
+
+## 5. API REFERENCE
+
+### Core Functions
+
+**authenticate(config, request?, payload?)**
+
+```typescript
+import { authenticate, google } from '@warpy-auth-sdk/core';
+
+const result = await authenticate(
+  {
+    secret: process.env.AUTH_SECRET!,
+    provider: google({ /* config */ }),
+  },
+  request
+);
+
+// Returns: { session?, error?, redirectUrl? }
+```
+
+**getSession(request, secret)**
+
+```typescript
+import { getSession } from '@warpy-auth-sdk/core';
+
+const session = await getSession(request, process.env.AUTH_SECRET!);
+// Returns: Session | null
+```
+
+**signOut(request, config)**
+
+```typescript
+import { signOut } from '@warpy-auth-sdk/core';
+
+await signOut(request, config);
+```
+
+**verifyAgentToken(request, secret)**
+
+```typescript
+import { verifyAgentToken } from '@warpy-auth-sdk/core';
+
+const session = await verifyAgentToken(request, process.env.AUTH_SECRET!);
+// Returns: Session | null (for MCP agent tokens)
+```
+
+---
+
+### Type Definitions
+
+```typescript
+interface AuthConfig {
+  secret: string;
+  provider: Provider;
+  adapter?: Adapter;
+  captcha?: CaptchaConfig;
+  callbacks?: {
+    user?: (user: User, context: { provider: string }) => Promise<User>;
+    jwt?: (token: JWT) => JWT;
+    session?: (session: Session) => Session;
+  };
+}
+
+interface Session {
+  user: {
+    id: string;
+    email: string;
+    name?: string;
+    picture?: string;
+  };
+  expires: Date;
+  token?: string;
+  type?: 'standard' | 'mcp-agent';
+  scopes?: string[];
+  agentId?: string;
+}
+
+interface AuthenticateResult {
+  session?: Session;
+  error?: string;
+  redirectUrl?: string;
+}
+
+type Provider = OAuthProvider | EmailProvider | TwoFactorProvider;
+
+interface OAuthProvider {
+  type: 'oauth';
+  clientId: string;
+  clientSecret: string;
+  authorizeUrl: string;
+  tokenUrl: string;
+  userInfoUrl: string;
+  scope?: string[];
+  pkce?: 'S256' | 'plain' | false;
+}
+```
+
+---
+
+## 6. ADVANCED
+
+### Callbacks
+
+**Execution Order:**
+1. `user()` - After OAuth/email verification
+2. `jwt()` - Before signing JWT
+3. `session()` - Shapes final session object
+
+```typescript
+callbacks: {
+  // Resolve/upsert user in database
+  async user(oauthUser, context) {
+    const user = await db.user.upsert({
+      where: { email: oauthUser.email },
+      create: { email: oauthUser.email, name: oauthUser.name },
+      update: { name: oauthUser.name },
+    });
+    return { id: user.id, email: user.email, name: user.name };
+  },
+
+  // Add custom JWT claims
+  jwt(token) {
+    return {
+      ...token,
+      roles: ['user'],
+      organizationId: 'org-123',
+    };
+  },
+
+  // Shape session for client
+  session(session) {
+    return {
+      ...session,
+      isAuthenticated: true,
+    };
+  },
+}
+```
+
+---
+
+### Token Management
+
+**Token Types:**
+- Standard tokens: 7-day expiration (user sessions)
+- MCP agent tokens: 15-minute expiration (AI agents)
+
+**Token Storage:**
+- HttpOnly cookies (secure, not accessible via JS)
+- HTTPS only in production
+- SameSite=Lax for CSRF protection
+
+**Token Revocation:**
+
+```typescript
+// Standard sign out
+await signOut(request, config);
+
+// MCP token revocation
+await mcpTools.revoke_token.execute({ token: 'eyJhbGci...' });
+```
+
+---
+
+### Error Handling
+
+```typescript
+try {
+  const result = await authenticate(config, request);
+
+  if (result.error) {
+    // Handle authentication error
+    console.error('Auth error:', result.error);
+  }
+
+  if (result.redirectUrl) {
+    // Redirect to OAuth provider
+    return Response.redirect(result.redirectUrl);
+  }
+
+  if (result.session) {
+    // Authentication successful
+    return Response.json({ user: result.session.user });
+  }
+} catch (error) {
+  console.error('Unexpected error:', error);
+  return Response.json({ error: 'Internal server error' }, { status: 500 });
+}
+```
+
+**Common Errors:**
+- `redirect_uri_mismatch` - Callback URL doesn't match OAuth config
+- `invalid_client` - Invalid client ID/secret
+- `access_denied` - User denied OAuth consent
+- `token_expired` - JWT token has expired
+- `invalid_token` - Token signature invalid
+
+---
+
+### Security Best Practices
+
+1. **Secret Management:**
+   - Use 32+ character secrets
+   - Different secrets for dev/prod
+   - Never commit to version control
+
+2. **Cookie Security:**
+   - HttpOnly (automatic)
+   - Secure in production (automatic)
+   - SameSite=Lax (automatic)
+
+3. **PKCE:**
+   - Enabled by default (S256)
+   - Prevents authorization code interception
+
+4. **Token Expiration:**
+   - Standard: 7 days
+   - MCP agents: 15 minutes
+   - Shorter for sensitive operations
+
+5. **CSRF Protection:**
+   - State parameter in OAuth
+   - Cookie verification
+   - SameSite cookie attribute
+
+---
+
+## ROUTES REFERENCE
+
+**Default Auth Routes (basePath: /api/auth):**
+
+| Route | Method | Description |
+|-------|--------|-------------|
+| `/api/auth/session` | GET | Get current session |
+| `/api/auth/signout` | POST | Sign out user |
+| `/api/auth/signin/:provider` | GET | Start OAuth flow |
+| `/api/auth/callback/:provider` | GET | OAuth callback |
+| `/api/auth/signin/email` | POST | Send magic link |
+| `/api/auth/signin/2fa` | POST | Send 2FA code |
+| `/api/auth/verify/2fa` | POST | Verify 2FA code |
+
+**Custom Route Paths:**
+
+```typescript
+authMiddleware(config, {
+  basePath: '/api/auth',
+  routes: {
+    session: '/api/user/me',
+    signOut: '/api/auth/logout',
+    signIn: '/login/{provider}',
+    callback: '/auth/verify/{provider}',
+  },
+});
+```
+
+---
+
+## QUICK REFERENCE
+
+**Install:**
+```bash
+npm install @warpy-auth-sdk/core
+```
+
+**Required Env Vars:**
+```bash
+AUTH_SECRET=your-32-char-secret
+```
+
+**Minimal Setup:**
+```typescript
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { google } from '@warpy-auth-sdk/core';
+
+export default authMiddleware({
+  secret: process.env.AUTH_SECRET!,
+  provider: google({
+    clientId: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    redirectUri: process.env.GOOGLE_REDIRECT_URI!,
+  }),
+});
+```
+
+**Client Hook:**
+```typescript
+import { useAuth } from '@warpy-auth-sdk/core/hooks';
+const { session, loading, signOut } = useAuth();
+```
+
+---
+
+End of Documentation.
