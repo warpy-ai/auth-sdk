@@ -28,4 +28,5 @@ export { generateSecureToken, createMagicToken, verifyMagicToken, cleanExpiredMa
 export { OAuthProvider } from "./utils/oauth";
 export { createWebMCPHandler, issueGrant, issueActionToken, revokeGrant, verifyWebMCPAction, authorizeWebMCPRequest, createMemoryNonceStore, type WebMCPHandlerOptions, type WebMCPServerOptions, type WebMCPActionClaims, type VerifyActionOptions, type NonceStore, } from "./webmcp/server";
 export { revokeToken } from "./mcp/mcp";
+export { x402Paywall, creditsPaywall, subscriptionPaywall, verifyWebMCPPayment, authorizePaidRequest, createMemoryUsageStore, describePricing, toAtomicUnits, type PaywallOptions, type PaywallProvider, type PaywallContext, type PaywallRedemption, type PaymentClaims, type PaymentChallenge, type PaymentReceipt, type ToolPrice, type PricingTable, type UsageStore, type X402PaywallConfig, type CreditsPaywallConfig, type SubscriptionPaywallConfig, } from "./webmcp/paywall";
 export { createNextAuthHandler, type NextAuthHandlerOptions, } from "./next/handler";

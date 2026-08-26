@@ -1,4 +1,5 @@
 import { type AuthConfig } from "../core";
+import { type PaywallOptions } from "./paywall/server";
 export interface WebMCPActionClaims {
     userId: string;
     agentId?: string;
@@ -54,6 +55,7 @@ export declare function authorizeWebMCPRequest(request: Request, config: {
 }>;
 export interface WebMCPHandlerOptions extends WebMCPServerOptions {
     basePath?: string;
+    paywall?: PaywallOptions;
     manifest?: {
         name?: string;
         description?: string;

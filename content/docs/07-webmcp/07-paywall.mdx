@@ -1,0 +1,364 @@
+---
+title: Paywalled Tools
+description: Charge AI agents for tool calls — x402 wallet payments, prepaid credits, or subscription-gated access, metered and verified server-side.
+---
+
+## Why a paywall belongs here
+
+An agent that can call your tools is consuming your compute, your data and your
+inventory. The web's answer for humans is a signup flow; for an agent, that
+answer doesn't work — there is nobody to fill in a card form mid-task.
+
+So a paywalled tool answers an unpaid call with a **machine-readable challenge**
+rather than a refusal. The agent reads the price, pays, and retries — inside the
+same conversation, without a human.
+
+```json
+{
+  "error": "payment_required",
+  "message": "Pay 0.01 USDC using the x402 payment requirements below, then call the tool again with \"_payment\".",
+  "price": { "amount": "0.01", "currency": "USDC" },
+  "provider": "x402",
+  "x402": {
+    "x402Version": 2,
+    "accepts": [{
+      "scheme": "exact", "network": "base", "amount": "10000",
+      "asset": "0x…USDC", "payTo": "0x…", "maxTimeoutSeconds": 60
+    }]
+  },
+  "retry": "Call \"premium_search\" again with \"_payment\" set to your proof of payment."
+}
+```
+
+## The flow
+
+1. **Quote.** First call to a priced tool asks the server what it costs and
+   whether this caller already has access. Nothing is charged.
+2. **Challenge.** No access, no payment attached → the agent gets the challenge
+   above. The person is *not* prompted; nothing has happened yet.
+3. **Pay.** The agent retries with `_payment` set to its proof of payment.
+4. **Confirm.** If the payment spends *the person's* money, they are asked
+   first, with the cost disclosed. If the agent pays from its own wallet, no
+   prompt.
+5. **Settle.** Only now does money move. The server verifies through the
+   provider and issues a **receipt**.
+6. **Call.** The tool runs. The receipt travels to your API on
+   `X-WebMCP-Receipt`, where `verifyWebMCPPayment` spends one call from it.
+
+Money moves after approval and before execution, so a declined call is never a
+charged one.
+
+## Setup
+
+Server — the pricing table here is the one that counts:
+
+```ts
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+import { x402Paywall } from '@warpy-auth-sdk/core';
+
+const handler = authMiddleware(config, {
+  basePath: '/api/auth',
+  paywall: {
+    provider: x402Paywall({
+      payTo: process.env.MERCHANT_ADDRESS!,
+      network: 'base',
+      asset: process.env.USDC_ADDRESS!,
+      facilitatorUrl: 'https://x402.org/facilitator',
+    }),
+    pricing: {
+      premium_search: { amount: '0.01', currency: 'USDC', freeCalls: 3 },
+      generate_report: { amount: '0.25', currency: 'USDC', calls: 1 },
+    },
+    onPayment: (event) => ledger.record(event),
+  },
+});
+```
+
+Client — the same prices, for display and for what agents are told:
+
+```tsx
+createWebMCP({
+  basePath: '/api/auth',
+  paywall: {
+    pricing: {
+      premium_search: { amount: '0.01', currency: 'USDC', freeCalls: 3 },
+      generate_report: { amount: '0.25', currency: 'USDC' },
+    },
+  },
+  tools: [
+    {
+      name: 'premium_search',
+      description: 'Search the full product index, including unlisted stock.',
+      annotations: { readOnlyHint: true },
+      inputSchema: { type: 'object', properties: { q: { type: 'string' } }, required: ['q'] },
+      async execute({ q }, ctx) {
+        const res = await ctx.fetch(`/api/search?q=${encodeURIComponent(q)}`);
+        return res.json();
+      },
+    },
+  ],
+});
+```
+
+<Callout type="warning">
+**The browser's copy of a price is a suggestion.** Anything the page holds, an
+agent can read and a compromised page can rewrite. Only `paywall.pricing` on the
+server decides what a call costs, and only `verifyWebMCPPayment` in your API
+route decides whether it was paid for. A tool whose work happens entirely in the
+page — clicking a button, reading the DOM — cannot be meaningfully paywalled;
+price the tools that hit your backend.
+</Callout>
+
+Then enforce it where the work actually happens:
+
+```ts
+import { authorizePaidRequest } from '@warpy-auth-sdk/core';
+
+export async function GET(request: Request) {
+  const access = await authorizePaidRequest(request, process.env.AUTH_SECRET!, {
+    tool: 'premium_search',
+    usageStore: redisUsageStore,
+  });
+
+  if (!access.allowed) {
+    return Response.json({ error: access.reason }, { status: 402 });
+  }
+
+  return search(new URL(request.url).searchParams.get('q')!);
+}
+```
+
+`authorizePaidRequest` lets a normal human session through and charges only
+callers that arrive as agents. Reaching for `verifyWebMCPPayment` directly is
+the obvious mistake here — it requires a receipt from *everyone*, including the
+people using your own site. Pass `chargeEveryone: true` when that is genuinely
+what you want.
+
+### What a paywall can and cannot enforce
+
+An agent running inside the user's tab holds their session. It can always reach
+your API the way the person would — click the button, submit the form, call the
+endpoint. Header-based detection is a **billing signal, not a security
+boundary**.
+
+So be clear about which agents you are charging:
+
+| Caller | Enforceable? |
+| --- | --- |
+| A remote agent with no session | Yes — no session, no access, payment is the only way in |
+| A cooperative in-tab agent | Yes in practice — it uses the tools you gave it, and they are priced |
+| A hostile in-tab agent | No — it can do whatever the signed-in person can do |
+
+If you need hard enforcement against the third case, the tool must expose
+something the person's own account does not already have — data behind a higher
+tier, a compute job they cannot trigger from the UI — and then you check `paid`
+for every caller with `chargeEveryone: true`.
+
+## Rails
+
+### x402 — the agent pays
+
+[x402](https://github.com/coinbase/x402) settles stablecoin payments inside the
+HTTP request cycle: no account, no API key, no human. The agent signs a payment
+authorization, your server hands it to a facilitator that verifies and settles
+on chain, and the call proceeds.
+
+```ts
+x402Paywall({
+  payTo: '0xYourMerchantAddress',
+  network: 'base',
+  asset: '0xUSDCContractAddress',
+  facilitatorUrl: 'https://x402.org/facilitator',
+  version: 2,        // v1 field names are emitted when set to 1
+  decimals: 6,       // USDC
+  maxTimeoutSeconds: 60,
+});
+```
+
+The SDK never touches a chain. It builds the standard `402` body and forwards
+proofs to the facilitator's `/verify` and `/settle` — which is how x402 servers
+are meant to integrate, and what keeps this working as the spec moves.
+
+### Credits — the person's prepaid balance
+
+No wallet, no chain, no new dependency. The person tops up through the billing
+you already have; the agent spends against that balance.
+
+```ts
+creditsPaywall({
+  getBalance: ({ userId }) => db.credits.balance(userId!),
+  charge: ({ userId }, credits) => db.credits.deduct(userId!, credits),
+  toCredits: (price) => Math.ceil(Number(price.amount) * 100),
+  topUpUrl: 'https://shop.example/billing',
+});
+```
+
+Because this spends *the person's* money, every charge is confirmed with them
+and the cost is shown in the prompt. An agent must also opt in explicitly with
+`_payment: { "accept": true }` — a quote never deducts anything.
+
+<Callout>
+`charge` must be atomic in your storage. Two tool calls can land at the same
+millisecond, and a read-then-write balance update will happily go negative.
+</Callout>
+
+### Subscription — the plan already covers it
+
+When the human pays and the agent inherits that access, there is nothing to
+settle. Answer "is this account entitled?" from Stripe, your database, wherever
+the truth lives:
+
+```ts
+subscriptionPaywall({
+  entitled: async ({ userId }) => (await getPlan(userId!)) === 'pro',
+  planName: 'Pro',
+  upgradeUrl: 'https://shop.example/pro',
+  callsPerCheck: 25,
+  recheckSeconds: 300,
+});
+```
+
+Entitled callers get a receipt straight from the quote — no challenge, no
+prompt. Unentitled ones are told plainly that an agent cannot subscribe on the
+person's behalf and should stop, rather than being handed a payment challenge it
+can never satisfy.
+
+Receipts are deliberately short-lived so a cancelled plan stops working in
+minutes, not when the tab closes.
+
+## Your own rail
+
+`PaywallProvider` is three methods:
+
+```ts
+const invoicePaywall: PaywallProvider = {
+  name: 'invoice',
+  async entitled({ userId }) {
+    return (await openInvoiceCount(userId!)) < 5;   // bill later, cap exposure
+  },
+  quote({ tool, price }) {
+    return {
+      provider: 'invoice',
+      tool,
+      price,
+      chargesUser: true,
+      instructions: `"${tool}" is billed monthly. Retry with _payment {"accept": true} to add it to this month's invoice.`,
+    };
+  },
+  async redeem({ tool, price, userId }, proof) {
+    if ((proof as { accept?: boolean })?.accept !== true) {
+      return { ok: false, reason: 'Set _payment to {"accept": true} to accept the charge.' };
+    }
+    const line = await invoices.addLine(userId!, tool, price.amount);
+    return { ok: true, transaction: line.id, amount: price.amount };
+  },
+};
+```
+
+`entitled` short-circuits payment, `quote` describes it, `redeem` performs it.
+Set `chargesUser` when the money is the person's — that is what turns on the
+confirmation prompt.
+
+## Pricing options
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `amount` | — | Decimal **string**. Strings, not numbers: money and floats don't mix |
+| `currency` | `"USD"` | ISO code or token symbol |
+| `calls` | `1` | Calls one payment buys |
+| `windowSeconds` | `900` | How long a receipt stays valid |
+| `freeCalls` | `0` | Calls allowed before the paywall applies, per payer |
+| `description` | — | Shown to the agent and in the confirmation |
+| `plan` | — | Plan identifier for subscription rails |
+
+A free allowance is worth setting. An agent that can try a tool once is an agent
+that can discover it is worth paying for — and `freeCalls` is metered per payer
+on the server, so it is a trial, not a loophole.
+
+## Discovery
+
+Agents skip tools they cannot price. Two places advertise it:
+
+- **The tool description**, rewritten automatically:
+  `"Search the full product index (costs 0.01 USDC per call, first 3 free)"`
+- **The manifest** at `GET {basePath}/webmcp/manifest`:
+
+```json
+{
+  "pricing": [
+    { "tool": "premium_search", "amount": "0.01", "currency": "USDC", "calls": 1 },
+    { "tool": "generate_report", "amount": "0.25", "currency": "USDC", "calls": 1 }
+  ],
+  "endpoints": {
+    "paywallQuote": "/api/auth/webmcp/paywall/quote",
+    "paywallSettle": "/api/auth/webmcp/paywall/settle"
+  }
+}
+```
+
+## Metering
+
+A receipt buys a fixed number of calls of **one named tool**. `verifyWebMCPPayment`
+spends one per request through a `UsageStore`:
+
+```ts
+import type { UsageStore } from '@warpy-auth-sdk/core';
+
+const redisUsageStore: UsageStore = {
+  async consume(receiptId, limit, expiresAt) {
+    const used = await redis.incr(`webmcp:receipt:${receiptId}`);
+    if (used === 1) await redis.pExpireAt(`webmcp:receipt:${receiptId}`, expiresAt);
+    return used <= limit;
+  },
+};
+```
+
+Metering counts **verified requests**, not tool invocations. A tool that calls
+three endpoints and verifies on each spends three calls from its receipt —
+verify on the endpoint that does the expensive work, or price the tool in
+requests rather than calls.
+
+<Callout type="warning">
+The default store is in-memory and per-process. Behind a load balancer, a
+one-call receipt is worth one call *on every node*. Use a shared store before you
+charge anyone real money.
+</Callout>
+
+## Revenue reporting
+
+```ts
+paywall: {
+  onPayment: (event) => {
+    // { tool, provider, userId, agentId, payer, amount, currency, transaction, calls, timestamp }
+    ledger.record(event);
+    metrics.increment('webmcp.revenue', Number(event.amount ?? 0));
+  },
+  onPaymentFailed: (event) => logger.warn({ webmcp: event }),
+}
+```
+
+In the page, `handle.entitlements.list()` — or `receipts` from `useWebMCP()` —
+gives you what has been paid for, so you can show the person what their agent
+has been spending:
+
+```tsx
+const { receipts } = useWebMCP();
+
+return receipts.map((receipt) => (
+  <li key={receipt.tool}>
+    {receipt.tool}: {receipt.calls} calls left
+    {receipt.transaction && <a href={`https://basescan.org/tx/${receipt.transaction}`}>receipt</a>}
+  </li>
+));
+```
+
+## How this interacts with the security model
+
+Payment is a **sixth gate**, and it runs after the other five: an agent cannot
+buy its way past authentication, scopes or rate limits. Paying for a tool that
+needs `orders:write` still requires the person to have delegated `orders:write`.
+
+Receipts follow the same rules as delegations — memory-only, short-lived, never
+handed to the model, and refused if presented as a session cookie. Payment
+payloads are redacted from every audit event: a signed authorization to move
+money does not belong in a log line.

@@ -16,6 +16,8 @@ import {
   type WebMCPBridge,
 } from "./runtime";
 import { GrantStore } from "./grant";
+import { EntitlementStore } from "./paywall/entitlement";
+import type { PricingTable } from "./paywall/types";
 import { RateLimiter, guardTool, type GuardContext } from "./policy";
 import { createAuthTools, type AuthToolsOptions } from "./auth-tools";
 import { createPageTools, resetRefs, type PageToolsOptions } from "./page";
@@ -38,6 +40,18 @@ export interface WebMCPConfig {
   tools?: WebMCPToolDefinition[] | (() => WebMCPToolDefinition[]);
   /** Security policy applied to every tool. */
   policy?: WebMCPPolicy;
+  /**
+   * Paywall settings for this page.
+   *
+   * `pricing` is what agents are told a tool costs; the server's own pricing
+   * table is what actually gets charged, so the two should agree but only one
+   * of them is trusted.
+   */
+  paywall?: {
+    pricing?: PricingTable;
+    /** Notified whenever a call is blocked pending payment. */
+    onPaymentRequired?: (event: { tool: string; message: string }) => void;
+  };
   /** Prefix added to every tool name, e.g. "acme" -> "acme_page_snapshot". */
   namespace?: string;
   /**
@@ -62,6 +76,8 @@ export interface WebMCPHandle {
   readonly host: ModelContextHost;
   readonly tools: string[];
   readonly grants: GrantStore;
+  /** Receipts held for paywalled tools. */
+  readonly entitlements: EntitlementStore;
   /** Re-scan the page and re-register. Safe to call often. */
   refresh: () => Promise<void>;
   /** Unregister everything and stop watching. */
@@ -89,6 +105,8 @@ export function resolveEndpoints(
     action: `${base}/webmcp/action`,
     grant: `${base}/webmcp/grant`,
     revoke: `${base}/webmcp/revoke`,
+    paywallQuote: `${base}/webmcp/paywall/quote`,
+    paywallSettle: `${base}/webmcp/paywall/settle`,
     ...overrides,
   };
 }
@@ -105,6 +123,7 @@ export function resolveEndpoints(
 export function createWebMCP(config: WebMCPConfig = {}): WebMCPHandle {
   const endpoints = resolveEndpoints(config.basePath, config.endpoints);
   const grants = new GrantStore();
+  const entitlements = new EntitlementStore();
   const policy = config.policy ?? {};
   const rateLimiter = new RateLimiter(
     policy.rateLimit ?? { limit: 30, windowMs: 60_000 }
@@ -152,6 +171,8 @@ export function createWebMCP(config: WebMCPConfig = {}): WebMCPHandle {
     grants,
     getSession: () => getSession(),
     rateLimiter,
+    entitlements,
+    ...(config.paywall?.pricing ? { pricing: config.paywall.pricing } : {}),
     ...(config.fetchImpl ? { fetchImpl: config.fetchImpl } : {}),
   };
 
@@ -290,6 +311,7 @@ export function createWebMCP(config: WebMCPConfig = {}): WebMCPHandle {
       return Array.from(descriptors.keys());
     },
     grants,
+    entitlements,
     refresh,
     getSession,
     execute,
@@ -301,6 +323,7 @@ export function createWebMCP(config: WebMCPConfig = {}): WebMCPHandle {
       registration = null;
       descriptors = new Map();
       grants.clear();
+      entitlements.clear();
     },
   };
 

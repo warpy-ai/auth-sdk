@@ -9,7 +9,8 @@ description: Every export of @warpy-auth-sdk/core/webmcp, its React bindings, an
 | --- | --- | --- |
 | `@warpy-auth-sdk/core/webmcp` | Browser | `createWebMCP`, tool factories, guard, page translation |
 | `@warpy-auth-sdk/core/webmcp/react` | Browser | `WebMCPProvider`, `useWebMCP`, `useWebMCPTool` |
-| `@warpy-auth-sdk/core` | Server | `createWebMCPHandler`, `verifyWebMCPAction`, `authorizeWebMCPRequest` |
+| `@warpy-auth-sdk/core` | Server | `createWebMCPHandler`, `verifyWebMCPAction`, `authorizeWebMCPRequest`, paywall providers |
+| `@warpy-auth-sdk/core/webmcp/paywall` | Server | Paywall providers, routes and metering |
 
 ## createWebMCP(config)
 
@@ -60,6 +61,7 @@ Returns a `WebMCPHandle`:
   };
   scopes?: string[];              // implies requireAuth
   requireAuth?: boolean;
+  price?: ToolPrice;              // server pricing table is authoritative
   confirm?: 'never' | 'auto' | 'always';
   confirmMessage?: string | ((args) => string);
   rateLimit?: { limit: number; windowMs: number };
@@ -152,6 +154,29 @@ import {
 `authorizeWebMCPRequest(request, { secret }, scopes?, options?)` returns
 `{ allowed, actor: 'human' | 'agent' | 'anonymous', userId?, agentId?, scopes, reason? }`.
 
+## Paywall
+
+```ts
+import {
+  x402Paywall, creditsPaywall, subscriptionPaywall,
+  verifyWebMCPPayment, createMemoryUsageStore, describePricing, toAtomicUnits,
+} from '@warpy-auth-sdk/core';
+```
+
+`ToolPrice`: `{ amount, currency?, calls?, windowSeconds?, freeCalls?, description?, plan? }`.
+
+`PaywallProvider`: `{ name, entitled?(ctx), quote(ctx), redeem(ctx, proof) }`, where
+`redeem` returns `{ ok: true, calls?, expiresInSeconds?, payer?, amount?, currency?,
+transaction? }` or `{ ok: false, reason }`.
+
+`verifyWebMCPPayment(request, secret, { tool?, usageStore? })` returns
+`{ tool, provider, calls, userId?, agentId?, payer? }` or null, spending one call
+from the receipt.
+
+In the page, `handle.entitlements` (an `EntitlementStore`) holds receipts:
+`get(tool)`, `has(tool)`, `list()`, `consume(tool)`, `clear(tool?)`, `subscribe(fn)`.
+The payment argument agents use is exported as `PAYMENT_ARG` (`"_payment"`).
+
 ## Headers
 
 | Header | Set by | Meaning |
@@ -159,3 +184,4 @@ import {
 | `X-WebMCP-Tool` | `context.fetch` | Tool that originated the request |
 | `X-WebMCP-Agent` | `context.fetch` | Agent id from the active delegation |
 | `X-WebMCP-Action` | `context.fetch` | Single-use action token |
+| `X-WebMCP-Receipt` | `context.fetch` | Proof a paywalled call was paid for |

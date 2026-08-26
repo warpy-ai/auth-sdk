@@ -1,6 +1,7 @@
 import type {
   ConfirmHandler,
   ConfirmRequest,
+  JSONSchema,
   ModelContextToolDescriptor,
   ToolResponse,
   WebMCPAuditEvent,
@@ -14,6 +15,14 @@ import type {
 } from "./types";
 import type { GrantStore } from "./grant";
 import { toToolResponse } from "./runtime";
+import type { EntitlementStore } from "./paywall/entitlement";
+import type {
+  PaymentChallenge,
+  PaymentReceipt,
+  PricingTable,
+  ToolPrice,
+} from "./paywall/types";
+import { requestQuote, requestSettle } from "./paywall/client";
 
 const DEFAULT_RATE_LIMIT: WebMCPRateLimit = { limit: 30, windowMs: 60_000 };
 const DEFAULT_REDACT = [
@@ -24,6 +33,9 @@ const DEFAULT_REDACT = [
   "otp",
   "captchaToken",
   "authorization",
+  // A payment payload is a signed instruction to move money. It never belongs
+  // in a log line.
+  "payment",
   "apiKey",
   "accessToken",
   "refreshToken",
@@ -105,6 +117,10 @@ export interface GuardContext {
   grants: GrantStore;
   getSession: () => Promise<WebMCPSession | null>;
   rateLimiter: RateLimiter;
+  /** Receipts for paywalled tools. */
+  entitlements?: EntitlementStore;
+  /** Prices shown to agents. The server's table decides what is charged. */
+  pricing?: PricingTable;
   /** Overridable for tests. Defaults to the global `fetch`. */
   fetchImpl?: typeof fetch;
 }
@@ -118,6 +134,12 @@ export class ToolDenied extends Error {
     this.name = "ToolDenied";
   }
 }
+
+/**
+ * Argument an agent uses to retry a paid call with its proof of payment. Named
+ * with a leading underscore so it cannot collide with a tool's own parameters.
+ */
+export const PAYMENT_ARG = "_payment";
 
 let callCounter = 0;
 
@@ -204,10 +226,16 @@ export function guardTool(
     tool.requireAuth ??
     (requiredScopes.length > 0 || policy.requireAuth === true);
 
+  const price = tool.price ?? context.pricing?.[tool.name];
+
   return {
     name: tool.name,
-    description: tool.description,
-    inputSchema: tool.inputSchema,
+    // Price belongs in the description: it is the one place every agent reads
+    // before deciding whether to call a tool at all.
+    description: price
+      ? `${tool.description} (costs ${price.amount} ${price.currency ?? "USD"} per call${price.freeCalls ? `, first ${price.freeCalls} free` : ""})`
+      : tool.description,
+    inputSchema: price ? withPaymentArg(tool.inputSchema) : tool.inputSchema,
     annotations: {
       // Confirmed destructive tools still carry the hint so the host can add
       // its own gate on top of ours.
@@ -283,6 +311,79 @@ export function guardTool(
         );
       }
 
+      // ---------------------------------------------------------------
+      // Payment. Quoting never moves money; settling happens after the
+      // person has approved, so a declined call is never a charged one.
+      // ---------------------------------------------------------------
+      const payment = args[PAYMENT_ARG];
+      delete args[PAYMENT_ARG];
+
+      let receipt: PaymentReceipt | null = null;
+      let challenge: PaymentChallenge | null = null;
+
+      if (price) {
+        const entitlements = context.entitlements;
+        if (!entitlements) {
+          return deny(
+            "policy",
+            `"${tool.name}" is priced but this page has no paywall configured.`,
+            session
+          );
+        }
+
+        receipt = entitlements.get(tool.name);
+
+        if (!receipt) {
+          const quoted = await requestQuote(
+            {
+              quote: context.endpoints.paywallQuote,
+              settle: context.endpoints.paywallSettle,
+            },
+            tool.name,
+            paywallRequestOptions(context)
+          );
+
+          if (quoted.status === "error") {
+            return deny("payment_required", quoted.message, session);
+          }
+
+          if (quoted.status === "paid") {
+            receipt = quoted.receipt;
+            entitlements.set(receipt);
+          } else {
+            challenge = quoted.challenge;
+
+            // Nothing has happened yet, so hand the agent the challenge rather
+            // than prompting a human about a call that cannot run.
+            if (payment === undefined) {
+              audit({
+                id,
+                tool: tool.name,
+                phase: "denied",
+                reason: "payment_required",
+                message: challenge.instructions,
+                args: safeArgs,
+                userId: session?.user?.id,
+                durationMs: Date.now() - startedAt,
+              });
+
+              return toToolResponse(
+                {
+                  error: "payment_required",
+                  message: challenge.instructions,
+                  price: challenge.price,
+                  provider: challenge.provider,
+                  ...(challenge.x402 ? { x402: challenge.x402 } : {}),
+                  ...(challenge.extra ? { details: challenge.extra } : {}),
+                  retry: `Call "${tool.name}" again with "${PAYMENT_ARG}" set to your proof of payment.`,
+                },
+                { isError: true, maxChars: policy.maxOutputChars }
+              );
+            }
+          }
+        }
+      }
+
       const confirmHandler: ConfirmHandler =
         policy.confirmHandler ?? defaultConfirmHandler;
 
@@ -298,8 +399,14 @@ export function guardTool(
         return approved === true;
       };
 
-      if (shouldConfirm(tool, policy)) {
-        const approved = await askUser(confirmMessage(tool, args));
+      // Spending the person's own balance always asks, whatever the tool's
+      // own annotations say. An agent paying from its own wallet does not.
+      const spendsUserMoney = challenge?.chargesUser === true;
+
+      if (shouldConfirm(tool, policy) || spendsUserMoney) {
+        const approved = await askUser(
+          priceAwareMessage(confirmMessage(tool, args), price, challenge)
+        );
         if (!approved) {
           return deny(
             "declined_by_user",
@@ -308,6 +415,48 @@ export function guardTool(
           );
         }
       }
+
+      if (price && !receipt) {
+        const settled = await requestSettle(
+          {
+            quote: context.endpoints.paywallQuote,
+            settle: context.endpoints.paywallSettle,
+          },
+          tool.name,
+          payment,
+          paywallRequestOptions(context)
+        );
+
+        if (settled.status !== "paid") {
+          const message =
+            settled.status === "error"
+              ? settled.message
+              : settled.challenge.instructions;
+
+          audit({
+            id,
+            tool: tool.name,
+            phase: "denied",
+            reason: "payment_failed",
+            message,
+            args: safeArgs,
+            userId: session?.user?.id,
+            durationMs: Date.now() - startedAt,
+          });
+
+          return toToolResponse(
+            { error: "payment_failed", message },
+            { isError: true, maxChars: policy.maxOutputChars }
+          );
+        }
+
+        receipt = settled.receipt;
+        context.entitlements?.set(receipt);
+      }
+
+      // Spend one call from the receipt. The server meters the same receipt, so
+      // this is a courtesy to the agent rather than the enforcement point.
+      if (price && receipt) context.entitlements?.consume(tool.name);
 
       audit({
         id,
@@ -324,7 +473,8 @@ export function guardTool(
           toolName: tool.name,
           session,
           scopes: requiredScopes,
-          fetch: createToolFetch(tool.name, context),
+          receipt,
+          fetch: createToolFetch(tool.name, context, receipt),
           confirm: askUser,
         });
 
@@ -365,6 +515,48 @@ export function guardTool(
   };
 }
 
+function paywallRequestOptions(context: GuardContext) {
+  const grant = context.grants.get();
+  return {
+    ...(context.fetchImpl ? { fetchImpl: context.fetchImpl } : {}),
+    ...(grant ? { grantToken: grant.token } : {}),
+  };
+}
+
+/** Adds the payment argument to a priced tool's schema. */
+function withPaymentArg(schema?: JSONSchema): JSONSchema {
+  const base: JSONSchema = schema ?? { type: "object", properties: {} };
+  return {
+    ...base,
+    type: base.type ?? "object",
+    properties: {
+      ...(base.properties ?? {}),
+      [PAYMENT_ARG]: {
+        type: "string",
+        description:
+          "Proof of payment. Omit on the first call to receive the payment requirements, then retry with the value they describe.",
+      },
+    },
+  };
+}
+
+/** Discloses what a confirmed call will cost, and who pays. */
+function priceAwareMessage(
+  message: string,
+  price?: ToolPrice,
+  challenge?: PaymentChallenge | null
+): string {
+  if (!price) return message;
+
+  const cost = `${price.amount} ${price.currency ?? "USD"}`;
+  const payer =
+    challenge?.chargesUser === true
+      ? "charged to your account"
+      : "paid by the agent";
+
+  return `${message}\n\nCost: ${cost} (${payer}).`;
+}
+
 /**
  * Builds the `fetch` handed to tools.
  *
@@ -375,7 +567,8 @@ export function guardTool(
  */
 export function createToolFetch(
   toolName: string,
-  context: GuardContext
+  context: GuardContext,
+  receipt?: PaymentReceipt | null
 ): WebMCPFetch {
   const fetchImpl = context.fetchImpl ?? globalThis.fetch;
 
@@ -388,6 +581,10 @@ export function createToolFetch(
 
     const headers = new Headers(init.headers ?? {});
     headers.set("X-WebMCP-Tool", toolName);
+
+    // The receipt travels with the request so the API route can verify the call
+    // was paid for, and spend it against the server-side meter.
+    if (receipt?.token) headers.set("X-WebMCP-Receipt", receipt.token);
 
     const grant = context.grants.get();
     if (grant) {

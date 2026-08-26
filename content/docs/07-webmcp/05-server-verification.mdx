@@ -28,7 +28,12 @@ Pass `webmcp: false` to leave them unmounted.
 | `{basePath}/webmcp/grant` | POST | Issue a scoped delegation (user session required) |
 | `{basePath}/webmcp/action` | POST | Mint a single-use action token from a delegation |
 | `{basePath}/webmcp/revoke` | POST | Revoke a delegation immediately |
-| `{basePath}/webmcp/manifest` | GET | Advertise scopes and tools for discovery |
+| `{basePath}/webmcp/manifest` | GET | Advertise scopes, tools and prices for discovery |
+| `{basePath}/webmcp/paywall/quote` | POST | What a tool costs, and whether access is already held |
+| `{basePath}/webmcp/paywall/settle` | POST | Redeem a proof of payment for a receipt |
+
+The paywall routes mount only when `paywall` is configured — see
+[Paywalled tools](/docs/webmcp/paywall).
 
 Anywhere else, the handler is framework-agnostic and returns `null` for paths it does
 not own:

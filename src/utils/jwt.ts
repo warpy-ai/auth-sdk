@@ -7,7 +7,7 @@ export interface JWTPayload {
   name?: string;
   scopes?: string[];
   agentId?: string;
-  type?: "standard" | "mcp-agent" | "webmcp-action";
+  type?: "standard" | "mcp-agent" | "webmcp-action" | "webmcp-receipt";
   /** WebMCP action tokens: the tool name the token authorizes. */
   tool?: string;
   /**
@@ -18,6 +18,12 @@ export interface JWTPayload {
   nonce?: string;
   /** WebMCP action tokens: origin the action was initiated from. */
   origin?: string;
+  /** WebMCP receipts: how many calls the payment bought. */
+  calls?: number;
+  /** WebMCP receipts: the rail that took the payment. */
+  provider?: string;
+  /** WebMCP receipts: who paid (wallet address, user id, invoice reference). */
+  payer?: string;
 }
 
 export function signJWT(

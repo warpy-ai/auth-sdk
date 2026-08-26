@@ -1,5 +1,7 @@
 import type { ConfirmRequest, ModelContextToolDescriptor, WebMCPDenialReason, WebMCPEndpoints, WebMCPFetch, WebMCPPolicy, WebMCPRateLimit, WebMCPSession, WebMCPToolDefinition } from "./types";
 import type { GrantStore } from "./grant";
+import type { EntitlementStore } from "./paywall/entitlement";
+import type { PaymentReceipt, PricingTable } from "./paywall/types";
 export declare class RateLimiter {
     private readonly fallback;
     private calls;
@@ -15,13 +17,16 @@ export interface GuardContext {
     grants: GrantStore;
     getSession: () => Promise<WebMCPSession | null>;
     rateLimiter: RateLimiter;
+    entitlements?: EntitlementStore;
+    pricing?: PricingTable;
     fetchImpl?: typeof fetch;
 }
 export declare class ToolDenied extends Error {
     readonly reason: WebMCPDenialReason;
     constructor(reason: WebMCPDenialReason, message: string);
 }
+export declare const PAYMENT_ARG = "_payment";
 export declare function guardTool(tool: WebMCPToolDefinition, context: GuardContext): ModelContextToolDescriptor;
-export declare function createToolFetch(toolName: string, context: GuardContext): WebMCPFetch;
+export declare function createToolFetch(toolName: string, context: GuardContext, receipt?: PaymentReceipt | null): WebMCPFetch;
 export declare const DEFAULT_REDACT_KEYS: string[];
 export declare const DEFAULT_TOOL_RATE_LIMIT: WebMCPRateLimit;

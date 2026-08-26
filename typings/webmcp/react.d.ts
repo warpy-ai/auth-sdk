@@ -2,11 +2,13 @@ import * as React from "react";
 import { type ReactNode } from "react";
 import { type WebMCPConfig, type WebMCPHandle } from "./client";
 import type { WebMCPToolDefinition } from "./types";
+import type { PaymentReceipt } from "./paywall/types";
 export interface WebMCPContextValue {
     handle: WebMCPHandle | null;
     supported: boolean;
     tools: string[];
     grantedScopes: string[];
+    receipts: PaymentReceipt[];
     refresh: () => Promise<void>;
     revokeAccess: () => void;
 }

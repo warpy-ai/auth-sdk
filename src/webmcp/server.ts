@@ -1,6 +1,12 @@
 import { getSession, type AuthConfig } from "../core";
 import { signJWT, verifyJWT, type JWTPayload } from "../utils/jwt";
 import { isTokenRevoked, revokeToken } from "../mcp/mcp";
+import {
+  describePricing,
+  quotePaywall,
+  settlePaywall,
+  type PaywallOptions,
+} from "./paywall/server";
 
 /**
  * Server half of the WebMCP security model.
@@ -325,6 +331,32 @@ export async function revokeGrant(
   return json({ revoked: true });
 }
 
+/**
+ * Works out who is on the other end of a paywall request: the signed-in person,
+ * and the agent acting for them when a delegation is presented.
+ */
+async function resolveActor(
+  request: Request,
+  secret: string
+): Promise<{ userId?: string; agentId?: string }> {
+  const actor: { userId?: string; agentId?: string } = {};
+
+  const session = await getSession(request, secret);
+  if (session) actor.userId = session.user.id;
+
+  const bearer = readBearer(request);
+  if (bearer && !isTokenRevoked(bearer)) {
+    const payload = verifyJWT(bearer, secret);
+    if (payload?.type === "mcp-agent") {
+      if (payload.agentId) actor.agentId = payload.agentId;
+      // A delegation identifies the user even when no cookie was sent.
+      if (!actor.userId) actor.userId = payload.userId;
+    }
+  }
+
+  return actor;
+}
+
 function readBearer(request: Request): string | null {
   const header = request.headers.get("authorization");
   if (!header) return null;
@@ -473,6 +505,11 @@ export async function authorizeWebMCPRequest(
 export interface WebMCPHandlerOptions extends WebMCPServerOptions {
   /** Base path of the auth routes. Default: "/api/auth". */
   basePath?: string;
+  /**
+   * Charge agents for tool calls. Mounts `{basePath}/webmcp/paywall/*` and
+   * advertises prices in the manifest.
+   */
+  paywall?: PaywallOptions;
   /** Scopes advertised by the manifest endpoint. */
   manifest?: {
     name?: string;
@@ -498,7 +535,6 @@ export function createWebMCPHandler(
 ) {
   const base = (options.basePath ?? "/api/auth").replace(/\/$/, "");
 
-  // eslint-disable-next-line require-await
   return async function handler(request: Request): Promise<Response | null> {
     const pathname = new URL(request.url).pathname;
     if (!pathname.startsWith(`${base}/webmcp/`)) return null;
@@ -515,6 +551,18 @@ export function createWebMCPHandler(
     if (route === "revoke" && method === "POST") {
       return revokeGrant(request, config, options);
     }
+    if (route.startsWith("paywall/") && method === "POST") {
+      const actor = await resolveActor(request, config.secret);
+      const paywall = options.paywall ?? {};
+
+      if (route === "paywall/quote") {
+        return quotePaywall(request, config.secret, actor, paywall);
+      }
+      if (route === "paywall/settle") {
+        return settlePaywall(request, config.secret, actor, paywall);
+      }
+    }
+
     if (route === "manifest" && method === "GET") {
       return json({
         version: 1,
@@ -525,10 +573,19 @@ export function createWebMCPHandler(
         allowedScopes: options.allowedScopes ?? [],
         maxGrantSeconds: options.maxGrantSeconds ?? DEFAULT_GRANT_SECONDS,
         tools: options.manifest?.tools ?? [],
+        // Machine-readable pricing: agent frameworks skip tools they cannot
+        // price, so this is what makes a paid tool discoverable.
+        pricing: describePricing(options.paywall?.pricing),
         endpoints: {
           grant: `${base}/webmcp/grant`,
           action: `${base}/webmcp/action`,
           revoke: `${base}/webmcp/revoke`,
+          ...(options.paywall
+            ? {
+                paywallQuote: `${base}/webmcp/paywall/quote`,
+                paywallSettle: `${base}/webmcp/paywall/settle`,
+              }
+            : {}),
         },
       });
     }

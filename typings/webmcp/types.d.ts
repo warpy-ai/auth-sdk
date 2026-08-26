@@ -1,3 +1,4 @@
+import type { PaymentReceipt, ToolPrice } from "./paywall/types";
 export interface JSONSchema {
     type?: string;
     description?: string;
@@ -81,7 +82,7 @@ export interface ConfirmRequest {
     session: WebMCPSession | null;
 }
 export type ConfirmHandler = (request: ConfirmRequest) => boolean | Promise<boolean>;
-export type WebMCPDenialReason = "unauthenticated" | "missing_scope" | "declined_by_user" | "rate_limited" | "session_expired" | "policy" | "invalid_arguments";
+export type WebMCPDenialReason = "unauthenticated" | "missing_scope" | "payment_required" | "payment_failed" | "declined_by_user" | "rate_limited" | "session_expired" | "policy" | "invalid_arguments";
 export interface WebMCPAuditEvent {
     id: string;
     tool: string;
@@ -100,6 +101,7 @@ export interface WebMCPToolContext {
     toolName: string;
     session: WebMCPSession | null;
     scopes: string[];
+    receipt?: PaymentReceipt | null;
     fetch: WebMCPFetch;
     confirm: (message: string) => Promise<boolean>;
     signal?: AbortSignal;
@@ -119,6 +121,7 @@ export interface WebMCPToolDefinition<Args extends Record<string, unknown> = Rec
     confirmMessage?: string | ((args: Args) => string);
     rateLimit?: WebMCPRateLimit;
     exposedTo?: string[];
+    price?: ToolPrice;
     execute: (args: Args, context: WebMCPToolContext) => unknown | Promise<unknown>;
 }
 export interface WebMCPPolicy {
@@ -140,6 +143,8 @@ export interface WebMCPEndpoints {
     action: string;
     grant: string;
     revoke: string;
+    paywallQuote: string;
+    paywallSettle: string;
 }
 export interface WebMCPGrantResponse {
     token: string;

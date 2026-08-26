@@ -112,6 +112,31 @@ export {
 } from "./webmcp/server";
 export { revokeToken } from "./mcp/mcp";
 
+// WebMCP paywall - charge agents for tool calls
+export {
+  x402Paywall,
+  creditsPaywall,
+  subscriptionPaywall,
+  verifyWebMCPPayment,
+  authorizePaidRequest,
+  createMemoryUsageStore,
+  describePricing,
+  toAtomicUnits,
+  type PaywallOptions,
+  type PaywallProvider,
+  type PaywallContext,
+  type PaywallRedemption,
+  type PaymentClaims,
+  type PaymentChallenge,
+  type PaymentReceipt,
+  type ToolPrice,
+  type PricingTable,
+  type UsageStore,
+  type X402PaywallConfig,
+  type CreditsPaywallConfig,
+  type SubscriptionPaywallConfig,
+} from "./webmcp/paywall";
+
 // Next.js Helpers
 export {
   createNextAuthHandler,

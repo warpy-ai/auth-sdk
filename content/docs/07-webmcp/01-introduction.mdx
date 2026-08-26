@@ -42,7 +42,9 @@ an email or a PDF it read a minute ago.
 2. **Page translation** — a set of tools that turn an ordinary page into something
    an agent can read and navigate: structure, forms, actions, all addressed by
    opaque references rather than selectors.
-3. **Graceful degradation** — where the browser has no WebMCP implementation, the
+3. **Paywalls** — charge agents per call, over an agent wallet (x402), prepaid
+   credits, or an existing subscription, metered and verified server-side.
+4. **Graceful degradation** — where the browser has no WebMCP implementation, the
    same tool table is published on `window.__webmcp__` for extensions, polyfills
    and your own tests.
 
@@ -148,3 +150,4 @@ and carries a single-use action token your backend can verify.
 - [Page translation](/docs/webmcp/page-translation) — annotations and the DOM tools
 - [React](/docs/webmcp/react) — provider and hooks
 - [Server verification](/docs/webmcp/server-verification) — grants, action tokens, guards
+- [Paywalled tools](/docs/webmcp/paywall) — charging agents for tool calls

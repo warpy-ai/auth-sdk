@@ -65,6 +65,11 @@
       "types": "./typings/webmcp/react.d.ts",
       "import": "./dist/webmcp/react.js",
       "default": "./dist/webmcp/react.js"
+    },
+    "./webmcp/paywall": {
+      "types": "./typings/webmcp/paywall/index.d.ts",
+      "import": "./dist/webmcp/paywall/index.js",
+      "default": "./dist/webmcp/paywall/index.js"
     }
   },
   "scripts": {
@@ -152,6 +157,9 @@
       ],
       "webmcp/react": [
         "typings/webmcp/react.d.ts"
+      ],
+      "webmcp/paywall": [
+        "typings/webmcp/paywall/index.d.ts"
       ],
       "*": [
         "typings/index.d.ts"

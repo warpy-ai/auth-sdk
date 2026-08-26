@@ -12,6 +12,7 @@ import {
 } from "react";
 import { createWebMCP, type WebMCPConfig, type WebMCPHandle } from "./client";
 import type { WebMCPToolDefinition } from "./types";
+import type { PaymentReceipt } from "./paywall/types";
 
 export interface WebMCPContextValue {
   handle: WebMCPHandle | null;
@@ -21,6 +22,8 @@ export interface WebMCPContextValue {
   tools: string[];
   /** Scopes the person has delegated to the agent, if any. */
   grantedScopes: string[];
+  /** Receipts currently held for paywalled tools. */
+  receipts: PaymentReceipt[];
   refresh: () => Promise<void>;
   revokeAccess: () => void;
 }
@@ -42,6 +45,7 @@ export function WebMCPProvider({ children, ...config }: WebMCPProviderProps) {
   const [handle, setHandle] = useState<WebMCPHandle | null>(null);
   const [tools, setTools] = useState<string[]>([]);
   const [grantedScopes, setGrantedScopes] = useState<string[]>([]);
+  const [receipts, setReceipts] = useState<PaymentReceipt[]>([]);
 
   // Only the values that change what gets registered should rebuild the handle.
   const { basePath, namespace, watch } = config;
@@ -70,9 +74,11 @@ export function WebMCPProvider({ children, ...config }: WebMCPProviderProps) {
     const unsubscribe = instance.grants.subscribe((grant) =>
       setGrantedScopes(grant?.scopes ?? [])
     );
+    const unsubscribeReceipts = instance.entitlements.subscribe(setReceipts);
 
     return () => {
       unsubscribe();
+      unsubscribeReceipts();
       instance.dispose();
       setHandle(null);
       setTools([]);
@@ -94,10 +100,11 @@ export function WebMCPProvider({ children, ...config }: WebMCPProviderProps) {
       supported: handle?.supported ?? false,
       tools,
       grantedScopes,
+      receipts,
       refresh,
       revokeAccess,
     }),
-    [handle, tools, grantedScopes, refresh, revokeAccess]
+    [handle, tools, grantedScopes, receipts, refresh, revokeAccess]
   );
 
   return (

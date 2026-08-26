@@ -165,6 +165,8 @@ describe("resolveEndpoints", () => {
       action: "/api/auth/webmcp/action",
       grant: "/api/auth/webmcp/grant",
       revoke: "/api/auth/webmcp/revoke",
+      paywallQuote: "/api/auth/webmcp/paywall/quote",
+      paywallSettle: "/api/auth/webmcp/paywall/settle",
     });
   });
 

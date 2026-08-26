@@ -8,6 +8,8 @@
  * layers on top of it.
  */
 
+import type { PaymentReceipt, ToolPrice } from "./paywall/types";
+
 /** Minimal JSON Schema shape accepted by WebMCP for tool inputs. */
 export interface JSONSchema {
   type?: string;
@@ -135,6 +137,8 @@ export type ConfirmHandler = (
 export type WebMCPDenialReason =
   | "unauthenticated"
   | "missing_scope"
+  | "payment_required"
+  | "payment_failed"
   | "declined_by_user"
   | "rate_limited"
   | "session_expired"
@@ -167,6 +171,8 @@ export interface WebMCPToolContext {
   toolName: string;
   session: WebMCPSession | null;
   scopes: string[];
+  /** The receipt covering this call, when the tool is paywalled. */
+  receipt?: PaymentReceipt | null;
   /**
    * `fetch` bound to this tool call. It attaches the session cookie, an
    * `X-WebMCP-Tool` header and a single-use action token so the backend can
@@ -206,6 +212,12 @@ export interface WebMCPToolDefinition<
   rateLimit?: WebMCPRateLimit;
   /** Origins allowed to call this tool when the page is framed. */
   exposedTo?: string[];
+  /**
+   * What this tool costs. The server's pricing table is authoritative — this
+   * is what the page tells agents, and it is checked against the server before
+   * anything runs.
+   */
+  price?: ToolPrice;
   execute: (
     args: Args,
     context: WebMCPToolContext
@@ -243,6 +255,10 @@ export interface WebMCPEndpoints {
   /** Issues scoped, short-lived agent tokens. */
   grant: string;
   revoke: string;
+  /** Asks what a tool costs and whether the caller already has access. */
+  paywallQuote: string;
+  /** Redeems a proof of payment for a receipt. */
+  paywallSettle: string;
 }
 
 /** Response from `POST {basePath}/webmcp/grant`. */

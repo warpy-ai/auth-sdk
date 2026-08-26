@@ -140,6 +140,17 @@ The SDK is built around a provider-based architecture with MCP integration and P
      `verifyWebMCPAction`, `authorizeWebMCPRequest`, `createMemoryNonceStore` - single-use, tool-bound
      action tokens with replay protection
    - [react.tsx](src/webmcp/react.tsx): `WebMCPProvider`, `useWebMCP`, `useWebMCPTool`, `useWebMCPRegistration`
+   - [paywall/](src/webmcp/paywall/): **charge agents per tool call** - a sixth gate that answers an
+     unpaid call with a machine-readable challenge instead of a refusal
+     - [types.ts](src/webmcp/paywall/types.ts): `ToolPrice`, `PaymentChallenge`, `PaymentReceipt`,
+       `PaywallProvider`, `UsageStore`, and the x402 wire types
+     - [providers/x402.ts](src/webmcp/paywall/providers/x402.ts): agent wallet payments; builds the
+       standard `402` body and forwards proofs to a facilitator's `/verify` and `/settle`
+     - [providers/credits.ts](src/webmcp/paywall/providers/credits.ts): prepaid balance on the user's account
+     - [providers/subscription.ts](src/webmcp/paywall/providers/subscription.ts): access included with a plan
+     - [server.ts](src/webmcp/paywall/server.ts): `quotePaywall`, `settlePaywall`, `verifyWebMCPPayment`,
+       metering via `UsageStore`, receipt tokens (`type: "webmcp-receipt"`)
+     - [entitlement.ts](src/webmcp/paywall/entitlement.ts): in-page receipt store (memory-only)
    - [runtime.ts](src/webmcp/runtime.ts): feature detection, `AbortSignal`-based unregistration, and a
      `window.__webmcp__` fallback bridge for browsers without WebMCP
    - Requires a secure context (HTTPS or localhost); degrades to the bridge otherwise
@@ -259,9 +270,19 @@ single-use `X-WebMCP-Action` token bound to the tool, verified with `authorizeWe
 or `verifyWebMCPAction`. Scopes are checked twice: in the page before asking, and on the
 server before issuing.
 
-Never reaches the model: session tokens, delegation tokens, password/hidden/one-time-code
-fields, card and SSN-shaped fields, `data-agent-sensitive` regions, and redacted audit
-arguments. Two-factor code submission is **off by default**.
+**Payment is a sixth gate**, and it runs after the other five - an agent cannot buy its
+way past authentication, scopes or rate limits. An unpaid call to a priced tool returns a
+machine-readable challenge (x402 `402` body, credit balance, or plan requirement) rather
+than a refusal, so the agent can pay and retry. Quoting never moves money; settling
+happens only after any required human approval, so a declined call is never a charged
+one. Receipts are memory-only, short-lived, tool-scoped, never handed to the model, and
+metered server-side by `verifyWebMCPPayment`. The server's pricing table is authoritative -
+the page's copy is display only.
+
+Never reaches the model: session tokens, delegation tokens, receipt tokens,
+password/hidden/one-time-code fields, card and SSN-shaped fields, `data-agent-sensitive`
+regions, and redacted audit arguments (payment payloads included). Two-factor code
+submission is **off by default**.
 
 Production notes: the nonce store and the MCP revocation list are both in-memory - back
 them with Redis/DB when running more than one instance.
@@ -396,6 +417,7 @@ Notes:
     - [04-react.mdx](content/docs/07-webmcp/04-react.mdx): Provider and hooks
     - [05-server-verification.mdx](content/docs/07-webmcp/05-server-verification.mdx): Routes, guards, replay protection
     - [06-api-reference.mdx](content/docs/07-webmcp/06-api-reference.mdx): Full API surface
+    - [07-paywall.mdx](content/docs/07-webmcp/07-paywall.mdx): Charging agents per tool call
 
 ### TypeScript Configuration
 
@@ -463,6 +485,9 @@ Notes:
   - Server verification: delegation routes, single-use action tokens, replay protection, scope guards
   - React bindings (`WebMCPProvider`, `useWebMCP`, `useWebMCPTool`)
   - Wired into the Next.js proxy at `{basePath}/webmcp/*`
+  - **Paywalled tools**: per-call pricing with x402 (agent wallet), prepaid credits, or
+    subscription-gated access; free allowances, machine-readable pricing in the manifest and
+    tool descriptions, receipt metering, and `onPayment` revenue hooks
 - Framework adapters with complete examples:
   - Fastify adapter ([examples/fastify-example](examples/fastify-example))
   - Express adapter ([examples/express-example](examples/express-example))
@@ -480,9 +505,10 @@ Notes:
 ### 🚧 Pending
 
 - Node/Edge safe email magic link in Proxy (pluggable sender / external service)
-- Vitest suite covers the WebMCP layer (86 tests); other modules remain largely untested
+- Vitest suite covers the WebMCP layer including the paywall (128 tests); other modules
+  remain largely untested
 - Production-ready token storage (Redis/DB instead of in-memory) for revocation lists,
-  WebMCP action-token nonces, CSRF and magic-link tokens
+  WebMCP action-token nonces, paywall receipt metering, CSRF and magic-link tokens
 
 ## CI/CD Pipeline
 
@@ -507,6 +533,7 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
   - `@warpy-auth-sdk/core/webmcp` (browser)
   - `@warpy-auth-sdk/core/webmcp/server` (Node)
   - `@warpy-auth-sdk/core/webmcp/react`
+  - `@warpy-auth-sdk/core/webmcp/paywall` (Node)
 
 ## Key Dependencies
 

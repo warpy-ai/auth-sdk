@@ -484,9 +484,9 @@ export async function getSession(
       return null;
     }
 
-    // Single-use WebMCP action tokens authorize one tool call; they are never a
-    // session, even if one is presented in the session cookie.
-    if (payload.type === "webmcp-action") {
+    // WebMCP action tokens authorize one tool call and receipts authorize a
+    // paid one. Neither is a session, even when presented in the session cookie.
+    if (payload.type === "webmcp-action" || payload.type === "webmcp-receipt") {
       return null;
     }
 
