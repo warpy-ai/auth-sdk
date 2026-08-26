@@ -7,7 +7,17 @@ export interface JWTPayload {
   name?: string;
   scopes?: string[];
   agentId?: string;
-  type?: "standard" | "mcp-agent";
+  type?: "standard" | "mcp-agent" | "webmcp-action";
+  /** WebMCP action tokens: the tool name the token authorizes. */
+  tool?: string;
+  /**
+   * Unique id for this token. WebMCP action tokens use it for single-use
+   * replay protection; delegations use it so two grants with identical claims
+   * are still independently revocable.
+   */
+  nonce?: string;
+  /** WebMCP action tokens: origin the action was initiated from. */
+  origin?: string;
 }
 
 export function signJWT(

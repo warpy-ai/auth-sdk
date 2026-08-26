@@ -1,0 +1,138 @@
+---
+title: WebMCP with React
+description: Provider and hooks for registering WebMCP tools from React components, scoped to what the person is actually looking at.
+---
+
+## Provider
+
+Mount once, near the root:
+
+```tsx
+'use client';
+import { WebMCPProvider } from '@warpy-auth-sdk/core/webmcp/react';
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <WebMCPProvider
+      basePath="/api/auth"
+      auth={{ allowedScopes: ['orders:read', 'orders:write'] }}
+      policy={{ onAudit: (event) => console.debug('[webmcp]', event) }}
+    >
+      {children}
+    </WebMCPProvider>
+  );
+}
+```
+
+`WebMCPProvider` takes every option `createWebMCP` takes. Tools are registered on
+mount and unregistered on unmount.
+
+## Per-screen tools
+
+`useWebMCPTool` publishes a tool for as long as its component is mounted, so the
+agent's tool list tracks the screen the person is on:
+
+```tsx
+'use client';
+import { useWebMCPTool } from '@warpy-auth-sdk/core/webmcp/react';
+
+export function OrderTable({ orders }: { orders: Order[] }) {
+  useWebMCPTool(
+    {
+      name: 'filter_orders',
+      description: 'Filter the visible order table by status.',
+      annotations: { readOnlyHint: true },
+      inputSchema: {
+        type: 'object',
+        properties: {
+          status: { type: 'string', enum: ['open', 'shipped', 'cancelled'] },
+        },
+        required: ['status'],
+      },
+      execute: ({ status }) => orders.filter((order) => order.status === status),
+    },
+    [orders],
+  );
+
+  return <table>{/* … */}</table>;
+}
+```
+
+The tool closes over live component state, and the latest implementation is always the
+one that runs — no re-registration on every render.
+
+## Reading the state
+
+```tsx
+import { useWebMCP } from '@warpy-auth-sdk/core/webmcp/react';
+
+function AgentBadge() {
+  const { supported, tools, grantedScopes, revokeAccess } = useWebMCP();
+
+  if (!supported) return null;
+
+  return (
+    <div role="status">
+      {tools.length} agent tools available
+      {grantedScopes.length > 0 && (
+        <>
+          <span>Agent access: {grantedScopes.join(', ')}</span>
+          <button onClick={revokeAccess}>Revoke</button>
+        </>
+      )}
+    </div>
+  );
+}
+```
+
+Showing delegated scopes with a revoke button is worth the few lines. Consent the
+person cannot see or withdraw is not really consent.
+
+## Your own confirmation UI
+
+The default prompt is `window.confirm`. A real modal shows more and looks like your
+product:
+
+```tsx
+<WebMCPProvider
+  basePath="/api/auth"
+  policy={{
+    confirmHandler: ({ tool, message, args, destructive }) =>
+      confirmDialog.open({ title: tool, body: message, args, danger: destructive }),
+  }}
+>
+```
+
+The handler returns a promise resolving to `true` or `false`; anything but `true` is
+treated as a refusal.
+
+## Passing a session you already have
+
+If you already use `useAuth`, hand the session over instead of letting the SDK fetch
+it again:
+
+```tsx
+function WebMCPWithSession({ children }) {
+  const { session } = useAuth();
+  return (
+    <WebMCPProvider basePath="/api/auth" session={session}>
+      {children}
+    </WebMCPProvider>
+  );
+}
+```
+
+## Without a provider
+
+```tsx
+import { useWebMCPRegistration } from '@warpy-auth-sdk/core/webmcp/react';
+
+function DashboardTools() {
+  const handle = useWebMCPRegistration({
+    basePath: '/api/auth',
+    tools: [/* … */],
+  });
+
+  return <span>{handle?.tools.length ?? 0} tools registered</span>;
+}
+```

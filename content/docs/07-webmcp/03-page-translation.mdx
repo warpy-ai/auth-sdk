@@ -1,0 +1,181 @@
+---
+title: Page Translation
+description: Turn an ordinary page into something an AI agent can read and navigate — structured snapshots, opaque element references, and data-agent annotations.
+---
+
+## The idea
+
+An agent looking at raw HTML sees markup, not meaning. Page translation converts the
+DOM a person sees into a structured map an agent can act on, and gives it a small set
+of tools to move around.
+
+```json
+{
+  "url": "https://shop.example/orders",
+  "title": "Your orders",
+  "headings": [{ "ref": "e3", "level": 1, "text": "Your orders" }],
+  "links": [{ "ref": "e5", "text": "Pricing", "href": "/pricing", "external": false }],
+  "forms": [{
+    "ref": "e8",
+    "tool": "search_orders",
+    "name": "Search orders",
+    "method": "GET",
+    "submitLabel": "Search",
+    "fields": [
+      { "ref": "e9", "name": "q", "label": "Query", "type": "text", "required": false, "sensitive": false },
+      { "ref": "e10", "name": "status", "label": "Status", "type": "select", "options": ["open", "closed"], "sensitive": false }
+    ]
+  }],
+  "actions": [{ "ref": "e12", "label": "Refresh", "kind": "button", "safe": true, "disabled": false }]
+}
+```
+
+## References, not selectors
+
+Every element is addressed by an opaque `ref` (`e12`) that the SDK resolves back to a
+node. The agent never sends a CSS selector, so a prompt-injected agent cannot address
+parts of the page you never showed it, and cannot smuggle a selector that escapes the
+scanned root.
+
+References are validated on use: unknown refs, refs to removed elements, and refs to
+anything marked off-limits are all rejected with a message telling the agent to take a
+fresh snapshot. They are dropped entirely on navigation, so a ref can never cross pages.
+
+## The tools
+
+| Tool | Annotation | Confirms | Notes |
+| --- | --- | --- | --- |
+| `page_snapshot` | read-only | no | Structure of the current page |
+| `page_find` | read-only | no | Text search, returns refs |
+| `page_read` | read-only | no | Text of one region |
+| `page_navigate` | non-destructive | no | Same-origin only; `http(s)` only |
+| `page_fill_form` | non-destructive | no | Refuses sensitive fields |
+| `page_submit_form` | destructive | always | Fills then submits |
+| `page_click` | destructive | yes | Unless marked `data-agent-safe` |
+
+Read-only snapshots carry `untrustedContentHint: true` — page content includes things
+your users typed, and the host should treat it as data, not instructions.
+
+Options:
+
+```ts
+createWebMCP({
+  page: {
+    root: '#app',                    // limit the scan
+    readOnly: false,                 // true = no interaction tools at all
+    annotatedOnly: false,            // true = only data-agent-* elements are visible
+    maxElements: 100,                // cap per category
+    allowExternalNavigation: false,
+    scopes: ['page:interact'],       // require a delegation for interaction tools
+    includeText: true,
+    formTools: true,                 // generate a tool per annotated form
+  },
+});
+```
+
+## Annotations
+
+Five attributes control what agents see, and they work on any page — no JavaScript
+required.
+
+### `data-agent-ignore`
+
+Excludes an element and everything under it. Admin controls, internal debug panels,
+anything an agent has no business touching:
+
+```html
+<div data-agent-ignore>
+  <button>Delete workspace</button>
+</div>
+```
+
+### `data-agent-sensitive`
+
+Content that must not leave the page. `page_read` refuses these regions and field
+values are never returned:
+
+```html
+<div data-agent-sensitive>API key: sk-live-…</div>
+```
+
+### `data-agent-safe`
+
+Marks an action as reversible, so `page_click` runs it without a prompt. Use it for
+refresh, expand, filter — never for anything that writes:
+
+```html
+<button data-agent-safe>Refresh</button>
+```
+
+### `data-agent-description`
+
+The one attribute that most improves agent behaviour. Say what the element is *for*:
+
+```html
+<button data-agent-description="Export the current filter as CSV">Export</button>
+```
+
+### `data-agent-tool`
+
+Promotes a form into a first-class tool with a generated schema — a whole capability
+from markup alone:
+
+```html
+<form data-agent-tool="search_orders"
+      data-agent-description="Search the order history by text and status">
+  <label for="q">Query</label>
+  <input id="q" name="q" />
+  <select name="status">
+    <option value="open">Open</option>
+    <option value="closed">Closed</option>
+  </select>
+  <button type="submit">Search</button>
+</form>
+```
+
+Produces:
+
+```json
+{
+  "name": "search_orders",
+  "description": "Search the order history by text and status",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "q": { "type": "string", "description": "Query" },
+      "status": { "type": "string", "description": "Status", "enum": ["open", "closed"] }
+    },
+    "required": []
+  }
+}
+```
+
+WebMCP's own declarative attributes, `toolname` and `tooldescription`, are accepted as
+aliases.
+
+## What is filtered out automatically
+
+- Invisible elements (`checkVisibility()` where available, computed style otherwise),
+  `hidden`, and `aria-hidden="true"`
+- Password, hidden and file inputs; `autocomplete="cc-*"`, `current-password`,
+  `new-password`, `one-time-code`
+- Fields whose name or id looks like `password`, `secret`, `token`, `otp`, `cvv`,
+  `card`, `ssn`, `pin`
+- `javascript:` links, and anything under `data-agent-ignore`
+
+Sensitive fields still appear in a snapshot — with `sensitive: true` and no `value`, so
+the agent knows the field exists and knows to ask the person to fill it.
+
+## Labels
+
+Fields are named the way assistive technology names them: `aria-label`, then
+`aria-labelledby`, then `<label for>`, then a wrapping `<label>`, then `placeholder`,
+`title`, `name`, and finally text content. **A page that works with a screen reader
+already works with an agent** — the same markup pays off twice.
+
+## Single-page apps
+
+By default the SDK watches `pushState`, `replaceState`, `popstate` and structural DOM
+mutations (debounced), drops stale references and re-registers when the tool set
+actually changes. Turn it off with `watch: false` and call `handle.refresh()` from your
+router if you would rather drive it yourself.

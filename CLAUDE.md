@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is an authentication SDK for Node.js and React applications, providing a flexible authentication system with support for multiple providers (OAuth, email magic links), database adapters, and **MCP (Model Context Protocol)** for AI agent-delegated authentication.
+This is an authentication SDK for Node.js and React applications, providing a flexible authentication system with support for multiple providers (OAuth, email magic links), database adapters, **MCP (Model Context Protocol)** for AI agent-delegated authentication, and **WebMCP** for making any website navigable by in-browser AI agents.
 
-Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./adapters/fastify`, `./adapters/express`, `./adapters/hono`, `./adapters/node`, `./hooks`, `./hooks/server`, `./next`).
+Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./adapters/fastify`, `./adapters/express`, `./adapters/hono`, `./adapters/node`, `./adapters/remix`, `./hooks`, `./hooks/server`, `./next`, `./webmcp`, `./webmcp/server`, `./webmcp/react`).
 
 ## Development Commands
 
@@ -15,6 +15,12 @@ Package name: `@warpy-auth-sdk/core` (subpath exports: `.`, `./adapters/fastify`
 - `npm run build` - Compile TypeScript to JavaScript (outputs to `dist/` and type definitions to `typings/`)
 - `npm run dev` - Run development server with hot reload using ts-node-dev
 - `npm start` - Run the compiled application from dist/
+
+### Testing
+
+- `npm test` - Run the Vitest suite once
+- `npm run test:watch` - Run Vitest in watch mode
+- DOM-dependent tests opt in per file with `// @vitest-environment happy-dom`
 
 ### Code Quality
 
@@ -108,6 +114,35 @@ The SDK is built around a provider-based architecture with MCP integration and P
    - Token revocation list (in-memory, should use Redis/DB in production)
    - Tools are compatible with Vercel AI SDK for LLM function calling
    - Optional Warpy Cloud Shield via `createMCPShield()` for edge security and analytics
+
+4a. **WebMCP Integration** ([src/webmcp/](src/webmcp/)) - **Browser-Native Agent Tools**
+   - Implements [WebMCP](https://github.com/webmachinelearning/webmcp) (`document.modelContext`,
+     with the deprecated `navigator.modelContext` as fallback), making any page callable by
+     in-browser AI agents such as Gemini in Chrome
+   - **Two entry points**: `@warpy-auth-sdk/core/webmcp` (browser), `@warpy-auth-sdk/core/webmcp/server` (Node);
+     server helpers are also re-exported from the package root
+   - [client.ts](src/webmcp/client.ts): `createWebMCP(config)` - registers auth tools, page tools and
+     app tools; watches SPA route/DOM changes and re-registers; returns a disposable handle
+   - [policy.ts](src/webmcp/policy.ts): the security guard every tool passes through -
+     authentication, scoped delegation, rate limiting, human confirmation, redaction, audit,
+     and a same-origin `context.fetch` that fails closed
+   - [grant.ts](src/webmcp/grant.ts): `GrantStore` - in-memory (never persisted) scoped, expiring
+     delegation from the human to the agent; the token stays in the page and is never returned to the model
+   - [auth-tools.ts](src/webmcp/auth-tools.ts): `auth_get_session`, `auth_describe_access`,
+     `auth_request_access`, `auth_revoke_access`, `auth_sign_in_email`, `auth_start_oauth`,
+     `auth_sign_out`, and (opt-in) `auth_verify_two_factor`
+   - [page.ts](src/webmcp/page.ts): **page translation** - `page_snapshot`, `page_find`, `page_read`,
+     `page_navigate`, `page_fill_form`, `page_submit_form`, `page_click`, plus one generated tool per
+     annotated form. Elements are addressed by opaque refs, never CSS selectors
+   - **Annotations** (work without any JavaScript): `data-agent-ignore`, `data-agent-sensitive`,
+     `data-agent-safe`, `data-agent-description`, `data-agent-tool` (aliases: `toolname`, `tooldescription`)
+   - [server.ts](src/webmcp/server.ts): `createWebMCPHandler` (routes `{basePath}/webmcp/grant|action|revoke|manifest`),
+     `verifyWebMCPAction`, `authorizeWebMCPRequest`, `createMemoryNonceStore` - single-use, tool-bound
+     action tokens with replay protection
+   - [react.tsx](src/webmcp/react.tsx): `WebMCPProvider`, `useWebMCP`, `useWebMCPTool`, `useWebMCPRegistration`
+   - [runtime.ts](src/webmcp/runtime.ts): feature detection, `AbortSignal`-based unregistration, and a
+     `window.__webmcp__` fallback bridge for browsers without WebMCP
+   - Requires a secure context (HTTPS or localhost); degrades to the bridge otherwise
 
 5. **Adapter System** ([src/adapters/](src/adapters/))
    - **Database Adapters**: Optional adapters for session persistence
@@ -203,6 +238,33 @@ const { text } = await generateText({
 - Zero-config: set `WARPY_API_KEY` to enable cloud mode automatically.
 - Metrics: buffered locally and auto-flushed to Warpy for dashboards.
 - Self-host fallback: if no API key, local JWT verification and scope checks are used.
+
+### WebMCP Security Model
+
+An in-tab agent already holds the user's session, so authentication is not the control -
+**scoped consent** is. Every tool registered via `createWebMCP` passes five gates before
+`execute` runs:
+
+1. **Authentication** - tools declaring `scopes` (or `requireAuth`) need a session
+2. **Scoped delegation** - the person approves a named agent, specific scopes and a short TTL
+   via `auth_request_access`; the delegation JWT stays in the page and is never given to the model
+3. **Rate limiting** - 30 calls/tool/minute by default, stricter for sensitive built-ins
+4. **Human confirmation** - `auto` mode confirms anything not marked `readOnlyHint`
+   (matching MCP's default that an absent `destructiveHint` means destructive)
+5. **Egress control** - `context.fetch` is same-origin and credentialed, and fails closed
+   when no origin can be determined
+
+Server-side, each agent-driven request carries `X-WebMCP-Tool`, `X-WebMCP-Agent` and a
+single-use `X-WebMCP-Action` token bound to the tool, verified with `authorizeWebMCPRequest`
+or `verifyWebMCPAction`. Scopes are checked twice: in the page before asking, and on the
+server before issuing.
+
+Never reaches the model: session tokens, delegation tokens, password/hidden/one-time-code
+fields, card and SSN-shaped fields, `data-agent-sensitive` regions, and redacted audit
+arguments. Two-factor code submission is **off by default**.
+
+Production notes: the nonce store and the MCP revocation list are both in-memory - back
+them with Redis/DB when running more than one instance.
 
 ### MCP HTTP Endpoint (Next.js Example)
 
@@ -327,7 +389,13 @@ Notes:
   - **04-mcp**: MCP (Model Context Protocol) integration guides
   - **05-api-reference**: API reference documentation
   - **06-examples**: Example projects and code samples
-  - **07-advanced**: Advanced topics and best practices
+  - **07-webmcp**: WebMCP integration - browser-native agent tools
+    - [01-introduction.mdx](content/docs/07-webmcp/01-introduction.mdx): What WebMCP is and the two-line setup
+    - [02-security-model.mdx](content/docs/07-webmcp/02-security-model.mdx): The five gates, action tokens, threat checklist
+    - [03-page-translation.mdx](content/docs/07-webmcp/03-page-translation.mdx): Page tools and `data-agent-*` annotations
+    - [04-react.mdx](content/docs/07-webmcp/04-react.mdx): Provider and hooks
+    - [05-server-verification.mdx](content/docs/07-webmcp/05-server-verification.mdx): Routes, guards, replay protection
+    - [06-api-reference.mdx](content/docs/07-webmcp/06-api-reference.mdx): Full API surface
 
 ### TypeScript Configuration
 
@@ -385,6 +453,16 @@ Notes:
 - Zero-config env support for Google OAuth
 - Customization callbacks: `callbacks.user`, `callbacks.jwt`, `callbacks.session`
 - MCP route handler for exposing tools to AI agents (`POST /api/mcp` in example)
+- **WebMCP support** (`@warpy-auth-sdk/core/webmcp`):
+  - `document.modelContext` registration with `navigator.modelContext` fallback and a
+    `window.__webmcp__` bridge where WebMCP is unavailable
+  - Page translation: structured snapshots, opaque element refs, form/action/navigation tools
+  - `data-agent-*` annotations, including markup-only tool generation from forms
+  - Auth tools with consent-based scoped delegation (grants are memory-only, expiring, revocable)
+  - Policy guard: auth, scopes, rate limits, confirmation, redaction, audit, same-origin egress
+  - Server verification: delegation routes, single-use action tokens, replay protection, scope guards
+  - React bindings (`WebMCPProvider`, `useWebMCP`, `useWebMCPTool`)
+  - Wired into the Next.js proxy at `{basePath}/webmcp/*`
 - Framework adapters with complete examples:
   - Fastify adapter ([examples/fastify-example](examples/fastify-example))
   - Express adapter ([examples/express-example](examples/express-example))
@@ -402,8 +480,9 @@ Notes:
 ### 🚧 Pending
 
 - Node/Edge safe email magic link in Proxy (pluggable sender / external service)
-- Vitest test configuration and unit tests
-- Production-ready token storage (Redis/DB instead of in-memory)
+- Vitest suite covers the WebMCP layer (86 tests); other modules remain largely untested
+- Production-ready token storage (Redis/DB instead of in-memory) for revocation lists,
+  WebMCP action-token nonces, CSRF and magic-link tokens
 
 ## CI/CD Pipeline
 
@@ -421,9 +500,13 @@ GitHub Actions workflow (`.github/workflows/ci.yml`):
 - Type definitions: `typings/index.d.ts`
 - Subpath exports:
   - `@warpy-auth-sdk/core`
+  - `@warpy-auth-sdk/core/adapters/{fastify,express,hono,node,remix}`
   - `@warpy-auth-sdk/core/hooks`
   - `@warpy-auth-sdk/core/hooks/server`
   - `@warpy-auth-sdk/core/next`
+  - `@warpy-auth-sdk/core/webmcp` (browser)
+  - `@warpy-auth-sdk/core/webmcp/server` (Node)
+  - `@warpy-auth-sdk/core/webmcp/react`
 
 ## Key Dependencies
 

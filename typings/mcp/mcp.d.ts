@@ -14,3 +14,4 @@ export declare function createMCPTools({ secret, adapter, }: {
     revoke_token: MCPToolDefinition;
 };
 export declare function isTokenRevoked(token: string): boolean;
+export declare function revokeToken(token: string): void;

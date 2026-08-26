@@ -50,12 +50,29 @@
       "types": "./typings/next/index.d.ts",
       "import": "./dist/next/index.js",
       "default": "./dist/next/index.js"
+    },
+    "./webmcp": {
+      "types": "./typings/webmcp/index.d.ts",
+      "import": "./dist/webmcp/index.js",
+      "default": "./dist/webmcp/index.js"
+    },
+    "./webmcp/server": {
+      "types": "./typings/webmcp/server.d.ts",
+      "import": "./dist/webmcp/server.js",
+      "default": "./dist/webmcp/server.js"
+    },
+    "./webmcp/react": {
+      "types": "./typings/webmcp/react.d.ts",
+      "import": "./dist/webmcp/react.js",
+      "default": "./dist/webmcp/react.js"
     }
   },
   "scripts": {
     "start": "node .",
     "build": "tsc && node scripts/fix-esm-imports.js",
     "dev": "ts-node-dev --respawn --no-deps --rs --cls ./src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "eslint": "eslint src/**/*.ts"
   },
   "keywords": [
@@ -75,6 +92,7 @@
     "@typescript-eslint/parser": "8.46.2",
     "eslint": "9.38.0",
     "eslint-plugin-prettier": "5.5.4",
+    "happy-dom": "^20.11.6",
     "ts-node": "10.9.2",
     "ts-node-dev": "2.0.0",
     "typescript": "^5.9.3"
@@ -125,6 +143,15 @@
       ],
       "next": [
         "typings/next/index.d.ts"
+      ],
+      "webmcp": [
+        "typings/webmcp/index.d.ts"
+      ],
+      "webmcp/server": [
+        "typings/webmcp/server.d.ts"
+      ],
+      "webmcp/react": [
+        "typings/webmcp/react.d.ts"
       ],
       "*": [
         "typings/index.d.ts"

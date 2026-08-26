@@ -342,17 +342,16 @@ async function handleEmailAuthentication(
   // If email provided, send magic link
   if (email) {
     // Verify CAPTCHA if configured and enforced for email
-    if (
-      config.captcha &&
-      (config.captcha.enforceOnEmail ?? true)
-    ) {
+    if (config.captcha && (config.captcha.enforceOnEmail ?? true)) {
       if (!captchaToken) {
         return { error: "CAPTCHA token required" };
       }
 
       const captchaProvider = createCaptchaProvider(config.captcha.provider);
-      const remoteIp = request.headers.get("x-forwarded-for") ||
-        request.headers.get("x-real-ip") || undefined;
+      const remoteIp =
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined;
       const captchaResult = await captchaProvider.verify(
         captchaToken,
         remoteIp
@@ -435,17 +434,16 @@ async function handleTwoFactorAuthentication(
   // If email provided, send 2FA code
   if (email) {
     // Verify CAPTCHA if configured and enforced for two-factor
-    if (
-      config.captcha &&
-      (config.captcha.enforceOnTwoFactor ?? true)
-    ) {
+    if (config.captcha && (config.captcha.enforceOnTwoFactor ?? true)) {
       if (!captchaToken) {
         return { error: "CAPTCHA token required" };
       }
 
       const captchaProvider = createCaptchaProvider(config.captcha.provider);
-      const remoteIp = request.headers.get("x-forwarded-for") ||
-        request.headers.get("x-real-ip") || undefined;
+      const remoteIp =
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined;
       const captchaResult = await captchaProvider.verify(
         captchaToken,
         remoteIp
@@ -483,6 +481,12 @@ export async function getSession(
 
     const payload = verifyJWT(sessionToken, secret);
     if (!payload) {
+      return null;
+    }
+
+    // Single-use WebMCP action tokens authorize one tool call; they are never a
+    // session, even if one is presented in the session cookie.
+    if (payload.type === "webmcp-action") {
       return null;
     }
 

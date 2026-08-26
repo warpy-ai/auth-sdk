@@ -170,3 +170,14 @@ export function createMCPTools({
 export function isTokenRevoked(token: string): boolean {
   return revokedTokens.has(token);
 }
+
+/**
+ * Adds a token to the revocation list.
+ *
+ * Shared with the WebMCP grant routes so a delegation revoked from the page is
+ * also dead for the MCP tools. In-memory: back this with Redis or your database
+ * in production.
+ */
+export function revokeToken(token: string): void {
+  revokedTokens.add(token);
+}

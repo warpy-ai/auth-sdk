@@ -60,6 +60,11 @@ module.exports = [
       'no-console': 'off', // Allow console for logging in server code
       'no-unused-vars': 'off', // Use TypeScript's version instead
 
+      // TypeScript already resolves every identifier, including DOM lib types
+      // such as AbortSignal and RequestInit that ESLint cannot see. Leaving
+      // this on only produces false positives in browser-facing modules.
+      'no-undef': 'off',
+
       // TypeScript specific rules
       '@typescript-eslint/no-unused-vars': [
         'error',
