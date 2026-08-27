@@ -18,6 +18,7 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
 import { createMCPShield, type MCPShieldConfig } from "../shield/mcpShield";
 
@@ -95,7 +96,10 @@ export function createAuthHandlers(
     }
 
     const session = await coreGetSession(request, config.secret);
-    return Response.json({ session }, { status: 200 });
+    return Response.json(
+      { session: session ? toPublicSession(session) : null },
+      { status: 200 }
+    );
   }
 
   /**

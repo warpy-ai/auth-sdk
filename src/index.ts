@@ -6,6 +6,7 @@ export {
   verifyAgentToken,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
   type AuthConfig,
   type Session,
   type MCPLoginPayload,
@@ -23,7 +24,10 @@ export { facebook, type FacebookProviderOptions } from "./providers/facebook";
 export { github, type GitHubProviderOptions } from "./providers/github";
 export { gitlab, type GitLabProviderOptions } from "./providers/gitlab";
 export { linkedin, type LinkedInProviderOptions } from "./providers/linkedin";
-export { microsoft, type MicrosoftProviderOptions } from "./providers/microsoft";
+export {
+  microsoft,
+  type MicrosoftProviderOptions,
+} from "./providers/microsoft";
 export { spotify, type SpotifyProviderOptions } from "./providers/spotify";
 export { discord, type DiscordProviderOptions } from "./providers/discord";
 export { twitch, type TwitchProviderOptions } from "./providers/twitch";
@@ -90,6 +94,49 @@ export {
   cleanExpiredTwoFactorCodes,
 } from "./utils/tokens";
 export { OAuthProvider } from "./utils/oauth";
+
+// WebMCP (server-side verification + delegation routes)
+// Browser tools live in "@warpy-auth-sdk/core/webmcp"
+export {
+  createWebMCPHandler,
+  issueGrant,
+  issueActionToken,
+  revokeGrant,
+  verifyWebMCPAction,
+  authorizeWebMCPRequest,
+  createMemoryNonceStore,
+  type WebMCPHandlerOptions,
+  type WebMCPServerOptions,
+  type WebMCPActionClaims,
+  type VerifyActionOptions,
+  type NonceStore,
+} from "./webmcp/server";
+export { revokeToken } from "./mcp/mcp";
+
+// WebMCP paywall - charge agents for tool calls
+export {
+  x402Paywall,
+  creditsPaywall,
+  subscriptionPaywall,
+  verifyWebMCPPayment,
+  authorizePaidRequest,
+  createMemoryUsageStore,
+  describePricing,
+  toAtomicUnits,
+  type PaywallOptions,
+  type PaywallProvider,
+  type PaywallContext,
+  type PaywallRedemption,
+  type PaymentClaims,
+  type PaymentChallenge,
+  type PaymentReceipt,
+  type ToolPrice,
+  type PricingTable,
+  type UsageStore,
+  type X402PaywallConfig,
+  type CreditsPaywallConfig,
+  type SubscriptionPaywallConfig,
+} from "./webmcp/paywall";
 
 // Next.js Helpers
 export {

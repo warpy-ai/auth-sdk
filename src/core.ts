@@ -342,17 +342,16 @@ async function handleEmailAuthentication(
   // If email provided, send magic link
   if (email) {
     // Verify CAPTCHA if configured and enforced for email
-    if (
-      config.captcha &&
-      (config.captcha.enforceOnEmail ?? true)
-    ) {
+    if (config.captcha && (config.captcha.enforceOnEmail ?? true)) {
       if (!captchaToken) {
         return { error: "CAPTCHA token required" };
       }
 
       const captchaProvider = createCaptchaProvider(config.captcha.provider);
-      const remoteIp = request.headers.get("x-forwarded-for") ||
-        request.headers.get("x-real-ip") || undefined;
+      const remoteIp =
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined;
       const captchaResult = await captchaProvider.verify(
         captchaToken,
         remoteIp
@@ -435,17 +434,16 @@ async function handleTwoFactorAuthentication(
   // If email provided, send 2FA code
   if (email) {
     // Verify CAPTCHA if configured and enforced for two-factor
-    if (
-      config.captcha &&
-      (config.captcha.enforceOnTwoFactor ?? true)
-    ) {
+    if (config.captcha && (config.captcha.enforceOnTwoFactor ?? true)) {
       if (!captchaToken) {
         return { error: "CAPTCHA token required" };
       }
 
       const captchaProvider = createCaptchaProvider(config.captcha.provider);
-      const remoteIp = request.headers.get("x-forwarded-for") ||
-        request.headers.get("x-real-ip") || undefined;
+      const remoteIp =
+        request.headers.get("x-forwarded-for") ||
+        request.headers.get("x-real-ip") ||
+        undefined;
       const captchaResult = await captchaProvider.verify(
         captchaToken,
         remoteIp
@@ -486,6 +484,12 @@ export async function getSession(
       return null;
     }
 
+    // WebMCP action tokens authorize one tool call and receipts authorize a
+    // paid one. Neither is a session, even when presented in the session cookie.
+    if (payload.type === "webmcp-action" || payload.type === "webmcp-receipt") {
+      return null;
+    }
+
     const session: Session = {
       user: {
         id: payload.userId,
@@ -518,6 +522,20 @@ export async function signOut(
   }
 
   // Cookie will be cleared by returning clearCookie in response
+}
+
+/**
+ * Strips the signed token from a session before it is sent to the browser.
+ *
+ * The session cookie is HttpOnly so that page scripts cannot read it. An
+ * endpoint that returns the same JWT in its body hands it straight back to any
+ * script on the origin — an XSS payload, a third-party tag, an in-tab AI agent —
+ * and undoes that protection. Server-side callers of `getSession` still get the
+ * token; anything crossing the wire to a browser should go through this.
+ */
+export function toPublicSession(session: Session): Omit<Session, "token"> {
+  const { token: _token, ...rest } = session;
+  return rest;
 }
 
 export function createSessionCookie(session: Session): string {

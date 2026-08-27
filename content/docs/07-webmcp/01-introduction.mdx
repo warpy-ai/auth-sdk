@@ -1,0 +1,161 @@
+---
+title: WebMCP
+description: Make any website agent-ready — register page tools with the browser's WebMCP runtime, secured by the auth SDK's session, scopes and consent model.
+---
+
+## What WebMCP is
+
+[WebMCP](https://github.com/webmachinelearning/webmcp) is a browser API that lets a
+page hand its own functionality to an AI agent running in the user's tab. Instead of
+an agent guessing at your DOM and clicking pixels, your page declares tools —
+name, description, JSON Schema, and a function — and the agent calls them.
+
+```js
+await document.modelContext.registerTool({
+  name: 'add-todo',
+  description: "Add an item to the user's todo list",
+  inputSchema: { type: 'object', properties: { text: { type: 'string' } }, required: ['text'] },
+  async execute({ text }) {
+    await addTodo(text);
+    return { content: [{ type: 'text', text: `Added "${text}"` }] };
+  },
+});
+```
+
+The API is shipping in Chromium behind a flag and an origin trial. `document.modelContext`
+is the current surface; `navigator.modelContext` is the deprecated earlier location.
+There is no `unregisterTool` — you unregister by aborting an `AbortSignal` passed to
+`registerTool`.
+
+## What this SDK adds
+
+Registering tools is the easy half. The hard half is that **an agent in the user's
+tab inherits the user's session**. Every tool call is already authenticated, whether
+you meant it to be or not, and the agent's instructions can come from a web page,
+an email or a PDF it read a minute ago.
+
+`@warpy-auth-sdk/core/webmcp` gives you three things:
+
+1. **A security layer** over every tool — authentication, scoped consent, human
+   confirmation, rate limiting, redaction and an audit trail — plus server-side
+   verification so your backend can tell an agent-driven write from a human one.
+2. **Page translation** — a set of tools that turn an ordinary page into something
+   an agent can read and navigate: structure, forms, actions, all addressed by
+   opaque references rather than selectors.
+3. **Paywalls** — charge agents per call, over an agent wallet (x402), prepaid
+   credits, or an existing subscription, metered and verified server-side.
+4. **Graceful degradation** — where the browser has no WebMCP implementation, the
+   same tool table is published on `window.__webmcp__` for extensions, polyfills
+   and your own tests.
+
+## Install
+
+Already included in the SDK:
+
+```bash
+npm install @warpy-auth-sdk/core
+```
+
+## Two lines to agent-ready
+
+```tsx
+'use client';
+import { createWebMCP } from '@warpy-auth-sdk/core/webmcp';
+
+createWebMCP({ basePath: '/api/auth' });
+```
+
+That registers, on the current page:
+
+| Tool | What it does |
+| --- | --- |
+| `page_snapshot` | Structured map of the page: regions, headings, links, forms, actions |
+| `page_find` | Search visible text, returns references |
+| `page_read` | Read one region by reference |
+| `page_navigate` | Same-origin navigation |
+| `page_fill_form` | Fill fields (never sensitive ones) |
+| `page_submit_form` | Fill and submit, with confirmation |
+| `page_click` | Activate a button or link, with confirmation |
+| `auth_get_session` | Who is signed in (never credentials) |
+| `auth_describe_access` | What the agent is currently allowed to do |
+| `auth_request_access` | Ask the person for scoped, expiring delegation |
+| `auth_revoke_access` | Hand that delegation back |
+| `auth_sign_in_email` | Send a magic link (the person still opens it) |
+| `auth_sign_out` | Sign out, with confirmation |
+
+On the server, mount the delegation routes. With the Next.js proxy they are already
+mounted at `{basePath}/webmcp/*`:
+
+```ts
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+
+const handler = authMiddleware(config, {
+  basePath: '/api/auth',
+  webmcp: { allowedScopes: ['orders:read', 'orders:write'] },
+});
+```
+
+## Adding your own tools
+
+Application tools go through the same guard as the built-ins:
+
+```tsx
+createWebMCP({
+  basePath: '/api/auth',
+  tools: [
+    {
+      name: 'list_orders',
+      description: "List the signed-in customer's recent orders.",
+      annotations: { readOnlyHint: true },
+      scopes: ['orders:read'],
+      inputSchema: {
+        type: 'object',
+        properties: { limit: { type: 'number', description: 'How many (max 50).' } },
+      },
+      async execute({ limit = 10 }, ctx) {
+        const res = await ctx.fetch(`/api/orders?limit=${limit}`);
+        return res.json();
+      },
+    },
+    {
+      name: 'cancel_order',
+      description: 'Cancel an order that has not shipped.',
+      annotations: { destructiveHint: true },
+      scopes: ['orders:write'],
+      confirmMessage: ({ id }) => `Cancel order ${id}?`,
+      async execute({ id }, ctx) {
+        const res = await ctx.fetch(`/api/orders/${id}`, { method: 'DELETE' });
+        return { cancelled: res.ok };
+      },
+    },
+  ],
+});
+```
+
+`cancel_order` will not run until the person has approved a delegation covering
+`orders:write` **and** confirmed this specific call. `ctx.fetch` is same-origin only
+and carries a single-use action token your backend can verify.
+
+## Requirements and status
+
+- **Secure context.** Browsers only expose WebMCP over HTTPS (or `localhost`).
+  `createWebMCP` warns and falls back to the bridge otherwise.
+- **Chromium with WebMCP enabled** — the origin trial, or `chrome://flags/#enable-webmcp-testing`.
+- Everything else (page translation, the guard, server verification) works today
+  regardless of browser support, through the bridge.
+
+## A worked example
+
+[`examples/webmcp-storefront`](https://github.com/warpy-ai/auth-sdk/tree/master/examples/webmcp-storefront)
+is a complete shop built on this: browse and search as tools, scoped consent
+before the agent touches the cart, a confirmation modal before it spends money, a
+paywalled search agents pay per call, and a panel showing every gate decision as
+it happens. The whole integration is three files.
+
+## Where next
+
+- [Security model](/docs/webmcp/security-model) — what stops a prompt-injected agent
+- [Page translation](/docs/webmcp/page-translation) — annotations and the DOM tools
+- [React](/docs/webmcp/react) — provider and hooks
+- [Server verification](/docs/webmcp/server-verification) — grants, action tokens, guards
+- [Paywalled tools](/docs/webmcp/paywall) — charging agents for tool calls

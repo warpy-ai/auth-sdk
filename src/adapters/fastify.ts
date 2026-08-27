@@ -38,6 +38,7 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
 import { createMCPShield, type MCPShieldConfig } from "../shield/mcpShield";
 
@@ -94,7 +95,9 @@ export function registerAuthPlugin(
     `${base}/session`,
     async (req: FastifyRequest, reply: FastifyReply) => {
       const session = await coreGetSession(buildWebRequest(req), config.secret);
-      return reply.send({ session });
+      return reply.send({
+        session: session ? toPublicSession(session) : null,
+      });
     }
   );
 

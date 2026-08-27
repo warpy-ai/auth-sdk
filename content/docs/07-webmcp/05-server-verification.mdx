@@ -1,0 +1,167 @@
+---
+title: Server Verification
+description: Mount the delegation routes, verify agent-driven requests, and enforce scopes server-side with action tokens.
+---
+
+## Routes
+
+Four routes back the delegation flow. Under the Next.js proxy they are mounted
+automatically at `{basePath}/webmcp/*`:
+
+```ts
+import { authMiddleware } from '@warpy-auth-sdk/core/next';
+
+const handler = authMiddleware(config, {
+  basePath: '/api/auth',
+  webmcp: {
+    allowedScopes: ['orders:read', 'orders:write'],
+    maxGrantSeconds: 600,
+    onAudit: (event) => logger.info({ webmcp: event }),
+  },
+});
+```
+
+Pass `webmcp: false` to leave them unmounted.
+
+| Route | Method | Purpose |
+| --- | --- | --- |
+| `{basePath}/webmcp/grant` | POST | Issue a scoped delegation (user session required) |
+| `{basePath}/webmcp/action` | POST | Mint a single-use action token from a delegation |
+| `{basePath}/webmcp/revoke` | POST | Revoke a delegation immediately |
+| `{basePath}/webmcp/manifest` | GET | Advertise scopes, tools and prices for discovery |
+| `{basePath}/webmcp/paywall/quote` | POST | What a tool costs, and whether access is already held |
+| `{basePath}/webmcp/paywall/settle` | POST | Redeem a proof of payment for a receipt |
+
+The paywall routes mount only when `paywall` is configured — see
+[Paywalled tools](/docs/webmcp/paywall).
+
+Anywhere else, the handler is framework-agnostic and returns `null` for paths it does
+not own:
+
+```ts
+import { createWebMCPHandler } from '@warpy-auth-sdk/core';
+
+const webmcp = createWebMCPHandler(authConfig, {
+  basePath: '/api/auth',
+  allowedScopes: ['orders:read'],
+});
+
+// Express, Hono, Fastify, plain Node — anything that can produce a Request
+const response = await webmcp(request);
+if (response) return response;
+```
+
+## Guarding your own routes
+
+`authorizeWebMCPRequest` resolves both kinds of caller in one step:
+
+```ts
+import { authorizeWebMCPRequest } from '@warpy-auth-sdk/core';
+
+export async function POST(request: Request) {
+  const auth = await authorizeWebMCPRequest(
+    request,
+    { secret: process.env.AUTH_SECRET! },
+    ['orders:write'],
+  );
+
+  if (!auth.allowed) {
+    return Response.json({ error: auth.reason }, { status: auth.actor === 'anonymous' ? 401 : 403 });
+  }
+
+  if (auth.actor === 'agent') {
+    logger.info({ agentId: auth.agentId, userId: auth.userId }, 'agent-driven order write');
+  }
+
+  return placeOrder(auth.userId!);
+}
+```
+
+- A **human** call — a session cookie, no agent headers — is allowed on the session
+  alone. Scopes gate agents, not people.
+- An **agent** call — carrying `X-WebMCP-Tool` or `X-WebMCP-Action` — must present a
+  valid delegation covering the required scopes.
+- Anything else is anonymous.
+
+For finer control, verify the token directly:
+
+```ts
+import { verifyWebMCPAction } from '@warpy-auth-sdk/core';
+
+const claims = await verifyWebMCPAction(request, secret, {
+  tool: 'cancel_order',        // must have been minted for this tool
+  scopes: ['orders:write'],
+  nonceStore: redisNonceStore, // replay protection
+});
+
+if (!claims) return new Response('Forbidden', { status: 403 });
+// claims: { userId, agentId, scopes, tool, type }
+```
+
+## Replay protection
+
+Action tokens are single-use. The nonce store enforces that:
+
+```ts
+import type { NonceStore } from '@warpy-auth-sdk/core';
+
+const redisNonceStore: NonceStore = {
+  async consume(nonce, expiresAt) {
+    // SET NX returns null when the key already exists
+    const stored = await redis.set(`webmcp:nonce:${nonce}`, '1', {
+      NX: true,
+      PXAT: expiresAt,
+    });
+    return stored !== null;
+  },
+};
+```
+
+<Callout type="warning">
+The default store is in-memory and per-process. Behind a load balancer, an action
+token replays on any node that has not seen it. Use a shared store in production —
+the same advice applies to the MCP revocation list.
+</Callout>
+
+## Policy hooks
+
+`onGrant` is the last word on a delegation, after the session and scope checks pass:
+
+```ts
+webmcp: {
+  allowedScopes: ['orders:read', 'orders:write'],
+  maxGrantSeconds: 600,
+  actionTokenSeconds: 60,
+  nonceStore: redisNonceStore,
+  async onGrant({ userId, scopes, agentId, reason, request }) {
+    if (await isSuspicious(userId, request)) return false;
+    if (scopes.includes('orders:write') && !(await hasVerifiedPayment(userId))) return false;
+    return true;
+  },
+  onAudit(event) {
+    logger.info({ webmcp: event }); // grant | grant_denied | action | revoke
+  },
+}
+```
+
+## Revocation
+
+```ts
+import { revokeToken } from '@warpy-auth-sdk/core';
+
+revokeToken(delegationToken); // kills it for WebMCP and the MCP tools alike
+```
+
+Each delegation carries a unique id, so two grants issued in the same second with
+identical claims are still revoked independently.
+
+## Properties worth knowing
+
+- **A delegation cannot mint a delegation.** `POST /webmcp/grant` requires a standard
+  user session; presenting an agent token gets a 401.
+- **Action tokens are not sessions.** `getSession` rejects a `webmcp-action` token
+  presented in the session cookie.
+- **Lifetimes are capped server-side.** A page asking for `30d` gets
+  `maxGrantSeconds`.
+- **Scopes are checked twice** — in the page before asking, and on the server before
+  issuing.

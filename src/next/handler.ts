@@ -5,7 +5,12 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
+import {
+  createWebMCPHandler,
+  type WebMCPHandlerOptions,
+} from "../webmcp/server";
 
 // NextRequest interface for Next.js specific features
 interface NextRequest extends Request {
@@ -35,6 +40,11 @@ export interface NextAuthHandlerOptions {
     signIn?: string; // default: '{basePath}/signin/{provider}' - use {provider} placeholder
     callback?: string; // default: '{basePath}/callback/{provider}' - use {provider} placeholder
   };
+  /**
+   * WebMCP delegation routes, served under '{basePath}/webmcp/*'.
+   * Set to false to leave them unmounted.
+   */
+  webmcp?: false | Omit<WebMCPHandlerOptions, "basePath">;
 }
 
 // Helper function to match a route pattern against a pathname
@@ -72,15 +82,32 @@ export function createNextAuthHandler(
     callback: options.routes?.callback || `${base}/callback/{provider}`,
   };
 
+  const webmcpHandler =
+    options.webmcp === false
+      ? null
+      : createWebMCPHandler(config, {
+          ...(options.webmcp || {}),
+          basePath: base,
+        });
+
   return async function handler(request: Request): Promise<Response> {
     const pathname = getPathname(request);
     const method = request.method.toUpperCase();
 
     try {
+      // WebMCP delegation routes (grant / action / revoke / manifest)
+      if (webmcpHandler) {
+        const webmcpResponse = await webmcpHandler(request);
+        if (webmcpResponse) return webmcpResponse;
+      }
+
       // Session
       if (pathname === routes.session && method === "GET") {
         const session = await getSession(request, config.secret);
-        return Response.json({ session }, { status: 200 });
+        return Response.json(
+          { session: session ? toPublicSession(session) : null },
+          { status: 200 }
+        );
       }
 
       // Sign out

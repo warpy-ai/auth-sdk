@@ -32,6 +32,7 @@
   },
   "exclude": [
     "node_modules",
+    "./src/**/__tests__/**",
     "./examples/**/*.tsx",
     "./examples/**/*.ts",
     "./content/**/*.tsx",

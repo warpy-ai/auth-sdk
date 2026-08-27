@@ -1,0 +1,187 @@
+---
+title: WebMCP API Reference
+description: Every export of @warpy-auth-sdk/core/webmcp, its React bindings, and the server-side verification helpers.
+---
+
+## Entry points
+
+| Import | Runtime | Contents |
+| --- | --- | --- |
+| `@warpy-auth-sdk/core/webmcp` | Browser | `createWebMCP`, tool factories, guard, page translation |
+| `@warpy-auth-sdk/core/webmcp/react` | Browser | `WebMCPProvider`, `useWebMCP`, `useWebMCPTool` |
+| `@warpy-auth-sdk/core` | Server | `createWebMCPHandler`, `verifyWebMCPAction`, `authorizeWebMCPRequest`, paywall providers |
+| `@warpy-auth-sdk/core/webmcp/paywall` | Server | Paywall providers, routes and metering |
+
+## createWebMCP(config)
+
+```ts
+const handle = createWebMCP({
+  basePath: '/api/auth',
+  endpoints: { session: '/api/me' },        // override individual routes
+  auth: { allowedScopes: ['orders:read'] }, // or false
+  page: { readOnly: false },                // or false
+  tools: [/* WebMCPToolDefinition[] */],
+  policy: { /* WebMCPPolicy */ },
+  namespace: 'acme',                        // prefixes every tool name
+  watch: true,
+  session: null,                            // supply instead of fetching
+  getSession: async () => session,
+  onReady: (handle) => {},
+  onError: (error) => {},
+});
+```
+
+Returns a `WebMCPHandle`:
+
+| Member | Type | Notes |
+| --- | --- | --- |
+| `supported` | `boolean` | A real WebMCP implementation is present |
+| `host` | `'document' \| 'navigator' \| 'bridge' \| 'none'` | Where tools were registered |
+| `tools` | `string[]` | Registered names |
+| `grants` | `GrantStore` | Active delegation |
+| `refresh()` | `Promise<void>` | Re-scan and re-register |
+| `dispose()` | `void` | Unregister and stop watching |
+| `getSession(force?)` | `Promise<WebMCPSession \| null>` | Cached 5s |
+| `execute(name, args?)` | `Promise<ToolResponse>` | Call a tool directly |
+
+## WebMCPToolDefinition
+
+```ts
+{
+  name: string;
+  description: string;
+  inputSchema?: JSONSchema;
+  annotations?: {
+    title?: string;
+    readOnlyHint?: boolean;       // no confirmation under `auto`
+    destructiveHint?: boolean;    // defaults to true when absent
+    idempotentHint?: boolean;
+    openWorldHint?: boolean;
+    untrustedContentHint?: boolean;
+  };
+  scopes?: string[];              // implies requireAuth
+  requireAuth?: boolean;
+  price?: ToolPrice;              // server pricing table is authoritative
+  confirm?: 'never' | 'auto' | 'always';
+  confirmMessage?: string | ((args) => string);
+  rateLimit?: { limit: number; windowMs: number };
+  exposedTo?: string[];
+  execute: (args, context: WebMCPToolContext) => unknown | Promise<unknown>;
+}
+```
+
+`WebMCPToolContext`: `{ toolName, session, scopes, fetch, confirm, signal }`. Use
+`context.fetch` for network calls — it is same-origin and carries the action token —
+and `context.confirm(message)` to ask a follow-up question mid-execution.
+
+Return anything: strings, objects, or a full `{ content: [...] }` response. Non-response
+values are serialized to text plus `structuredContent`, and truncated at
+`policy.maxOutputChars` (20,000 by default).
+
+## WebMCPPolicy
+
+| Option | Default | Purpose |
+| --- | --- | --- |
+| `requireAuth` | `false` | Require a session for every tool |
+| `scopes` | `[]` | Baseline scopes on top of per-tool scopes |
+| `confirm` | `'auto'` | Confirm anything not read-only |
+| `confirmHandler` | `window.confirm` | Your confirmation UI |
+| `rateLimit` | `{ limit: 30, windowMs: 60000 }` | `false` disables |
+| `exposedTo` | `[]` | Origins allowed when framed |
+| `redact` | password/token/secret/… | Keys scrubbed from audit and output |
+| `maxOutputChars` | `20000` | Output truncation |
+| `onAudit` | — | `(event: WebMCPAuditEvent) => void` |
+
+## Page translation
+
+```ts
+import {
+  createPageTools, createFormTools, describePage, describeForm, describeField,
+  accessibleName, refFor, resolveRef, resetRefs,
+} from '@warpy-auth-sdk/core/webmcp';
+```
+
+`describePage(options): PageSnapshot` — `{ url, path, title, description?, regions,
+headings, links, forms, actions, text?, truncated? }`.
+
+## Guard internals
+
+```ts
+import {
+  guardTool, redact, defaultConfirmHandler, createToolFetch,
+  RateLimiter, ToolDenied,
+} from '@warpy-auth-sdk/core/webmcp';
+```
+
+Throw `ToolDenied(reason, message)` from a tool to return a specific denial rather than
+a generic execution error. Reasons: `unauthenticated`, `missing_scope`,
+`declined_by_user`, `rate_limited`, `session_expired`, `policy`, `invalid_arguments`.
+
+## Runtime
+
+```ts
+import {
+  getModelContext, isWebMCPSupported, isSecureContext,
+  registerTools, toToolResponse, BRIDGE_KEY,
+} from '@warpy-auth-sdk/core/webmcp';
+```
+
+`getModelContext()` prefers `document.modelContext` and falls back to the deprecated
+`navigator.modelContext`. Unregistration uses an `AbortSignal`, with `unregisterTool`
+and `provideContext` as fallbacks for older builds.
+
+Without browser support the tool table is published at `window.__webmcp__`:
+
+```ts
+const bridge = window.__webmcp__;           // { version, provider, tools, call }
+const result = await bridge.call('page_snapshot', { includeText: false });
+```
+
+A `webmcp:toolschanged` CustomEvent fires when the bridge is published.
+
+## Server
+
+```ts
+import {
+  createWebMCPHandler, issueGrant, issueActionToken, revokeGrant,
+  verifyWebMCPAction, authorizeWebMCPRequest, createMemoryNonceStore, revokeToken,
+} from '@warpy-auth-sdk/core';
+```
+
+`WebMCPServerOptions`: `allowedScopes`, `maxGrantSeconds` (900), `actionTokenSeconds`
+(120), `nonceStore`, `onGrant`, `onAudit`.
+
+`authorizeWebMCPRequest(request, { secret }, scopes?, options?)` returns
+`{ allowed, actor: 'human' | 'agent' | 'anonymous', userId?, agentId?, scopes, reason? }`.
+
+## Paywall
+
+```ts
+import {
+  x402Paywall, creditsPaywall, subscriptionPaywall,
+  verifyWebMCPPayment, createMemoryUsageStore, describePricing, toAtomicUnits,
+} from '@warpy-auth-sdk/core';
+```
+
+`ToolPrice`: `{ amount, currency?, calls?, windowSeconds?, freeCalls?, description?, plan? }`.
+
+`PaywallProvider`: `{ name, entitled?(ctx), quote(ctx), redeem(ctx, proof) }`, where
+`redeem` returns `{ ok: true, calls?, expiresInSeconds?, payer?, amount?, currency?,
+transaction? }` or `{ ok: false, reason }`.
+
+`verifyWebMCPPayment(request, secret, { tool?, usageStore? })` returns
+`{ tool, provider, calls, userId?, agentId?, payer? }` or null, spending one call
+from the receipt.
+
+In the page, `handle.entitlements` (an `EntitlementStore`) holds receipts:
+`get(tool)`, `has(tool)`, `list()`, `consume(tool)`, `clear(tool?)`, `subscribe(fn)`.
+The payment argument agents use is exported as `PAYMENT_ARG` (`"_payment"`).
+
+## Headers
+
+| Header | Set by | Meaning |
+| --- | --- | --- |
+| `X-WebMCP-Tool` | `context.fetch` | Tool that originated the request |
+| `X-WebMCP-Agent` | `context.fetch` | Agent id from the active delegation |
+| `X-WebMCP-Action` | `context.fetch` | Single-use action token |
+| `X-WebMCP-Receipt` | `context.fetch` | Proof a paywalled call was paid for |
