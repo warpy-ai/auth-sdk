@@ -151,7 +151,27 @@ Produces:
 ```
 
 WebMCP's own declarative attributes, `toolname` and `tooldescription`, are accepted as
-aliases.
+aliases — with one difference that matters in a real browser.
+
+Browsers that implement WebMCP (Chrome, and the ChatGPT desktop app's built-in
+browser) synthesize tools from `toolname` forms **themselves**. If the SDK also
+generated one, the page would publish two tools under the same name. So by
+default `toolname` forms are left to the browser where WebMCP is present, and
+claimed by the SDK where it is not — the same markup works in both:
+
+```ts
+createWebMCP({
+  page: {
+    declarativeForms: 'auto',    // default: browser when available, SDK otherwise
+    // 'browser' — never generate them
+    // 'sdk'     — always generate them
+  },
+});
+```
+
+`data-agent-tool` is always the SDK's, since the browser does not know that
+attribute. Prefer it when you want the tool to carry the SDK's auth and payment
+gates; use `toolname` when you want the plain declarative behaviour.
 
 ## What is filtered out automatically
 

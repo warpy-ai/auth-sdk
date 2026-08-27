@@ -264,6 +264,52 @@ describe("page tools", () => {
 });
 
 describe("declarative form tools", () => {
+  /**
+   * ChatGPT's browser and Chrome both synthesize tools from `toolname` forms.
+   * Registering our own would publish two tools under one name.
+   */
+  it("leaves toolname forms to a browser that implements WebMCP", () => {
+    document.body.innerHTML = `
+      <form toolname="spec_form" tooldescription="Handled by the browser">
+        <input name="a" />
+      </form>
+      <form data-agent-tool="sdk_form"><input name="b" /></form>`;
+    resetRefs();
+
+    Object.defineProperty(document, "modelContext", {
+      value: { registerTool: () => undefined },
+      configurable: true,
+      writable: true,
+    });
+
+    try {
+      expect(createFormTools().map((tool) => tool.name)).toEqual(["sdk_form"]);
+    } finally {
+      delete (document as unknown as Record<string, unknown>).modelContext;
+    }
+  });
+
+  it("claims toolname forms when the browser has no WebMCP", () => {
+    document.body.innerHTML = `
+      <form toolname="spec_form" tooldescription="Nobody else will">
+        <input name="a" />
+      </form>`;
+    resetRefs();
+
+    expect(createFormTools().map((tool) => tool.name)).toEqual(["spec_form"]);
+  });
+
+  it("can be forced either way", () => {
+    document.body.innerHTML = `
+      <form toolname="spec_form"><input name="a" /></form>`;
+    resetRefs();
+
+    expect(createFormTools({ declarativeForms: "browser" })).toEqual([]);
+    expect(
+      createFormTools({ declarativeForms: "sdk" }).map((tool) => tool.name)
+    ).toEqual(["spec_form"]);
+  });
+
   it("promotes an annotated form into its own tool", () => {
     const [tool] = createFormTools();
 

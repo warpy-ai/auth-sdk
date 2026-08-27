@@ -1,5 +1,6 @@
 import type { JSONSchema, WebMCPToolDefinition } from "./types";
 import { ToolDenied } from "./policy";
+import { isWebMCPSupported } from "./runtime";
 
 /**
  * Page translation: turns the DOM a human sees into a structured, referenceable
@@ -128,6 +129,17 @@ export interface PageToolsOptions {
   readOnly?: boolean;
   /** Generate one dedicated tool per annotated form. Default: true. */
   formTools?: boolean;
+  /**
+   * Who turns `toolname`-annotated forms into tools.
+   *
+   * Browsers that implement WebMCP synthesize those themselves — ChatGPT's
+   * built-in browser and Chrome both do — so generating our own would publish
+   * two tools with the same name. `auto` (the default) leaves them to the
+   * browser where WebMCP is present and generates them where it is not, so the
+   * same markup works either way. Forms using `data-agent-tool` are always
+   * ours: that attribute means nothing to the browser.
+   */
+  declarativeForms?: "auto" | "browser" | "sdk";
 }
 
 /* -------------------------------------------------------------------------- */
@@ -930,9 +942,20 @@ export function createFormTools(
   const root = scanRoot(options);
   if (!root) return [];
 
-  const forms = Array.from(
-    root.querySelectorAll(`form[${ATTR_TOOL}], form[${ATTR_SPEC_TOOL}]`)
-  ).filter((form) => !isIgnored(form));
+  // Where the browser speaks WebMCP it already synthesizes tools from
+  // `toolname` forms. Generating them again would register two tools under one
+  // name, so by default we only claim the forms the browser ignores.
+  const mode = options.declarativeForms ?? "auto";
+  const claimSpecForms =
+    mode === "sdk" || (mode === "auto" && !isWebMCPSupported());
+
+  const selector = claimSpecForms
+    ? `form[${ATTR_TOOL}], form[${ATTR_SPEC_TOOL}]`
+    : `form[${ATTR_TOOL}]`;
+
+  const forms = Array.from(root.querySelectorAll(selector)).filter(
+    (form) => !isIgnored(form)
+  );
 
   return forms.map((form) => {
     const described = describeForm(form);
