@@ -144,6 +144,14 @@ and carries a single-use action token your backend can verify.
 - Everything else (page translation, the guard, server verification) works today
   regardless of browser support, through the bridge.
 
+## A worked example
+
+[`examples/webmcp-storefront`](https://github.com/warpy-ai/auth-sdk/tree/master/examples/webmcp-storefront)
+is a complete shop built on this: browse and search as tools, scoped consent
+before the agent touches the cart, a confirmation modal before it spends money, a
+paywalled search agents pay per call, and a panel showing every gate decision as
+it happens. The whole integration is three files.
+
 ## Where next
 
 - [Security model](/docs/webmcp/security-model) — what stops a prompt-injected agent

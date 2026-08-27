@@ -67,6 +67,7 @@ export interface PageToolsOptions {
     annotatedOnly?: boolean;
     readOnly?: boolean;
     formTools?: boolean;
+    declarativeForms?: "auto" | "browser" | "sdk";
 }
 export declare function refFor(element: Element): string;
 export declare function resolveRef(ref: string): Element;

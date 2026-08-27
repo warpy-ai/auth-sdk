@@ -45,6 +45,10 @@ The SDK is built around a provider-based architecture with MCP integration and P
    - `signOut()`: Clears sessions and revokes tokens
    - `verifyAgentToken()`: Validates MCP agent tokens for scoped access
    - `createSessionCookie()` / `clearSessionCookie()`: Cookie management helpers
+   - `toPublicSession()`: strips the signed token before a session crosses the wire to a
+     browser. Every session endpoint (Next handler and all framework adapters) uses it -
+     the cookie is HttpOnly so page scripts cannot read it, and an endpoint echoing the
+     same JWT would undo that
    - **PKCE Support**: Automatic PKCE (Proof Key for Code Exchange) for OAuth security
    - **CAPTCHA Support**: Optional bot protection with multiple providers
 
@@ -488,11 +492,18 @@ Notes:
   - **Paywalled tools**: per-call pricing with x402 (agent wallet), prepaid credits, or
     subscription-gated access; free allowances, machine-readable pricing in the manifest and
     tool descriptions, receipt metering, and `onPayment` revenue hooks
+- **Agent-ready storefront example** ([examples/webmcp-storefront](examples/webmcp-storefront)):
+  a coffee shop an AI agent can browse, search and order from - scoped delegation, a custom
+  confirmation modal, `data-agent-sensitive`/`data-agent-ignore` fields, a paywalled
+  `premium_search` (credits by default, x402 when `X402_PAY_TO` is set), and an Agent panel
+  showing registered tools, delegated scopes, receipts and a live audit log
 - Framework adapters with complete examples:
   - Fastify adapter ([examples/fastify-example](examples/fastify-example))
   - Express adapter ([examples/express-example](examples/express-example))
   - Hono adapter with multi-runtime support ([examples/hono-example](examples/hono-example))
   - Pure Node.js HTTP adapter ([examples/node-example](examples/node-example))
+  - WebMCP storefront ([examples/webmcp-storefront](examples/webmcp-storefront)) - the
+    reference integration for WebMCP, consent and the paywall
 - All adapters support PKCE, MCP integration, CAPTCHA, and protected routes
 - **CAPTCHA Bot Protection**:
   - Multiple providers: reCAPTCHA v2, reCAPTCHA v3, hCaptcha, Cloudflare Turnstile

@@ -44,6 +44,7 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
 import { createMCPShield, type MCPShieldConfig } from "../shield/mcpShield";
 
@@ -102,7 +103,7 @@ export function registerAuthRoutes(
     `${base}/session`,
     async (req: ExpressRequest, res: ExpressResponse) => {
       const session = await coreGetSession(buildWebRequest(req), config.secret);
-      res.json({ session });
+      res.json({ session: session ? toPublicSession(session) : null });
     }
   );
 

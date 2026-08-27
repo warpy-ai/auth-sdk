@@ -43,6 +43,7 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
 import { createMCPShield, type MCPShieldConfig } from "../shield/mcpShield";
 
@@ -107,7 +108,7 @@ export function registerAuthRoutes(
 
   app.get(`${base}/session`, async (c: HonoContext) => {
     const session = await coreGetSession(buildWebRequest(c), config.secret);
-    return c.json({ session });
+    return c.json({ session: session ? toPublicSession(session) : null });
   });
 
   app.post(`${base}/signout`, async (c: HonoContext) => {

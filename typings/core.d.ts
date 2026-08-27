@@ -68,6 +68,7 @@ export interface AuthenticateResult {
 export declare function authenticate(config: AuthConfig, request?: Request, payload?: MCPLoginPayload): Promise<AuthenticateResult>;
 export declare function getSession(request: Request, secret: string): Promise<Session | null>;
 export declare function signOut(request: Request, config: AuthConfig): Promise<void>;
+export declare function toPublicSession(session: Session): Omit<Session, "token">;
 export declare function createSessionCookie(session: Session): string;
 export declare function clearSessionCookie(): string;
 export declare function verifyAgentToken(request: Request, secret: string): Promise<Session | null>;

@@ -5,6 +5,7 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
 import {
   createWebMCPHandler,
@@ -103,7 +104,10 @@ export function createNextAuthHandler(
       // Session
       if (pathname === routes.session && method === "GET") {
         const session = await getSession(request, config.secret);
-        return Response.json({ session }, { status: 200 });
+        return Response.json(
+          { session: session ? toPublicSession(session) : null },
+          { status: 200 }
+        );
       }
 
       // Sign out

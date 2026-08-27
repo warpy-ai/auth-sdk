@@ -6,6 +6,7 @@ export {
   verifyAgentToken,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
   type AuthConfig,
   type Session,
   type MCPLoginPayload,

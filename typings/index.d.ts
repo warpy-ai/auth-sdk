@@ -1,4 +1,4 @@
-export { authenticate, getSession, signOut, verifyAgentToken, createSessionCookie, clearSessionCookie, type AuthConfig, type Session, type MCPLoginPayload, type AuthenticateResult, } from "./core";
+export { authenticate, getSession, signOut, verifyAgentToken, createSessionCookie, clearSessionCookie, toPublicSession, type AuthConfig, type Session, type MCPLoginPayload, type AuthenticateResult, } from "./core";
 export { google, type GoogleProviderOptions } from "./providers/google";
 export { email, type EmailProviderOptions, type CustomEmailTemplate, } from "./providers/email";
 export { facebook, type FacebookProviderOptions } from "./providers/facebook";

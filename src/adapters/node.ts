@@ -7,6 +7,7 @@ import {
   signOut,
   createSessionCookie,
   clearSessionCookie,
+  toPublicSession,
 } from "../core";
 import { createMCPShield, type MCPShieldConfig } from "../shield/mcpShield";
 
@@ -119,7 +120,7 @@ export function createAuthHandler(
     // Session endpoint
     if (pathname === `${base}/session` && req.method === "GET") {
       const session = await coreGetSession(buildWebRequest(req), config.secret);
-      sendJSON(res, { session });
+      sendJSON(res, { session: session ? toPublicSession(session) : null });
       return true;
     }
 

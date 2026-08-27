@@ -524,6 +524,20 @@ export async function signOut(
   // Cookie will be cleared by returning clearCookie in response
 }
 
+/**
+ * Strips the signed token from a session before it is sent to the browser.
+ *
+ * The session cookie is HttpOnly so that page scripts cannot read it. An
+ * endpoint that returns the same JWT in its body hands it straight back to any
+ * script on the origin — an XSS payload, a third-party tag, an in-tab AI agent —
+ * and undoes that protection. Server-side callers of `getSession` still get the
+ * token; anything crossing the wire to a browser should go through this.
+ */
+export function toPublicSession(session: Session): Omit<Session, "token"> {
+  const { token: _token, ...rest } = session;
+  return rest;
+}
+
 export function createSessionCookie(session: Session): string {
   return serializeCookie(SESSION_COOKIE_NAME, session.token || "", {
     maxAge: Math.floor((session.expires.getTime() - Date.now()) / 1000),

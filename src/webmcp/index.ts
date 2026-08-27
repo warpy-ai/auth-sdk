@@ -54,6 +54,29 @@ export {
   type GrantListener,
 } from "./grant";
 
+// Paywall (browser half). Providers and route handlers are server-side and live
+// in "@warpy-auth-sdk/core/webmcp/paywall".
+export {
+  EntitlementStore,
+  type EntitlementListener,
+} from "./paywall/entitlement";
+export {
+  requestQuote,
+  requestSettle,
+  type PaywallEndpoints,
+  type PaywallResult,
+} from "./paywall/client";
+export { PAYMENT_ARG } from "./policy";
+export type {
+  ToolPrice,
+  PricingTable,
+  PaymentChallenge,
+  PaymentReceipt,
+  PaywallQuoteResponse,
+  X402PaymentRequired,
+  X402PaymentRequirements,
+} from "./paywall/types";
+
 export {
   getModelContext,
   isWebMCPSupported,

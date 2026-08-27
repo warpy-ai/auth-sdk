@@ -131,7 +131,12 @@ in production.
 
 ## What never reaches the model
 
-- **Session tokens.** `auth_get_session` returns identity, not credentials.
+- **Session tokens.** `auth_get_session` returns identity, not credentials — and
+  since the session cookie is HttpOnly precisely so page scripts cannot read it,
+  `GET {basePath}/session` does not return the JWT either. An endpoint that
+  echoed it would hand the session to any script on the origin, agent or not.
+  Server-side, `getSession` still returns the token; `toPublicSession` is what
+  strips it on the way out.
 - **Delegation tokens.** Held by the page; the agent gets a description.
 - **Password, hidden and one-time-code fields.** Never read, never filled.
 - **Card, CVV, SSN-shaped fields.** Matched by type, `autocomplete` and name.

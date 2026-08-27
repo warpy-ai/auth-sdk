@@ -1,0 +1,28 @@
+{
+  "name": "webmcp-storefront",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An agent-ready storefront built on @warpy-auth-sdk/core: WebMCP tools with scoped consent, human confirmation, and per-call payments.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint"
+  },
+  "dependencies": {
+    "@warpy-auth-sdk/core": "file:../..",
+    "next": "16.0.10",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.0.0",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
